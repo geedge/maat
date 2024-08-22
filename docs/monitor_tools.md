@@ -28,13 +28,13 @@ The statistical information in the above figure is divided into two parts, part1
 
 - garbage_queue_len: number of elements in the garbage queue
 
-- hit_compile_num: total number of hits on compile
+- hit_rule_num: total number of hits on rule
 
 - state_num: total number of current maat_state
 
 - per_state_num: number of bytes occupied by each maat_state on average
 
-- compile_state_num: total number of current compile_state created within maat_state during partial hits or hits
+- rule_state_num: total number of current rule_state created within maat_state during partial hits or hits
 
 - stream_num: total number of scanned streams
 

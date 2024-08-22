@@ -27,7 +27,7 @@ size_t g_thread_num = 4;
 
 
 int test_add_expr_command(struct maat *maat_inst, const char *expr_table, 
-                          long long compile_id, int timeout,
+                          long long rule_id, int timeout,
                           const char *keywords)
 {
     char huge_serv_def[1024 * 2] = {0};
@@ -35,13 +35,13 @@ int test_add_expr_command(struct maat *maat_inst, const char *expr_table,
     memset(huge_serv_def, 's', sizeof(huge_serv_def) - 1);
     huge_serv_def[sizeof(huge_serv_def) - 1] = '\0';
 
-    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD,
-                                     compile_id, huge_serv_def, 1, timeout);
+    int ret = rule_table_set_line(maat_inst, "RULE_DEFAULT", MAAT_OP_ADD,
+                                     rule_id, huge_serv_def, 1, timeout);
     EXPECT_EQ(ret, 1);
 
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE_DEFAULT", MAAT_OP_ADD,
-                                       group_id, compile_id, 0, expr_table, 1, timeout);
+    ret = group2rule_table_set_line(maat_inst, "GROUP2RULE_DEFAULT", MAAT_OP_ADD,
+                                       group_id, rule_id, 0, expr_table, 1, timeout);
     EXPECT_EQ(ret, 1);
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -52,10 +52,10 @@ int test_add_expr_command(struct maat *maat_inst, const char *expr_table,
     return ret;
 }
 
-int del_command(struct maat *maat_inst, int compile_id)
+int del_command(struct maat *maat_inst, int rule_id)
 {
-    return compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_DEL,
-                                  compile_id, "null", 1, 0);
+    return rule_table_set_line(maat_inst, "RULE_DEFAULT", MAAT_OP_DEL,
+                                  rule_id, "null", 1, 0);
 }
 
 const char *watched_json = "./json_update/maat.json";
@@ -221,7 +221,7 @@ TEST_F(FlagScan, basic) {
     struct maat *maat_inst = FlagScan::_shared_maat_inst;
 
     int flag_table_id = maat_get_table_id(maat_inst, flag_table_name);
-    //compile_id:192 flag: 0000 0001 mask: 0000 0011
+    //rule_id:192 flag: 0000 0001 mask: 0000 0011
     //scan_data: 0000 1001 or 0000 1101 should hit
     long long scan_data = 9;
     long long results[ARRAY_SIZE] = {0};
@@ -284,7 +284,7 @@ TEST_F(FlagScan, withExprRegion) {
 
     int flag_table_id = maat_get_table_id(maat_inst, flag_table_name);
     int expr_table_id = maat_get_table_id(maat_inst, expr_table_name);
-    //compile_id:193 flag: 0000 0010 mask: 0000 0011
+    //rule_id:193 flag: 0000 0010 mask: 0000 0011
     //scan_data: 0000 0010 or 0000 0100 should hit
     long long flag_scan_data = 2;
     long long results[ARRAY_SIZE] = {0};
@@ -322,14 +322,14 @@ TEST_F(FlagScan, withExprRegion) {
     state = NULL;
 }   
 
-TEST_F(FlagScan, hitMultiCompile) {
+TEST_F(FlagScan, hitMultiRule) {
     const char *flag_table_name = "FLAG_CONFIG";
     struct maat *maat_inst = FlagScan::_shared_maat_inst;
 
     int flag_table_id = maat_get_table_id(maat_inst, flag_table_name);
-    //compile_id:192 flag: 0000 0001 mask: 0000 0011
-    //compile_id:194 flag: 0001 0101 mask: 0001 1111
-    //scan_data: 0001 0101 should hit compile192 and compile194
+    //rule_id:192 flag: 0000 0001 mask: 0000 0011
+    //rule_id:194 flag: 0001 0101 mask: 0001 1111
+    //scan_data: 0001 0101 should hit rule192 and rule194
     long long flag_scan_data = 21;
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -366,7 +366,7 @@ TEST_F(FlagScan, hitMultiCompile) {
     state = NULL;
 }  
 
-TEST_F(FlagScan, hitRepeatedCompile) {
+TEST_F(FlagScan, hitRepeatedRule) {
     const char *flag_table_name = "FLAG_CONFIG";
     struct maat *maat_inst = FlagScan::_shared_maat_inst;
 
@@ -376,7 +376,7 @@ TEST_F(FlagScan, hitRepeatedCompile) {
     int thread_id = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    //compile_id:192 flag: 0000 0001 mask: 0000 0011
+    //rule_id:192 flag: 0000 0001 mask: 0000 0011
     //scan_data: 0000 1001 or 0000 1101 should hit
     long long flag_scan_data1 = 9; 
     int ret = maat_scan_flag(maat_inst, flag_table_id, flag_scan_data1, results, 
@@ -390,9 +390,9 @@ TEST_F(FlagScan, hitRepeatedCompile) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    //compile_id:192 flag: 0000 0001 mask: 0000 0011
-    //compile_id:194 flag: 0001 0101 mask: 0001 1111
-    //scan_data: 0001 0101 should hit compile192 and compile194
+    //rule_id:192 flag: 0000 0001 mask: 0000 0011
+    //rule_id:194 flag: 0001 0101 mask: 0001 1111
+    //scan_data: 0001 0101 should hit rule192 and rule194
 	long long flag_scan_data2 = 21;
     memset(results, 0, sizeof(results));
     ret = maat_scan_flag(maat_inst, flag_table_id, flag_scan_data2, results, 
@@ -429,7 +429,7 @@ TEST_F(FlagScan, FlagPlus) {
     struct maat *maat_inst = FlagScan::_shared_maat_inst;
 
     int flag_table_id = maat_get_table_id(maat_inst, flag_table_name);
-    //compile_id:196 flag: 0001 1111 mask: 0000 1111
+    //rule_id:196 flag: 0001 1111 mask: 0000 1111
     //scan_data: 0000 1111 or 0001 1111 should hit
     long long scan_data1 = 15;
     long long results[ARRAY_SIZE] = {0};
@@ -671,19 +671,19 @@ TEST_F(HsStringScan, BackslashR_N_Escape_IncUpdate) {
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     maat_state_reset(state);
 
-    const char *compile_table_name = "COMPILE_DEFAULT";
-    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
+    const char *rule_table_name = "RULE_DEFAULT";
+    const char *g2c_table_name = "GROUP2RULE_DEFAULT";
 
-    /* compile table add line */
-    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                 compile_id, "null", 1, 0);
+    /* rule table add line */
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                 rule_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    /* group2compile table add line */
+    /* group2rule table add line */
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group_id, compile_id, 0, table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* expr table add line */
@@ -702,7 +702,7 @@ TEST_F(HsStringScan, BackslashR_N_Escape_IncUpdate) {
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
     EXPECT_EQ(results[0], 234);
-    EXPECT_EQ(results[1], compile_id);
+    EXPECT_EQ(results[1], rule_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1444,19 +1444,19 @@ TEST_F(HsStringScan, dynamic_config) {
 
     maat_state_reset(state);
 
-    const char *compile_table_name = "COMPILE_DEFAULT";
-    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
+    const char *rule_table_name = "RULE_DEFAULT";
+    const char *g2c_table_name = "GROUP2RULE_DEFAULT";
 
-    /* compile table add line */
-    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                 compile_id, "null", 1, 0);
+    /* rule table add line */
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                 rule_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    /* group2compile table add line */
+    /* group2rule table add line */
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group_id, compile_id, 0, table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* expr table add line */
@@ -1474,7 +1474,7 @@ TEST_F(HsStringScan, dynamic_config) {
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile_id);
+    EXPECT_EQ(results[0], rule_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1487,14 +1487,14 @@ TEST_F(HsStringScan, dynamic_config) {
                               group_id, keywords, NULL, 1, 0);
     EXPECT_EQ(ret, 1);
 
-    /* group2compile table del line */
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
-                                       group_id, compile_id, 0, table_name, 1, 0);
+    /* group2rule table del line */
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+                                       group_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
-    /* compile table del line */
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL,
-                                 compile_id, "null", 1, 0);
+    /* rule table del line */
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
+                                 rule_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -1709,19 +1709,19 @@ TEST_F(RsStringScan, BackslashR_N_Escape_IncUpdate) {
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     maat_state_reset(state);
 
-    const char *compile_table_name = "COMPILE_DEFAULT";
-    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
+    const char *rule_table_name = "RULE_DEFAULT";
+    const char *g2c_table_name = "GROUP2RULE_DEFAULT";
 
-    /* compile table add line */
-    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                 compile_id, "null", 1, 0);
+    /* rule table add line */
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                 rule_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    /* group2compile table add line */
+    /* group2rule table add line */
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group_id, compile_id, 0, table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* expr table add line */
@@ -1740,7 +1740,7 @@ TEST_F(RsStringScan, BackslashR_N_Escape_IncUpdate) {
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
     EXPECT_EQ(results[0], 234);
-    EXPECT_EQ(results[1], compile_id);
+    EXPECT_EQ(results[1], rule_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -2489,19 +2489,19 @@ TEST_F(RsStringScan, dynamic_config) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    const char *compile_table_name = "COMPILE_DEFAULT";
-    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
+    const char *rule_table_name = "RULE_DEFAULT";
+    const char *g2c_table_name = "GROUP2RULE_DEFAULT";
 
-    /* compile table add line */
-    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                 compile_id, "null", 1, 0);
+    /* rule table add line */
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                 rule_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    /* group2compile table add line */
+    /* group2rule table add line */
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group_id, compile_id, 0, table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* expr table add line */
@@ -2519,7 +2519,7 @@ TEST_F(RsStringScan, dynamic_config) {
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile_id);
+    EXPECT_EQ(results[0], rule_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -2532,14 +2532,14 @@ TEST_F(RsStringScan, dynamic_config) {
                               group_id, keywords, NULL, 1, 0);
     EXPECT_EQ(ret, 1);
 
-    /* group2compile table del line */
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
-                                       group_id, compile_id, 0, table_name, 1, 0);
+    /* group2rule table del line */
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+                                       group_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
-    /* compile table del line */
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL,
-                                 compile_id, table_name, 1, 0);
+    /* rule table del line */
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
+                                 rule_id, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -2606,8 +2606,8 @@ TEST_F(HsStreamScan, dynamic_config) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     // STEP 1: add keywords1 and wait scan stream to hit
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = test_add_expr_command(maat_inst, table_name, compile1_id, 0, keywords1);
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = test_add_expr_command(maat_inst, table_name, rule1_id, 0, keywords1);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -2630,7 +2630,7 @@ TEST_F(HsStreamScan, dynamic_config) {
                            ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-	EXPECT_EQ(results[0], compile1_id);
+	EXPECT_EQ(results[0], rule1_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -2640,22 +2640,22 @@ TEST_F(HsStreamScan, dynamic_config) {
 
     // STEP 2: Inc config update, use same stream to scan and wait old expr_runtime invalid 
     random_keyword_generate(keyword_buf, sizeof(keyword_buf));
-    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = test_add_expr_command(maat_inst, table_name, compile_id, 0, keyword_buf);
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = test_add_expr_command(maat_inst, table_name, rule_id, 0, keyword_buf);
     EXPECT_EQ(ret, 1);
 
-    // Inc config has not yet taken effect, stream scan can hit compile
+    // Inc config has not yet taken effect, stream scan can hit rule
     ret = maat_stream_scan(sp, scan_data2, strlen(scan_data2), results,
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile1_id);
+    EXPECT_EQ(results[0], rule1_id);
 
     maat_state_reset(state);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    // Inc config has taken effect, stream reference old expr_runtime, should not hit compile
+    // Inc config has taken effect, stream reference old expr_runtime, should not hit rule
     ret = maat_stream_scan(sp, scan_data2, strlen(scan_data2), results,
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
@@ -2720,8 +2720,8 @@ TEST_F(RsStreamScan, dynamic_config) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     // STEP 1: add keywords1 and wait scan stream to hit
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = test_add_expr_command(maat_inst, table_name, compile1_id, 0, keywords1);
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = test_add_expr_command(maat_inst, table_name, rule1_id, 0, keywords1);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -2744,7 +2744,7 @@ TEST_F(RsStreamScan, dynamic_config) {
                            ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-	EXPECT_EQ(results[0], compile1_id);
+	EXPECT_EQ(results[0], rule1_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -2754,16 +2754,16 @@ TEST_F(RsStreamScan, dynamic_config) {
 
     // STEP 2: Inc config update, use same stream to scan and wait old expr_runtime invalid 
     random_keyword_generate(keyword_buf, sizeof(keyword_buf));
-    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = test_add_expr_command(maat_inst, table_name, compile_id, 0, keyword_buf);
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = test_add_expr_command(maat_inst, table_name, rule_id, 0, keyword_buf);
     EXPECT_EQ(ret, 1);
 
-    // Inc config has not yet taken effect, stream scan can hit compile
+    // Inc config has not yet taken effect, stream scan can hit rule
     ret = maat_stream_scan(sp, scan_data2, strlen(scan_data2), results,
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile1_id);
+    EXPECT_EQ(results[0], rule1_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -2773,7 +2773,7 @@ TEST_F(RsStreamScan, dynamic_config) {
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    // Inc config has taken effect, stream reference old expr_runtime, should not hit compile
+    // Inc config has taken effect, stream reference old expr_runtime, should not hit rule
     ret = maat_stream_scan(sp, scan_data2, strlen(scan_data2), results,
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
@@ -3183,19 +3183,19 @@ TEST_F(IPScan, RuleUpdates) {
 
     maat_state_reset(state);
 
-    const char *compile_table_name = "COMPILE_DEFAULT";
-    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
+    const char *rule_table_name = "RULE_DEFAULT";
+    const char *g2c_table_name = "GROUP2RULE_DEFAULT";
 
-     /* compile table add line */
-    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, 
-                                 compile_id, "null", 1, 0);
+     /* rule table add line */
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
+                                 rule_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    /* group2compile table add line */
+    /* group2rule table add line */
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
-                                       group_id, compile_id, 0, table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
+                                       group_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* ip table add line */
@@ -3210,7 +3210,7 @@ TEST_F(IPScan, RuleUpdates) {
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile_id);
+    EXPECT_EQ(results[0], rule_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -3223,14 +3223,14 @@ TEST_F(IPScan, RuleUpdates) {
                             group_id, "100.100.100.100", 0);
     EXPECT_EQ(ret, 1);
 
-    /* group2compile table del line */
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
-                                       group_id, compile_id, 0, table_name, 1, 0);
+    /* group2rule table del line */
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+                                       group_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
-    /* compile table del line */
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL, 
-                                 compile_id, "null", 1, 0);
+    /* rule table del line */
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, 
+                                 rule_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -3256,19 +3256,19 @@ TEST_F(IPScan, RuleChangeClauseId) {
     int thread_id = 0;
     int ret;
 
-    const char *compile_table_name = "COMPILE_DEFAULT";
-    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
+    const char *rule_table_name = "RULE_DEFAULT";
+    const char *g2c_table_name = "GROUP2RULE_DEFAULT";
 
-     /* compile table add line */
-    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, 
-                                 compile_id, "null", 2, 0);
+     /* rule table add line */
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
+                                 rule_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    /* group2compile table add line */
+    /* group2rule table add line */
     long long group_id1 = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
-                                       group_id1, compile_id, 0, src_table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
+                                       group_id1, rule_id, 0, src_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* ip table add line */
@@ -3277,10 +3277,10 @@ TEST_F(IPScan, RuleChangeClauseId) {
                             group_id1, "1.1.1.1", 0);
     EXPECT_EQ(ret, 1);
 
-    /* group2compile table add line */
+    /* group2rule table add line */
     long long group_id2 = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
-                                       group_id2, compile_id, 0, dst_table_name, 2, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
+                                       group_id2, rule_id, 0, dst_table_name, 2, 0);
     EXPECT_EQ(ret, 1);
 
     /* ip table add line */
@@ -3319,33 +3319,33 @@ TEST_F(IPScan, RuleChangeClauseId) {
     EXPECT_EQ(n_hit_result, 0);
 
     
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL, 
-                                 compile_id, "null", 2, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, 
+                                 rule_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, 
-                                 compile_id, "null", 2, 0);
-    EXPECT_EQ(ret, 1);
-
-
-    /* group2compile table del line */
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
-                                       group_id1, compile_id, 0, src_table_name, 1, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
+                                 rule_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
-                                       group_id2, compile_id, 0, dst_table_name, 2, 0);
+
+    /* group2rule table del line */
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+                                       group_id1, rule_id, 0, src_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group_id1, compile_id, 0, src_table_name, 2, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+                                       group_id2, rule_id, 0, dst_table_name, 2, 0);
+    EXPECT_EQ(ret, 1);
+
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group_id1, rule_id, 0, src_table_name, 2, 0);
     EXPECT_EQ(ret, 1); 
 
     const char *app_id_table_name = "APP_ID";
     int app_id_table_id = maat_get_table_id(maat_inst, app_id_table_name);
-    /* group2compile table add line */
+    /* group2rule table add line */
     long long group_id3 = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
-                                       group_id3, compile_id, 0, app_id_table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
+                                       group_id3, rule_id, 0, app_id_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
     
 
@@ -3603,7 +3603,7 @@ TEST_F(GroupScan, VirtualTable) {
     sleep(2);
 }
 
-TEST_F(GroupScan, SetScanCompileTable) {
+TEST_F(GroupScan, SetScanRuleTable) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
@@ -3614,10 +3614,10 @@ TEST_F(GroupScan, SetScanCompileTable) {
     int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GE(table_id, 0);
 
-    const char *compile_table_name = "COMPILE_FIREWALL_CONJUNCTION";
-    int compile_table_id = maat_get_table_id(maat_inst, compile_table_name);
+    const char *rule_table_name = "RULE_FIREWALL_CONJUNCTION";
+    int rule_table_id = maat_get_table_id(maat_inst, rule_table_name);
 
-    int ret = maat_state_set_scan_compile_table(state, compile_table_id);
+    int ret = maat_state_set_scan_rule_table(state, rule_table_id);
     EXPECT_EQ(ret, 0);
 
     struct maat_hit_group hit_group;
@@ -3737,7 +3737,7 @@ TEST_F(NOTLogic, ScanNotAtLast) {
     int hit_table_id = maat_get_table_id(maat_inst, hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
-    // scan string_should_hit(HTTP_URL_FILTER) & string_should_not_hit(HTTP_RESPONSE_KEYWORDS) => not hit compile
+    // scan string_should_hit(HTTP_URL_FILTER) & string_should_not_hit(HTTP_RESPONSE_KEYWORDS) => not hit rule
     int ret = maat_scan_string(maat_inst, hit_table_id, string_should_hit,
                                strlen(string_should_hit), results, ARRAY_SIZE,
                                &n_hit_result, state);
@@ -3762,7 +3762,7 @@ TEST_F(NOTLogic, ScanNotAtLast) {
 
     maat_state_reset(state);
 
-    //scan string_should_hit(HTTP_URL_FILTER) & nothing(HTTP_RESPONSE_KEYWORDS) => hit compile144
+    //scan string_should_hit(HTTP_URL_FILTER) & nothing(HTTP_RESPONSE_KEYWORDS) => hit rule144
     ret = maat_scan_string(maat_inst, hit_table_id, string_should_hit,
                                strlen(string_should_hit), results, ARRAY_SIZE,
                                &n_hit_result, state);
@@ -3947,7 +3947,7 @@ TEST_F(NOTLogic, ScanNotIP) {
     int hit_table_id = maat_get_table_id(maat_inst, hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
-    // scan string_should_hit(HTTP_URL) & hit ip(VIRTUAL_IP_CONFIG) => not hit compile
+    // scan string_should_hit(HTTP_URL) & hit ip(VIRTUAL_IP_CONFIG) => not hit rule
     int ret = maat_scan_string(maat_inst, hit_table_id, string_should_hit, 
                                strlen(string_should_hit), results, ARRAY_SIZE, 
                                &n_hit_result, state);
@@ -3975,7 +3975,7 @@ TEST_F(NOTLogic, ScanNotIP) {
 
     maat_state_reset(state);
 
-    // scan string_should_hit(HTTP_URL) & not hit ip(VIRTUAL_IP_CONFIG) => hit compile145
+    // scan string_should_hit(HTTP_URL) & not hit ip(VIRTUAL_IP_CONFIG) => hit rule145
     ret = maat_scan_string(maat_inst, hit_table_id, string_should_hit, 
                                strlen(string_should_hit), results, ARRAY_SIZE, 
                                &n_hit_result, state);
@@ -4010,7 +4010,7 @@ TEST_F(NOTLogic, ScanNotWithDistrict) {
     int url_table_id = maat_get_table_id(maat_inst, url_table_name);
     ASSERT_GT(url_table_id, 0);
 
-    // scan string1(HTTP_URL) & string2(HTTP_REQUEST_HEADER) => not hit compile
+    // scan string1(HTTP_URL) & string2(HTTP_REQUEST_HEADER) => not hit rule
     int ret = maat_scan_string(maat_inst, url_table_id, string1, 
                                strlen(string1), results, ARRAY_SIZE, 
                                &n_hit_result, state);
@@ -4033,7 +4033,7 @@ TEST_F(NOTLogic, ScanNotWithDistrict) {
 
     maat_state_reset(state);
 
-    // scan string1(HTTP_URL) & string3(HTTP_REQUEST_HEADER) => hit compile221
+    // scan string1(HTTP_URL) & string3(HTTP_REQUEST_HEADER) => hit rule221
     ret = maat_scan_string(maat_inst, url_table_id, string1, 
                            strlen(string1), results, ARRAY_SIZE, 
                            &n_hit_result, state);
@@ -4074,7 +4074,7 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
     int url_table_id = maat_get_table_id(maat_inst, url_table_name);
     ASSERT_GT(url_table_id, 0);
 
-    //scan string_should_half_hit(HTTP_URL_FILTER) & hit ip(VIRTUAL_IP_CONFIG) => not hit compile
+    //scan string_should_half_hit(HTTP_URL_FILTER) & hit ip(VIRTUAL_IP_CONFIG) => not hit rule
     int ret = maat_scan_string(maat_inst, url_table_id, string_should_half_hit, 
                                strlen(string_should_half_hit), results, ARRAY_SIZE, 
                                &n_hit_result, state);
@@ -4100,7 +4100,7 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
 
     maat_state_reset(state);
 
-    // scan string_should_half_hit(HTTP_RESPONSE_KEYWORDS) & not hit ip(VIRTUAL_IP_CONFIG) => not hit compile
+    // scan string_should_half_hit(HTTP_RESPONSE_KEYWORDS) & not hit ip(VIRTUAL_IP_CONFIG) => not hit rule
     int http_table_id = maat_get_table_id(maat_inst, http_table_name);
     ASSERT_GT(http_table_id, 0);
 
@@ -4124,7 +4124,7 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
 
     maat_state_reset(state);
 
-    // scan scan string_should_half_hit(HTTP_URL_FILTER) & not hit ip(VIRTUAL_IP_CONFIG) => hit compile146
+    // scan scan string_should_half_hit(HTTP_URL_FILTER) & not hit ip(VIRTUAL_IP_CONFIG) => hit rule146
     ret = maat_scan_string(maat_inst, url_table_id, string_should_half_hit, 
                                strlen(string_should_half_hit), results, ARRAY_SIZE, 
                                &n_hit_result, state);
@@ -4155,8 +4155,8 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
 }
 
 TEST_F(NOTLogic, NotPhysicalTable) {
-    const char *string1 = "This string ONLY contains not_logic_compile_224_1.";
-    const char *string2 = "This string ONLY contains not_logic_compile_224_2.";
+    const char *string1 = "This string ONLY contains not_logic_rule_224_1.";
+    const char *string2 = "This string ONLY contains not_logic_rule_224_2.";
     const char *string3 = "This string ONLY contains nothing.";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -4172,7 +4172,7 @@ TEST_F(NOTLogic, NotPhysicalTable) {
     int vtable_id = maat_get_table_id(maat_inst, vtable_name);
     ASSERT_GT(vtable_id, 0);
 
-    // scan hit string1(KEYWORDS_TABLE) & hit string2(HTTP_RESPONSE_KEYWORDS) => not hit compile
+    // scan hit string1(KEYWORDS_TABLE) & hit string2(HTTP_RESPONSE_KEYWORDS) => not hit rule
     int ret = maat_scan_string(maat_inst, phy_table_id, string1, 
                                strlen(string1), results, ARRAY_SIZE, 
                                &n_hit_result, state);
@@ -4188,7 +4188,7 @@ TEST_F(NOTLogic, NotPhysicalTable) {
 
     maat_state_reset(state);
 
-    //scan not hit string1(KEYWORDS_TABLE) & hit string2(HTTP_RESPONSE_KEYWORDS) => hit compile224
+    //scan not hit string1(KEYWORDS_TABLE) & hit string2(HTTP_RESPONSE_KEYWORDS) => hit rule224
     ret = maat_scan_string(maat_inst, phy_table_id, string3, strlen(string3),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
@@ -4380,7 +4380,7 @@ TEST_F(NOTLogic, NotClauseAndExcludeGroup1) {
 TEST_F(NOTLogic, NotClauseAndExcludeGroup2) {
     const char *string1 = "This string ONLY contains mail.string-of-rule-217.com";
     const char *string2= "This string ONLY contains www.string-of-rule-217.com";
-    const char *string_keywords = "This string contain keywords-for-compile-217";
+    const char *string_keywords = "This string contain keywords-for-rule-217";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
@@ -4450,7 +4450,7 @@ TEST_F(NOTLogic, SingleNotClause) {
     int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-    //string_should_hit(HTTP_NOT_LOGIC_1) => not hit compile
+    //string_should_hit(HTTP_NOT_LOGIC_1) => not hit rule
     int ret = maat_scan_string(maat_inst, table_id, string_should_hit,
                                strlen(string_should_hit), results, ARRAY_SIZE,
                                &n_hit_result, state);
@@ -4462,7 +4462,7 @@ TEST_F(NOTLogic, SingleNotClause) {
 
     maat_state_reset(state);
 
-    //string nothing(HTTP_NOT_LOGIC_1) => hit compile222
+    //string nothing(HTTP_NOT_LOGIC_1) => hit rule222
     ret = maat_scan_string(maat_inst, table_id, string_nothing, strlen(string_nothing),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
@@ -4479,9 +4479,9 @@ TEST_F(NOTLogic, SingleNotClause) {
 
 TEST_F(NOTLogic, MultiNotClauses) {
     const char *string_nothing = "nothing string";
-    const char *string1 = "string has not_logic_compile_223_1";
-    const char *string2 = "string has not_logic_compile_223_1";
-    const char *string3 = "string has not_logic_compile_223_1";
+    const char *string1 = "string has not_logic_rule_223_1";
+    const char *string2 = "string has not_logic_rule_223_1";
+    const char *string3 = "string has not_logic_rule_223_1";
     const char *table_name = "HTTP_NOT_LOGIC";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -4492,7 +4492,7 @@ TEST_F(NOTLogic, MultiNotClauses) {
     int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-    // compile223 = !string1 & !string2 & !string3
+    // rule223 = !string1 & !string2 & !string3
     //Case1: scan string1 & !string2 & !string3
     int ret = maat_scan_string(maat_inst, table_id, string1, strlen(string1),
                                results, ARRAY_SIZE, &n_hit_result, state);
@@ -4568,7 +4568,7 @@ TEST_F(NOTLogic, MultiGroupsInOneNotClause) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     //--------------------------------------
-	//			Source ASN1 & Dest ASN => not hit compile
+	//			Source ASN1 & Dest ASN => not hit rule
 	//--------------------------------------
     int src_table_id = maat_get_table_id(maat_inst, src_asn_table_name);
     ASSERT_GT(src_table_id, 0);
@@ -4591,7 +4591,7 @@ TEST_F(NOTLogic, MultiGroupsInOneNotClause) {
     maat_state_reset(state);
 
     //--------------------------------------
-	//			Source ASN2 & Dest ASN => not hit compile
+	//			Source ASN2 & Dest ASN => not hit rule
 	//--------------------------------------
     ret = maat_scan_string(maat_inst, src_table_id, src_asn2, strlen(src_asn2),
                            results, ARRAY_SIZE, &n_hit_result, state);
@@ -4608,7 +4608,7 @@ TEST_F(NOTLogic, MultiGroupsInOneNotClause) {
     maat_state_reset(state);
 
     //--------------------------------------
-	//			Source ASN3 & Dest ASN => not hit compile
+	//			Source ASN3 & Dest ASN => not hit rule
 	//--------------------------------------
     ret = maat_scan_string(maat_inst, src_table_id, src_asn3, strlen(src_asn3),
                            results, ARRAY_SIZE, &n_hit_result, state);
@@ -4624,7 +4624,7 @@ TEST_F(NOTLogic, MultiGroupsInOneNotClause) {
 
     maat_state_reset(state);
 
-    // Source nothing & Dest ASN => hit compile177
+    // Source nothing & Dest ASN => hit rule177
     ret = maat_scan_string(maat_inst, src_table_id, src_asn_nothing,
                            strlen(src_asn_nothing),results, ARRAY_SIZE,
                            &n_hit_result, state);
@@ -6195,59 +6195,59 @@ protected:
 struct maat *TableSchemaTag::_shared_maat_inst;
 struct log_handle *TableSchemaTag::logger;
 
-TEST_F(TableSchemaTag, CompileTable) {
-    const char *compile1_table_name = "COMPILE_DEFAULT";
-    const char *compile2_table_name = "COMPILE_ALIAS";
-    const char *compile3_table_name = "COMPILE_CONJUNCTION";
-    const char *g2c_table_name = "GROUP2COMPILE";
+TEST_F(TableSchemaTag, RuleTable) {
+    const char *rule1_table_name = "RULE_DEFAULT";
+    const char *rule2_table_name = "RULE_ALIAS";
+    const char *rule3_table_name = "RULE_CONJUNCTION";
+    const char *g2c_table_name = "GROUP2RULE";
     struct maat *maat_inst = TableSchemaTag::_shared_maat_inst;
 
-    //COMPILE_DEFAULT
-    int compile1_table_id = maat_get_table_id(maat_inst, compile1_table_name);
-    EXPECT_EQ(compile1_table_id, 0);
+    //RULE_DEFAULT
+    int rule1_table_id = maat_get_table_id(maat_inst, rule1_table_name);
+    EXPECT_EQ(rule1_table_id, 0);
 
-    const char *tag1 = maat_get_table_schema_tag(maat_inst, compile1_table_id);
+    const char *tag1 = maat_get_table_schema_tag(maat_inst, rule1_table_id);
     EXPECT_TRUE(tag1 == NULL);
 
-    //COMPILE_ALIAS
-    int compile2_table_id = maat_get_table_id(maat_inst, compile2_table_name);
-    EXPECT_EQ(compile2_table_id, 1);
+    //RULE_ALIAS
+    int rule2_table_id = maat_get_table_id(maat_inst, rule2_table_name);
+    EXPECT_EQ(rule2_table_id, 1);
 
-    const char *tag2 = maat_get_table_schema_tag(maat_inst, compile2_table_id);
+    const char *tag2 = maat_get_table_schema_tag(maat_inst, rule2_table_id);
     EXPECT_TRUE(tag2 != NULL);
 
-    int ret = strcmp(tag2, "{\"compile_alias\": \"compile\"}");
+    int ret = strcmp(tag2, "{\"rule_alias\": \"rule\"}");
     EXPECT_EQ(ret, 0);
 
-    //COMPILE_CONJUNCTION
-    int compile3_table_id = maat_get_table_id(maat_inst, compile3_table_name);
-    EXPECT_EQ(compile3_table_id, 2);
+    //RULE_CONJUNCTION
+    int rule3_table_id = maat_get_table_id(maat_inst, rule3_table_name);
+    EXPECT_EQ(rule3_table_id, 2);
 
-    const char *tag3 = maat_get_table_schema_tag(maat_inst, compile3_table_id);
+    const char *tag3 = maat_get_table_schema_tag(maat_inst, rule3_table_id);
     EXPECT_TRUE(tag3 != NULL);
 
-    ret = strcmp(tag3, "{\"compile_conjunction\": \"compile\"}");
+    ret = strcmp(tag3, "{\"rule_conjunction\": \"rule\"}");
     EXPECT_EQ(ret, 0);
 
-    //GROUP2COMPILE
+    //GROUP2RULE
     int g2c_table_id = maat_get_table_id(maat_inst, g2c_table_name);
     EXPECT_EQ(g2c_table_id, 3);
 
     const char *tag4 = maat_get_table_schema_tag(maat_inst, g2c_table_id);
     EXPECT_TRUE(tag4 != NULL);
 
-    ret = strcmp(tag4, "{\"group2compile\": \"group2compile\"}");
+    ret = strcmp(tag4, "{\"group2rule\": \"group2rule\"}");
     EXPECT_EQ(ret, 0);
 
-    //COMPILE_PLUGIN
-    const char *plugin_table_name = "COMPILE_PLUGIN";
+    //RULE_PLUGIN
+    const char *plugin_table_name = "RULE_PLUGIN";
     int plugin_table_id = maat_get_table_id(maat_inst, plugin_table_name);
     EXPECT_EQ(plugin_table_id, 8);
 
     const char *tag5 = maat_get_table_schema_tag(maat_inst, plugin_table_id);
     EXPECT_TRUE(tag5 != NULL);
 
-    ret = strcmp(tag5, "{\"compile_plugin\": \"plugin\"}");
+    ret = strcmp(tag5, "{\"rule_plugin\": \"plugin\"}");
     EXPECT_EQ(ret, 0);
 
     //HTTP_REGION
@@ -6301,7 +6301,7 @@ TEST_F(TableSchemaTag, CompileTable) {
     EXPECT_EQ(ret, 0);
 }
 
-class CompileTable : public testing::Test
+class RuleTable : public testing::Test
 {
 protected:
     static void SetUpTestCase() {
@@ -6331,7 +6331,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
             log_fatal(logger, MODULE_FRAMEWORK_GTEST,
-                      "[%s:%d] create maat instance in CompileTable failed.",
+                      "[%s:%d] create maat instance in RuleTable failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -6345,15 +6345,15 @@ protected:
     static struct maat *_shared_maat_inst;
 };
 
-struct maat *CompileTable::_shared_maat_inst;
-struct log_handle *CompileTable::logger;
+struct maat *RuleTable::_shared_maat_inst;
+struct log_handle *RuleTable::logger;
 
 struct rule_ex_param {
 	char name[NAME_MAX];
 	int id;
 };
 
-void compile_ex_param_new(const char *table_name, int table_id, const char *key, 
+void rule_ex_param_new(const char *table_name, int table_id, const char *key, 
                           const char *table_line, void **ad, long argl, void *argp)
 {
 	int *counter = (int *)argp;
@@ -6361,7 +6361,7 @@ void compile_ex_param_new(const char *table_name, int table_id, const char *key,
 
 	struct rule_ex_param *param = ALLOC(struct rule_ex_param, 1);
 	
-    int compile_id = 0;
+    int rule_id = 0;
     int service_id = 0;
     int action = 0;
     int do_blacklist = 0;
@@ -6369,14 +6369,14 @@ void compile_ex_param_new(const char *table_name, int table_id, const char *key,
     char tags[1024] = {0};
 
 	sscanf(table_line, "%d\t%d\t%d\t%d\t%d\t%s\t%*[^:]:%[^,],%d", 
-           &compile_id, &service_id, &action, &do_blacklist, &do_log, 
+           &rule_id, &service_id, &action, &do_blacklist, &do_log, 
            tags, param->name, &(param->id));
     
 	(*counter)++;
 	*ad = param;
 }
 
-void compile_ex_param_free(int table_id, void **ad, long argl, void *argp)
+void rule_ex_param_free(int table_id, void **ad, long argl, void *argp)
 {
 	if (*ad == NULL) {
 		return;
@@ -6387,35 +6387,35 @@ void compile_ex_param_free(int table_id, void **ad, long argl, void *argp)
 	free(param);
 }
 
-void compile_ex_param_dup(int table_id, void **to, void **from, long argl, void *argp)
+void rule_ex_param_dup(int table_id, void **to, void **from, long argl, void *argp)
 {
 	struct rule_ex_param *from_param = *((struct rule_ex_param **)from);
 
 	*((struct rule_ex_param**)to) = from_param;
 }
 
-TEST_F(CompileTable, CompileRuleUpdate) {
-    struct maat *maat_inst = CompileTable::_shared_maat_inst;
+TEST_F(RuleTable, RuleRuleUpdate) {
+    struct maat *maat_inst = RuleTable::_shared_maat_inst;
 
-    const char *compile_table_name = "COMPILE_DEFAULT";
-    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name,
-                                     MAAT_OP_ADD, compile_id, "null", 1, 0);
+    const char *rule_table_name = "RULE_DEFAULT";
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name,
+                                     MAAT_OP_ADD, rule_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = compile_table_set_line(maat_inst, compile_table_name,
-                                 MAAT_OP_DEL, compile_id, "null", 1, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name,
+                                 MAAT_OP_DEL, rule_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 }
 
-TEST_F(CompileTable, Conjunction1) {
+TEST_F(RuleTable, Conjunction1) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *scan_data = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNAC"
                             "ELwBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
     const char *table_name = "HTTP_URL";
-    struct maat *maat_inst = CompileTable::_shared_maat_inst;
+    struct maat *maat_inst = RuleTable::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
     int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
@@ -6439,14 +6439,14 @@ TEST_F(CompileTable, Conjunction1) {
     state = NULL;
 }
 
-TEST_F(CompileTable, Conjunction2) {
+TEST_F(RuleTable, Conjunction2) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *scan_data = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELw"
                             "BSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
     const char *table_name = "HTTP_URL";
-    struct maat *maat_inst = CompileTable::_shared_maat_inst;
+    struct maat *maat_inst = RuleTable::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -6582,7 +6582,7 @@ TEST_F(Policy, PluginRuleTags2) {
 	EXPECT_EQ(callback_times, 2);
 }
 
-TEST_F(Policy, CompileRuleTags) {
+TEST_F(Policy, RuleRuleTags) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
@@ -6617,13 +6617,13 @@ TEST_F(Policy, CompileRuleTags) {
     state = NULL;
 }
 
-TEST_F(Policy, CompileEXData) {
+TEST_F(Policy, RuleEXData) {
     
     const char *url = "firewall should hit";
 	const char *table_name = "HTTP_URL";
-    const char *plugin_table_name = "COMPILE_FIREWALL_PLUGIN";
-    const char *conj_compile_table_name = "COMPILE_FIREWALL_CONJUNCTION";
-    const char *phy_compile_table_name = "COMPILE_FIREWALL_DEFAULT";
+    const char *plugin_table_name = "RULE_FIREWALL_PLUGIN";
+    const char *conj_rule_table_name = "RULE_FIREWALL_CONJUNCTION";
+    const char *phy_rule_table_name = "RULE_FIREWALL_DEFAULT";
 	const char *expect_name = "I have a name";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -6633,19 +6633,19 @@ TEST_F(Policy, CompileEXData) {
 
     int table_id = maat_get_table_id(maat_inst, table_name);
     int plugin_table_id = maat_get_table_id(maat_inst, plugin_table_name);
-    int conj_compile_table_id = maat_get_table_id(maat_inst, conj_compile_table_name);
-    int phy_compile_table_id = maat_get_table_id(maat_inst, phy_compile_table_name);
+    int conj_rule_table_id = maat_get_table_id(maat_inst, conj_rule_table_name);
+    int phy_rule_table_id = maat_get_table_id(maat_inst, phy_rule_table_name);
 
     int ex_data_counter = 0;
     int ret = maat_plugin_table_ex_schema_register(maat_inst, plugin_table_name,
-                                                    compile_ex_param_new,
-                                                    compile_ex_param_free,
-                                                    compile_ex_param_dup,
+                                                    rule_ex_param_new,
+                                                    rule_ex_param_free,
+                                                    rule_ex_param_dup,
                                                     0, &ex_data_counter);
     ASSERT_TRUE(ret == 0);
     EXPECT_EQ(ex_data_counter, 2);
 
-    ret = maat_state_set_scan_compile_table(state, conj_compile_table_id);
+    ret = maat_state_set_scan_rule_table(state, conj_rule_table_id);
     EXPECT_EQ(ret, 0);
 
     ret = maat_scan_string(maat_inst, table_id, url, strlen(url),
@@ -6658,10 +6658,10 @@ TEST_F(Policy, CompileEXData) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    int compile_table_ids[ARRAY_SIZE];
-    ret = maat_state_get_compile_table_ids(state, results, 1, compile_table_ids);
+    int rule_table_ids[ARRAY_SIZE];
+    ret = maat_state_get_rule_table_ids(state, results, 1, rule_table_ids);
     EXPECT_EQ(ret, 1);
-    EXPECT_EQ(compile_table_ids[0], phy_compile_table_id);
+    EXPECT_EQ(rule_table_ids[0], phy_rule_table_id);
 
     void *ex_data = maat_plugin_table_get_ex_data(maat_inst, plugin_table_id, 
                                                  (char *)&results[0], sizeof(long long));
@@ -6710,13 +6710,13 @@ TEST_F(Policy, SubGroup) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    const char *compile_table_name = "COMPILE_DEFAULT";
-    int phy_compile_table_id = maat_get_table_id(maat_inst, compile_table_name);
+    const char *rule_table_name = "RULE_DEFAULT";
+    int phy_rule_table_id = maat_get_table_id(maat_inst, rule_table_name);
 
-    int compile_table_ids[ARRAY_SIZE];
-    ret = maat_state_get_compile_table_ids(state, results, 1, compile_table_ids);
+    int rule_table_ids[ARRAY_SIZE];
+    ret = maat_state_get_rule_table_ids(state, results, 1, rule_table_ids);
     EXPECT_EQ(ret, 1);
-    EXPECT_EQ(compile_table_ids[0], phy_compile_table_id);
+    EXPECT_EQ(rule_table_ids[0], phy_rule_table_id);
 
 	maat_state_free(state);
 }
@@ -6749,37 +6749,37 @@ TEST_F(Policy, EvaluationOrder) {
     EXPECT_EQ(hit_path[0].sub_group_id, 158);
     EXPECT_EQ(hit_path[0].top_group_id, 158);
     EXPECT_EQ(hit_path[0].clause_index, 2);
-    EXPECT_EQ(hit_path[0].compile_id, 168);
+    EXPECT_EQ(hit_path[0].rule_id, 168);
 
     EXPECT_EQ(hit_path[1].vtable_id, table_id);
     EXPECT_EQ(hit_path[1].sub_group_id, 157);
     EXPECT_EQ(hit_path[1].top_group_id, 157);
     EXPECT_EQ(hit_path[1].clause_index, 0);
-    EXPECT_EQ(hit_path[1].compile_id, 166);
+    EXPECT_EQ(hit_path[1].rule_id, 166);
 
     EXPECT_EQ(hit_path[2].vtable_id, table_id);
     EXPECT_EQ(hit_path[2].sub_group_id, 155);
     EXPECT_EQ(hit_path[2].top_group_id, -1);
     EXPECT_EQ(hit_path[2].clause_index, -1);
-    EXPECT_EQ(hit_path[2].compile_id, -1);
+    EXPECT_EQ(hit_path[2].rule_id, -1);
 
     EXPECT_EQ(hit_path[3].vtable_id, table_id);
     EXPECT_EQ(hit_path[3].sub_group_id, 158);
     EXPECT_EQ(hit_path[3].top_group_id, 158);
     EXPECT_EQ(hit_path[3].clause_index, 6);
-    EXPECT_EQ(hit_path[3].compile_id, 168);
+    EXPECT_EQ(hit_path[3].rule_id, 168);
 
     EXPECT_EQ(hit_path[4].vtable_id, table_id);
     EXPECT_EQ(hit_path[4].sub_group_id, 158);
     EXPECT_EQ(hit_path[4].top_group_id, 158);
     EXPECT_EQ(hit_path[4].clause_index, 1);
-    EXPECT_EQ(hit_path[4].compile_id, 167);
+    EXPECT_EQ(hit_path[4].rule_id, 167);
 
     EXPECT_EQ(hit_path[5].vtable_id, table_id);
     EXPECT_EQ(hit_path[5].sub_group_id, 158);
     EXPECT_EQ(hit_path[5].top_group_id, 158);
     EXPECT_EQ(hit_path[5].clause_index, 3);
-    EXPECT_EQ(hit_path[5].compile_id, 167);
+    EXPECT_EQ(hit_path[5].rule_id, 167);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -6849,7 +6849,7 @@ TEST_F(Policy, NotClauseHitPath) {
     EXPECT_EQ(hit_path[0].clause_index, 1);
     EXPECT_EQ(hit_path[0].sub_group_id, 249);
     EXPECT_EQ(hit_path[0].top_group_id, 249);
-    EXPECT_EQ(hit_path[0].compile_id, 228);
+    EXPECT_EQ(hit_path[0].rule_id, 228);
 
     EXPECT_EQ(hit_path[1].Nth_scan, 2);
     EXPECT_EQ(hit_path[1].vtable_id, ip_table_id);
@@ -6857,7 +6857,7 @@ TEST_F(Policy, NotClauseHitPath) {
     EXPECT_EQ(hit_path[1].clause_index, -1);
     EXPECT_EQ(hit_path[1].sub_group_id, 100);
     EXPECT_EQ(hit_path[1].top_group_id, 144);
-    EXPECT_EQ(hit_path[1].compile_id, -1);
+    EXPECT_EQ(hit_path[1].rule_id, -1);
 
     EXPECT_EQ(hit_path[2].Nth_scan, 2);
     EXPECT_EQ(hit_path[2].vtable_id, ip_table_id);
@@ -6865,7 +6865,7 @@ TEST_F(Policy, NotClauseHitPath) {
     EXPECT_EQ(hit_path[2].clause_index, -1);
     EXPECT_EQ(hit_path[2].sub_group_id, 100);
     EXPECT_EQ(hit_path[2].top_group_id, -1);
-    EXPECT_EQ(hit_path[2].compile_id, -1);
+    EXPECT_EQ(hit_path[2].rule_id, -1);
 
     EXPECT_EQ(hit_path[3].Nth_scan, 2);
     EXPECT_EQ(hit_path[3].vtable_id, ip_table_id);
@@ -6873,7 +6873,7 @@ TEST_F(Policy, NotClauseHitPath) {
     EXPECT_EQ(hit_path[3].clause_index, 2);
     EXPECT_EQ(hit_path[3].sub_group_id, 250);
     EXPECT_EQ(hit_path[3].top_group_id, 250);
-    EXPECT_EQ(hit_path[3].compile_id, 228);
+    EXPECT_EQ(hit_path[3].rule_id, 228);
 
     maat_state_free(state);
 }
@@ -7482,22 +7482,22 @@ TEST_F(MaatCmd, SetIP) {
     size_t n_hit_result = 0;
     int thread_id = 0;
 	const char *ip_table_name = "IP_CONFIG";
-	const char *compile_table_name = "COMPILE_DEFAULT";
-    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
+	const char *rule_table_name = "RULE_DEFAULT";
+    const char *g2c_table_name = "GROUP2RULE_DEFAULT";
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
     maat_reload_log_level(maat_inst, LOG_LEVEL_INFO);
 
-    /* compile table add line */
-    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile_id, "null", 1, 0);
+    /* rule table add line */
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    /* group2compile table add line */
+    /* group2rule table add line */
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group_id, compile_id, 0, ip_table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group_id, rule_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* item table add line */
@@ -7520,7 +7520,7 @@ TEST_F(MaatCmd, SetIP) {
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile_id);
+    EXPECT_EQ(results[0], rule_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -7537,7 +7537,7 @@ TEST_F(MaatCmd, SetExpr) {
 	
 	const char *keywords1 = "Hiredis";
 	const char *keywords2 = "C Client";
-    const char *compile_table_name = "COMPILE_DEFAULT";
+    const char *rule_table_name = "RULE_DEFAULT";
 	char keywords[512];
 
     long long results[ARRAY_SIZE] = {0};
@@ -7547,10 +7547,10 @@ TEST_F(MaatCmd, SetExpr) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     snprintf(keywords, sizeof(keywords), "%s&%s", keywords1, keywords2);
-	long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 2);
+	long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 2);
 
-    test_add_expr_command(maat_inst, table_name, compile_id - 1, 0, keywords);
-    test_add_expr_command(maat_inst, table_name, compile_id, 0, keywords);
+    test_add_expr_command(maat_inst, table_name, rule_id - 1, 0, keywords);
+    test_add_expr_command(maat_inst, table_name, rule_id, 0, keywords);
     
     sleep(WAIT_FOR_EFFECTIVE_S);
 
@@ -7561,7 +7561,7 @@ TEST_F(MaatCmd, SetExpr) {
     int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                                 results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_TRUE(results[0] == compile_id || results[0] == (compile_id - 1));
+    EXPECT_TRUE(results[0] == rule_id || results[0] == (rule_id - 1));
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -7569,10 +7569,10 @@ TEST_F(MaatCmd, SetExpr) {
 
     maat_state_reset(state);
 
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL, compile_id-1, 
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, rule_id-1, 
                                  "null", 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL, compile_id, 
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, rule_id, 
                                  "null", 1, 0);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -7588,8 +7588,8 @@ TEST_F(MaatCmd, SetExpr) {
     maat_state_reset(state);
 
     int timeout = 1;
-    compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    test_add_expr_command(maat_inst, table_name, compile_id, timeout, keywords);
+    rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    test_add_expr_command(maat_inst, table_name, rule_id, timeout, keywords);
     sleep(timeout + 1);
     ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                             results, ARRAY_SIZE, &n_hit_result, state);
@@ -7607,8 +7607,8 @@ TEST_F(MaatCmd, SetExpr8) {
     const char *scan_data8 = "string1, string2, string3, string4, string5, string6, string7, string8";
 	const char *scan_data7 = "string1, string2, string3, string4, string5, string6, string7";
 	
-	const char *compile_table_name = "COMPILE_DEFAULT";
-    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
+	const char *rule_table_name = "RULE_DEFAULT";
+    const char *g2c_table_name = "GROUP2RULE_DEFAULT";
 	const char *table_name = "KEYWORDS_TABLE";
 	
 	const char *keywords8 = "string1&string2&string3&string4&string5&string6&string7&string8";
@@ -7620,16 +7620,16 @@ TEST_F(MaatCmd, SetExpr8) {
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    /* compile table add line */
-    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile_id, "null", 1, 0);
+    /* rule table add line */
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    /* group2compile table add line */
+    /* group2rule table add line */
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group_id, compile_id, 0, table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* EXPR_TYPE_AND MATCH_METHOD_SUB */
@@ -7647,7 +7647,7 @@ TEST_F(MaatCmd, SetExpr8) {
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile_id);
+    EXPECT_EQ(results[0], rule_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -7669,7 +7669,7 @@ TEST_F(MaatCmd, SetExpr8) {
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile_id);
+    EXPECT_EQ(results[0], rule_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -7684,24 +7684,24 @@ TEST_F(MaatCmd, GroupScan) {
     size_t n_hit_result = 0;
     int thread_id = 0;
 	const char *table_name = "HTTP_URL";
-	const char *compile_table_name = "COMPILE_DEFAULT";
-    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
+	const char *rule_table_name = "RULE_DEFAULT";
+    const char *g2c_table_name = "GROUP2RULE_DEFAULT";
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GE(table_id, 0);
 
-    /* compile table add line */
-    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile_id, "null", 1, 0);
+    /* rule table add line */
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    /* group2compile table add line */
+    /* group2rule table add line */
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group_id, compile_id, 0, table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -7713,7 +7713,7 @@ TEST_F(MaatCmd, GroupScan) {
                           &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile_id);
+    EXPECT_EQ(results[0], rule_id);
 
     maat_state_free(state);
     state = NULL;
@@ -7721,14 +7721,14 @@ TEST_F(MaatCmd, GroupScan) {
 
 /** 
  *  Filter such as URL: http://filtermenot.com  => {vtable_id, group_id}
-    One compile reference this filter twice, the compile should be hit. 
+    One rule reference this filter twice, the rule should be hit. 
  */
-TEST_F(MaatCmd, SameFilterRefByOneCompile) {
+TEST_F(MaatCmd, SameFilterRefByOneRule) {
     const char *vtable_name = "HTTP_URL_FILTER";
     const char *scan_data = "http://filtermenot.com";
     const char *keywords = "menot.com";
-    const char *compile_table_name = "COMPILE_DEFAULT";
-    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
+    const char *rule_table_name = "RULE_DEFAULT";
+    const char *g2c_table_name = "GROUP2RULE_DEFAULT";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
@@ -7738,19 +7738,19 @@ TEST_F(MaatCmd, SameFilterRefByOneCompile) {
     int table_id = maat_get_table_id(maat_inst, vtable_name);
     ASSERT_GT(table_id, 0);
 
-    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile_id, "null", 2, 0); // compile has two clause
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule_id, "null", 2, 0); // rule has two clause
     EXPECT_EQ(ret, 1);
 
     //clause1 & clause2 has same filter => {vtable_id, group_id}
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
-                                       group_id, compile_id, 0, vtable_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
+                                       group_id, rule_id, 0, vtable_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group_id, compile_id, 0, vtable_name, 2, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group_id, rule_id, 0, vtable_name, 2, 0);
     EXPECT_EQ(ret, 1);
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -7764,7 +7764,7 @@ TEST_F(MaatCmd, SameFilterRefByOneCompile) {
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile_id);
+    EXPECT_EQ(results[0], rule_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -7879,8 +7879,8 @@ TEST_F(MaatCmd, ReturnRuleIDWithDescendingOrder) {
 
 TEST_F(MaatCmd, SubGroup) {
     const char *table_name = "HTTP_URL";
-    const char *compile_table_name = "COMPILE_DEFAULT";
-	const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
+    const char *rule_table_name = "RULE_DEFAULT";
+	const char *g2c_table_name = "GROUP2RULE_DEFAULT";
 	const char *g2g_table_name = "GROUP2GROUP";
 	const char *scan_data1 = "www.v2ex.com/t/573028#程序员的核心竞争力是什么";
 	const char *keyword1 = "程序员&核心竞争力";
@@ -7895,40 +7895,40 @@ TEST_F(MaatCmd, SubGroup) {
     int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-     /* compile table add line */
-     //compile1
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, 
-                                     compile1_id, "null", 1, 0);
+     /* rule table add line */
+     //rule1
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
+                                     rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    //compile2
-    long long compile2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, 
-                                 compile2_id, "null", 1, 0);
+    //rule2
+    long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
+                                 rule2_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    /* group2compile table add line */
-    //group1 -> compile1
+    /* group2rule table add line */
+    //group1 -> rule1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
-                                       group1_id, compile1_id, 0, table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
+                                       group1_id, rule1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
-    //group1 -> compile2
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
-                                       group1_id, compile2_id, 0, table_name, 1, 0);
+    //group1 -> rule2
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
+                                       group1_id, rule2_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
-    //group2 -> group1 -> compile1
+    //group2 -> group1 -> rule1
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
                                      group1_id, group2_id, 0);
     EXPECT_EQ(ret, 1);
 
-    /* item1 -> group2 -> group1 -> compile1
+    /* item1 -> group2 -> group1 -> rule1
                              \
-                              \ _  compile2
+                              \ _  rule2
     */
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
@@ -7942,8 +7942,8 @@ TEST_F(MaatCmd, SubGroup) {
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], compile2_id);
-    EXPECT_EQ(results[1], compile1_id);
+    EXPECT_EQ(results[0], rule2_id);
+    EXPECT_EQ(results[1], rule1_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -7951,12 +7951,12 @@ TEST_F(MaatCmd, SubGroup) {
 
     maat_state_reset(state);
 
-    /* item1 -> group2 -> group1 -> compile1
+    /* item1 -> group2 -> group1 -> rule1
                           \
-                           \_ X -> compile2
+                           \_ X -> rule2
     */
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
-                                       group1_id, compile2_id, 0, table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+                                       group1_id, rule2_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
@@ -7964,7 +7964,7 @@ TEST_F(MaatCmd, SubGroup) {
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile1_id);
+    EXPECT_EQ(results[0], rule1_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -7974,17 +7974,17 @@ TEST_F(MaatCmd, SubGroup) {
 
     /* item1 -> group2 -> group1 -> X 
                   \
-                   \_ -> compile2
+                   \_ -> rule2
     */
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
-                                       group1_id, compile1_id, 0, table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+                                       group1_id, rule1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL,
-                                 compile1_id, "null", 1, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
+                                 rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group2_id, compile2_id, 0, table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group2_id, rule2_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -7992,7 +7992,7 @@ TEST_F(MaatCmd, SubGroup) {
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile2_id);
+    EXPECT_EQ(results[0], rule2_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -8002,7 +8002,7 @@ TEST_F(MaatCmd, SubGroup) {
 
     /*  item1 -> group2 -> group1 -> X 
                   \
-                   \_ -> compile2
+                   \_ -> rule2
         item2 -> group3
     */
     long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
@@ -8026,21 +8026,21 @@ TEST_F(MaatCmd, SubGroup) {
 
     /*  item1 -> group2 -> group1 -> X
                   \
-                   \_ -> compile2
+                   \_ -> rule2
         item2 -> group3
     */
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                 compile1_id, "null", 1, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                 rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0, table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group1_id, rule1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL,
-                                 compile1_id, "null", 1, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
+                                 rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
-                                       group1_id, compile1_id, 0, table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+                                       group1_id, rule1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -8048,7 +8048,7 @@ TEST_F(MaatCmd, SubGroup) {
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile2_id);
+    EXPECT_EQ(results[0], rule2_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -8060,8 +8060,8 @@ TEST_F(MaatCmd, SubGroup) {
 
 TEST_F(MaatCmd, RefGroup) {
     const char *table_name = "HTTP_URL";
-    const char* compile_table_name = "COMPILE_DEFAULT";
-	const char* g2c_table_name = "GROUP2COMPILE_DEFAULT";
+    const char* rule_table_name = "RULE_DEFAULT";
+	const char* g2c_table_name = "GROUP2RULE_DEFAULT";
 	const char* scan_data1 = "m.facebook.com/help/2297503110373101?helpref=hc_nav&refid=69";
 	const char* keyword1 = "something-should-not-hit";
 	const char* keyword2 = "facebook.com/help/2297503110373101";
@@ -8073,18 +8073,18 @@ TEST_F(MaatCmd, RefGroup) {
     ASSERT_GT(table_id, 0);
 
     //TODO: value=0 MAAT_OPT_ENABLE_UPDATE
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, 
-                                     compile1_id, "null", 1, 0);
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
+                                     rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    //group1 -> compile1
+    //group1 -> rule1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0, table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group1_id, rule1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
-    //item1 -> group1 -> compile1
+    //item1 -> group1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item1_id,
                               group1_id, keyword1, NULL, 1, 0); /* EXPR_TYPE_AND MATCH_METHOD_SUB */
@@ -8092,14 +8092,14 @@ TEST_F(MaatCmd, RefGroup) {
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    /* item1 -> group1 -> X -> compile1
+    /* item1 -> group1 -> X -> rule1
                                  /
                                 /
                 item2 -> group2
     */
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group2_id, compile1_id, 0, table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group2_id, rule1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -8107,17 +8107,17 @@ TEST_F(MaatCmd, RefGroup) {
                               group2_id, keyword2, NULL, 1, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL, 
-                                 compile1_id, "null", 1, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, 
+                                 rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, 
-                                 compile1_id, "null", 1, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
+                                 rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL, 
-                                       group1_id, compile1_id, 0, table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL, 
+                                       group1_id, rule1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
-                                       group2_id, compile1_id, 0, table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
+                                       group2_id, rule1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -8128,7 +8128,7 @@ TEST_F(MaatCmd, RefGroup) {
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile1_id);
+    EXPECT_EQ(results[0], rule1_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -8139,42 +8139,42 @@ TEST_F(MaatCmd, RefGroup) {
 }
 
 TEST_F(MaatCmd, VirtualTable) {
-    const char* compile_table_name = "COMPILE_DEFAULT";
-    const char* g2c_table_name = "GROUP2COMPILE_DEFAULT";
+    const char* rule_table_name = "RULE_DEFAULT";
+    const char* g2c_table_name = "GROUP2RULE_DEFAULT";
 	const char* table_name="HTTP_SIGNATURE";
     int thread_id = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, 
-                                     compile1_id, "null", 2, 0);
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
+                                     rule1_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    //group1 -> compile1
+    //group1 -> rule1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0,
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group1_id, rule1_id, 0,
                                        "HTTP_REQUEST_HEADER", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    //item1 -> group1 -> compile1
+    //item1 -> group1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item1_id,
                               group1_id, "AppleWebKit", "User-Agent", 0, 0);/*EXPR_TYPE_STRING MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
-    /* item1 -> group1 -> compile1
+    /* item1 -> group1 -> rule1
                               /
                       group2_/
     */
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group2_id, compile1_id, 0,
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group2_id, rule1_id, 0,
                                        "HTTP_RESPONSE_HEADER", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    /* item1 -> group1 -> compile1
+    /* item1 -> group1 -> rule1
                               /
               item2 -> group2/
     */
@@ -8221,7 +8221,7 @@ TEST_F(MaatCmd, VirtualTable) {
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile1_id);
+    EXPECT_EQ(results[0], rule1_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -8230,15 +8230,15 @@ TEST_F(MaatCmd, VirtualTable) {
     maat_state_reset(state);
 
     //delete group1
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
-                                       group1_id, compile1_id, 0,
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+                                       group1_id, rule1_id, 0,
                                        "HTTP_REQUEST_HEADER", 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL,
-                                 compile1_id, "null", 2, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
+                                 rule1_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                 compile1_id, "null", 1, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                 rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -8255,7 +8255,7 @@ TEST_F(MaatCmd, VirtualTable) {
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile1_id);
+    EXPECT_EQ(results[0], rule1_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -8548,49 +8548,49 @@ void plugin_ex_dup_cb(int table_id,	void **to, void **from, long argl, void *arg
 	*to = u;
 }
 
-TEST_F(MaatCmd, CompileEXData) {
-    const char *plugin_table_name = "COMPILE_FIREWALL_PLUGIN";
-    const char *compile_table_name = "COMPILE_FIREWALL_DEFAULT";
+TEST_F(MaatCmd, RuleEXData) {
+    const char *plugin_table_name = "RULE_FIREWALL_PLUGIN";
+    const char *rule_table_name = "RULE_FIREWALL_DEFAULT";
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     int *ex_data_counter = MaatCmd::_ex_data_counter;
     int plugin_table_id = maat_get_table_id(maat_inst, plugin_table_name);
     EXPECT_GT(plugin_table_id, 0);
 
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile1_id, "test:compile1,1111", 1, 0);
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_id, "test:rule1,1111", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    long long compile2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                 compile2_id, "test:compile2,2222", 1, 0);
+    long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                 rule2_id, "test:rule2,2222", 1, 0);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     *ex_data_counter = 0;
     ret = maat_plugin_table_ex_schema_register(maat_inst, plugin_table_name,
-                                               compile_ex_param_new,
-                                               compile_ex_param_free,
-                                               compile_ex_param_dup,
+                                               rule_ex_param_new,
+                                               rule_ex_param_free,
+                                               rule_ex_param_dup,
                                                0, ex_data_counter);
     ASSERT_TRUE(ret == 0);
     EXPECT_EQ(*ex_data_counter, 2);
 
     void *ex_data = maat_plugin_table_get_ex_data(maat_inst, plugin_table_id,
-                                                 (char *)&compile1_id,
+                                                 (char *)&rule1_id,
                                                  sizeof(long long));
     ASSERT_TRUE(ex_data != NULL);
     struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
 	EXPECT_EQ(param->id, 1111);
 
     ex_data = maat_plugin_table_get_ex_data(maat_inst, plugin_table_id,
-                                            (char *)&compile2_id,
+                                            (char *)&rule2_id,
                                             sizeof(long long));
     ASSERT_TRUE(ex_data != NULL);
     param = (struct rule_ex_param *)ex_data;
 	EXPECT_EQ(param->id, 2222);
 
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL,
-                                 compile2_id, "test:compile2,2222", 1, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
+                                 rule2_id, "test:rule2,2222", 1, 0);
     sleep(WAIT_FOR_EFFECTIVE_S);
     EXPECT_EQ(param->id, 2222); 
     sleep(2);
@@ -8933,10 +8933,10 @@ TEST_F(MaatCmd, UpdateBoolPlugin) {
     //exceed gc_timeout_s, the data pointed by results[idx] has been freed
 }
 
-#define COMPILE_ID_NUMS 1000
-TEST_F(MaatCmd, GroupInMassCompiles) {
-    const char* g2c_table_name = "GROUP2COMPILE_DEFAULT";
-	const char* compile_table_name = "COMPILE_DEFAULT";
+#define RULE_ID_NUMS 1000
+TEST_F(MaatCmd, GroupInMassRules) {
+    const char* g2c_table_name = "GROUP2RULE_DEFAULT";
+	const char* rule_table_name = "RULE_DEFAULT";
 	const char* table_url = "HTTP_URL";
 	const char* table_appid = "APP_ID";
     int thread_id = 0;
@@ -8964,42 +8964,42 @@ TEST_F(MaatCmd, GroupInMassCompiles) {
                                   group3_id, "100", NULL, 0);
     EXPECT_EQ(ret, 1);
 
-    /*  item_url1 -> group1 -> compile[0 ~ COMPILE_ID_NUMS] 
+    /*  item_url1 -> group1 -> rule[0 ~ RULE_ID_NUMS] 
                                 /
           item_appid -> group3_/
     */
     int i = 0;
-    long long compile_id[COMPILE_ID_NUMS] = {0};
-    for (i = 0; i < COMPILE_ID_NUMS; i++) {
-        compile_id[i] = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-        ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile_id[i], "mass_compile", 2, 0);
+    long long rule_id[RULE_ID_NUMS] = {0};
+    for (i = 0; i < RULE_ID_NUMS; i++) {
+        rule_id[i] = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+        ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule_id[i], "mass_rule", 2, 0);
         EXPECT_EQ(ret, 1);
     }
 
-    for (i = 0; i < COMPILE_ID_NUMS; i++) {
-        ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                           group1_id, compile_id[i], 0, table_url, 0, 0);
+    for (i = 0; i < RULE_ID_NUMS; i++) {
+        ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                           group1_id, rule_id[i], 0, table_url, 0, 0);
         EXPECT_EQ(ret, 1);
 
-        ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                           group3_id, compile_id[i], 0, table_appid, 2, 0);
+        ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                           group3_id, rule_id[i], 0, table_appid, 2, 0);
         EXPECT_EQ(ret, 1);
     }
 
-    /* item_url2 -> group2 -> target_compile
+    /* item_url2 -> group2 -> target_rule
                                     /
               item_appid -> group3_/
     */
-    long long target_compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                 target_compile_id, "null", 2, 0);
+    long long target_rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                 target_rule_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group2_id, target_compile_id, 0, table_url, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group2_id, target_rule_id, 0, table_url, 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group3_id, target_compile_id, 0, table_appid, 2, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group3_id, target_rule_id, 0, table_appid, 2, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -9028,7 +9028,7 @@ TEST_F(MaatCmd, GroupInMassCompiles) {
                             &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], target_compile_id);
+    EXPECT_EQ(results[0], target_rule_id);
 
     ret = maat_scan_not_logic(maat_inst, appid_table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -9058,8 +9058,8 @@ TEST_F(MaatCmd, GroupInMassCompiles) {
 }
 
 TEST_F(MaatCmd, HitGroup) {
-   const char *compile_table_name = "COMPILE_DEFAULT";
-	const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
+   const char *rule_table_name = "RULE_DEFAULT";
+	const char *g2c_table_name = "GROUP2RULE_DEFAULT";
     const char *g2g_table_name = "GROUP2GROUP";
 	const char *http_sig_table_name = "HTTP_SIGNATURE";
 	const char *ip_table_name = "IP_CONFIG";
@@ -9068,37 +9068,37 @@ TEST_F(MaatCmd, HitGroup) {
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    /* compile1 */
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile1_id, "null", 2, 0);
+    /* rule1 */
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    //group1 -> compile1
+    //group1 -> rule1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0,
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group1_id, rule1_id, 0,
                                        "HTTP_REQUEST_HEADER", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    //item1 -> group1 -> compile1
+    //item1 -> group1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD,
                               item1_id, group1_id, "hit group item first",
                               "URL", 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    /* item1 -> group1 -> compile1
+    /* item1 -> group1 -> rule1
                              /
                     group21_/
     */
     long long group21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group21_id, compile1_id, 0,
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group21_id, rule1_id, 0,
                                        "HTTP_RESPONSE_HEADER", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    /* item1 -> group1 -> compile1
+    /* item1 -> group1 -> rule1
                             /
         group2 -> group21 _/
     */
@@ -9107,7 +9107,7 @@ TEST_F(MaatCmd, HitGroup) {
                                      group21_id, group2_id, 0);
     EXPECT_EQ(ret, 1);
 
-    /*       item1 -> group1 -> compile1
+    /*       item1 -> group1 -> rule1
                                     /
        item2 -> group2 -> group21 _/
     */
@@ -9120,7 +9120,7 @@ TEST_F(MaatCmd, HitGroup) {
     /*
             item1 -> group1 -> group11
                         \
-                          \ -> compile1
+                          \ -> rule1
                                   /
      item2 -> group2 -> group21 _/             
     */
@@ -9129,14 +9129,14 @@ TEST_F(MaatCmd, HitGroup) {
                                      group11_id, group1_id, 0);
     EXPECT_EQ(ret, 1);
     
-    //item3 -> group3, group3 is not referenced by any compile.
+    //item3 -> group3, group3 is not referenced by any rule.
     long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_id,
                             group3_id, "220.181.38.150-220.181.38.151", 0);
     EXPECT_EQ(ret, 1);
 
-    //item4 -> group4, group4 is not referenced by any compile.
+    //item4 -> group4, group4 is not referenced by any rule.
     long long item4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD,
@@ -9146,7 +9146,7 @@ TEST_F(MaatCmd, HitGroup) {
     /*
             item1 -> group1 -> group11
                     /   \
-          item5 -> /     \ -> compile1
+          item5 -> /     \ -> rule1
                                   /
      item2 -> group2 -> group21 _/             
     */
@@ -9223,7 +9223,7 @@ TEST_F(MaatCmd, HitGroup) {
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile1_id);
+    EXPECT_EQ(results[0], rule1_id);
 
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 2);
@@ -9338,8 +9338,8 @@ TEST_F(MaatCmd, HitGroup) {
 
 TEST_F(MaatCmd, HitPathBasic) {
     const char *g2g_table_name = "GROUP2GROUP";
-	const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
-	const char *compile_table_name = "COMPILE_DEFAULT";
+	const char *g2c_table_name = "GROUP2RULE_DEFAULT";
+	const char *rule_table_name = "RULE_DEFAULT";
 	const char *http_sig_table_name = "HTTP_SIGNATURE";
 	const char *ip_table_name = "IP_CONFIG";
 	const char *keywords_table_name = "KEYWORDS_TABLE";
@@ -9347,37 +9347,37 @@ TEST_F(MaatCmd, HitPathBasic) {
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    /* compile1 */
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile1_id, "null", 2, 0);
+    /* rule1 */
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    //group1 -> compile1
+    //group1 -> rule1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0,
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group1_id, rule1_id, 0,
                                        "HTTP_REQUEST_HEADER", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    //item1 -> group1 -> compile1
+    //item1 -> group1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD,
                               item1_id, group1_id, "graph_theory", "URL",
                               0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    /* item1 -> group1 -> compile1
+    /* item1 -> group1 -> rule1
                              /
                     group21_/
     */
     long long group21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group21_id, compile1_id, 0,
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group21_id, rule1_id, 0,
                                        "HTTP_RESPONSE_HEADER", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    /* item1 -> group1 -> compile1
+    /* item1 -> group1 -> rule1
                             /
         group2 -> group21 _/
     */
@@ -9386,7 +9386,7 @@ TEST_F(MaatCmd, HitPathBasic) {
                                      group21_id, group2_id, 0);
     EXPECT_EQ(ret, 1);
 
-    /*       item1 -> group1 -> compile1
+    /*       item1 -> group1 -> rule1
                                     /
        item2 -> group2 -> group21 _/
     */
@@ -9399,7 +9399,7 @@ TEST_F(MaatCmd, HitPathBasic) {
     /*
             item1 -> group1 -> group11
                         \
-                          \ -> compile1
+                          \ -> rule1
                                   /
      item2 -> group2 -> group21 _/             
     */
@@ -9408,14 +9408,14 @@ TEST_F(MaatCmd, HitPathBasic) {
                                      group11_id, group1_id, 0);
     EXPECT_EQ(ret, 1);
     
-    //item3 -> group3, group3 is not referenced by any compile.
+    //item3 -> group3, group3 is not referenced by any rule.
     long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_id,
                             group3_id, "220.181.38.148-220.181.38.149", 0);
     EXPECT_EQ(ret, 1);
 
-    //item4 -> group4, group4 is not referenced by any compile.
+    //item4 -> group4, group4 is not referenced by any rule.
     long long item4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD,
@@ -9463,7 +9463,7 @@ TEST_F(MaatCmd, HitPathBasic) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group11_id);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, http_req_table_id);
-	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     path_idx++;
     EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
@@ -9471,7 +9471,7 @@ TEST_F(MaatCmd, HitPathBasic) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, http_req_table_id);
-	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     int http_res_table_id = maat_get_table_id(maat_inst, "HTTP_RESPONSE_HEADER");
 	ASSERT_GT(http_res_table_id, 0);
@@ -9486,7 +9486,7 @@ TEST_F(MaatCmd, HitPathBasic) {
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile1_id);
+    EXPECT_EQ(results[0], rule1_id);
 
     ret = maat_scan_not_logic(maat_inst, http_res_table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -9503,7 +9503,7 @@ TEST_F(MaatCmd, HitPathBasic) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group11_id);
-    EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+    EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     path_idx++;
     ASSERT_EQ(path_idx, 1);
@@ -9511,7 +9511,7 @@ TEST_F(MaatCmd, HitPathBasic) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
-    EXPECT_EQ(hit_path[path_idx].compile_id, compile1_id);
+    EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
     path_idx++;
     ASSERT_EQ(path_idx, 2);
@@ -9520,7 +9520,7 @@ TEST_F(MaatCmd, HitPathBasic) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, http_res_table_id);
-	EXPECT_EQ(hit_path[path_idx].compile_id, compile1_id);
+	EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
     path_idx++;
     ASSERT_EQ(path_idx, 3);
@@ -9529,7 +9529,7 @@ TEST_F(MaatCmd, HitPathBasic) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, http_res_table_id);
-	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
     const char* keywords1="In graph theory, a path in a graph is a finite or infinite \
 sequence of edges which joins a sequence of vertices which, by most definitions,\
 are all distinct (and since the vertices are distinct, so are the edges). ";
@@ -9563,7 +9563,7 @@ that the edges be all directed in the same direction.";
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(ip_table_id, 0);
@@ -9593,7 +9593,7 @@ that the edges be all directed in the same direction.";
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group3_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, ip_table_id);
-	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     Nth_scan++;   
     ret = maat_stream_scan(stream, keywords2, strlen(keywords2), results,
@@ -9617,67 +9617,67 @@ that the edges be all directed in the same direction.";
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
     maat_stream_free(stream);
     maat_state_free(state);
     state = NULL; 
 }
 
-/* same group in multi compile */
+/* same group in multi rule */
 /*
-        item1 -> group1 -> compile1
+        item1 -> group1 -> rule1
                              /
                             /
     item2 -> group2 -> group21
                           \
                            \
-    item3 -> group3 -> compile2
+    item3 -> group3 -> rule2
                 \
-                 \--> compile3
+                 \--> rule3
                       / 
     item4 -> group4 -/   
 */
 TEST_F(MaatCmd, HitPathAdvanced) {
     const char *g2g_table_name = "GROUP2GROUP";
-	const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
-	const char *compile_table_name = "COMPILE_DEFAULT";
+	const char *g2c_table_name = "GROUP2RULE_DEFAULT";
+	const char *rule_table_name = "RULE_DEFAULT";
 	const char *ip_table_name = "IP_CONFIG";
 	const char *keywords_table_name = "KEYWORDS_TABLE";
     int thread_id = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    /* compile1 */
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile1_id, "null", 2, 0);
+    /* rule1 */
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    //group1 -> compile1
+    //group1 -> rule1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0,
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group1_id, rule1_id, 0,
                                        "KEYWORDS_TABLE", 1, 0); //clause_index:1
     EXPECT_EQ(ret, 1);
 
-    //item1 -> group1 -> compile1
+    //item1 -> group1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD,
                               item1_id, group1_id, "computer_theory", NULL,
                               0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    /* item1 -> group1 -> compile1
+    /* item1 -> group1 -> rule1
                              /
                     group21_/
     */
     long long group21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group21_id, compile1_id, 0,
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group21_id, rule1_id, 0,
                                        "KEYWORDS_TABLE", 2, 0); //clause_index:2
     EXPECT_EQ(ret, 1);
 
-    /* item1 -> group1 -> compile1
+    /* item1 -> group1 -> rule1
                             /
         group2 -> group21 _/
     */
@@ -9686,7 +9686,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
                                      group21_id, group2_id, 0);
     EXPECT_EQ(ret, 1);
 
-    /*       item1 -> group1 -> compile1
+    /*       item1 -> group1 -> rule1
                                     /
        item2 -> group2 -> group21 _/
     */
@@ -9696,30 +9696,30 @@ TEST_F(MaatCmd, HitPathAdvanced) {
                               0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
    
-    //compile2
-    long long compile2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile2_id, "null", 2, 0);
+    //rule2
+    long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule2_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    /*        item1 -> group1 -> compile1
+    /*        item1 -> group1 -> rule1
                                     /
        item2 -> group2 -> group21 _/
                              \
                               \
-                            compile2    
+                            rule2    
     */
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group21_id, compile2_id, 0,
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group21_id, rule2_id, 0,
                                        "KEYWORDS_TABLE", 3, 0); //clause_index:3
     EXPECT_EQ(ret, 1); 
 
-    /*         item1 -> group1 -> compile1
+    /*         item1 -> group1 -> rule1
                                     /
        item2 -> group2 -> group21 _/
                              \
                               \
-        item3 -> group3 -> compile2 
+        item3 -> group3 -> rule2 
     */
     long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
@@ -9727,40 +9727,40 @@ TEST_F(MaatCmd, HitPathAdvanced) {
                             group3_id, "220.181.38.168-220.181.38.169", 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group3_id, compile2_id, 0,
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group3_id, rule2_id, 0,
                                        "IP_CONFIG", 4, 0); //clause_index:4
     EXPECT_EQ(ret, 1); 
 
-    /*         item1 -> group1 -> compile1
+    /*         item1 -> group1 -> rule1
                                     /
        item2 -> group2 -> group21 _/
                              \
                               \
-        item3 -> group3 -> compile2 
+        item3 -> group3 -> rule2 
                     \
-                     \ --> compile3
+                     \ --> rule3
     */
-    long long compile3_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile3_id, "null", 2, 0);
+    long long rule3_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule3_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group3_id, compile3_id, 0,
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group3_id, rule3_id, 0,
                                        "IP_CONFIG", 5, 0); //clause_index:5
     EXPECT_EQ(ret, 1); 
 
-    /*         item1 -> group1 -> compile1
+    /*         item1 -> group1 -> rule1
                                     /
                                    /
             item2 -> group2 -> group21
                                   \
                                    \
-             item3 -> group3 -> compile2 
+             item3 -> group3 -> rule2 
                         \
                          \
-                      compile3
+                      rule3
                          /
                         /
            item4 -> group4
@@ -9773,8 +9773,8 @@ TEST_F(MaatCmd, HitPathAdvanced) {
                               NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group4_id, compile3_id, 0,
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group4_id, rule3_id, 0,
                                        "KEYWORDS_TABLE", 6, 0); //clause_index:6
     EXPECT_EQ(ret, 1); 
 
@@ -9805,14 +9805,14 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, -1);
-	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     ret = maat_scan_string(maat_inst, keywords_table_id, http_url_social,
                            strlen(http_url_social), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile1_id);
+    EXPECT_EQ(results[0], rule1_id);
 
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 3);
@@ -9824,7 +9824,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 1);
-    EXPECT_EQ(hit_path[path_idx].compile_id, compile1_id);
+    EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
     path_idx++;
     ASSERT_EQ(path_idx, 1);
@@ -9834,7 +9834,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 2);
-    EXPECT_EQ(hit_path[path_idx].compile_id, compile1_id);
+    EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
     path_idx++;
     ASSERT_EQ(path_idx, 2);
@@ -9844,7 +9844,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, -1);
-    EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+    EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "220.181.38.168", &ip_addr);
@@ -9856,7 +9856,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile2_id);
+    EXPECT_EQ(results[0], rule2_id);
 
     memset(hit_path, 0, sizeof(hit_path));
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
@@ -9869,7 +9869,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 1);
-    EXPECT_EQ(hit_path[path_idx].compile_id, compile1_id);
+    EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
     path_idx++;
     ASSERT_EQ(path_idx, 1);
@@ -9879,7 +9879,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 3);
-    EXPECT_EQ(hit_path[path_idx].compile_id, compile2_id);
+    EXPECT_EQ(hit_path[path_idx].rule_id, rule2_id);
 
     path_idx++;
     ASSERT_EQ(path_idx, 2);
@@ -9889,7 +9889,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, -1);
-    EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+    EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     path_idx++;
     ASSERT_EQ(path_idx, 3);
@@ -9899,7 +9899,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group3_id);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, ip_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 4);
-    EXPECT_EQ(hit_path[path_idx].compile_id, compile2_id);
+    EXPECT_EQ(hit_path[path_idx].rule_id, rule2_id);
 
     path_idx++;
     ASSERT_EQ(path_idx, 4);
@@ -9909,7 +9909,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 2);
-    EXPECT_EQ(hit_path[path_idx].compile_id, compile1_id);
+    EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
     const char *keywords1 = "In theory, basic and advanced is common";
     ret = maat_scan_string(maat_inst, keywords_table_id, keywords1,
@@ -9917,7 +9917,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile3_id);
+    EXPECT_EQ(results[0], rule3_id);
 
     memset(hit_path, 0, sizeof(hit_path));
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
@@ -9930,7 +9930,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 1);
-    EXPECT_EQ(hit_path[path_idx].compile_id, compile1_id);
+    EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
     path_idx++;
     ASSERT_EQ(path_idx, 1);
@@ -9940,7 +9940,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 3);
-    EXPECT_EQ(hit_path[path_idx].compile_id, compile2_id);
+    EXPECT_EQ(hit_path[path_idx].rule_id, rule2_id);
 
     path_idx++;
     ASSERT_EQ(path_idx, 2);
@@ -9950,7 +9950,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, -1);
-    EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+    EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     path_idx++;
     ASSERT_EQ(path_idx, 3);
@@ -9960,7 +9960,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group3_id);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, ip_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 5);
-    EXPECT_EQ(hit_path[path_idx].compile_id, compile3_id);
+    EXPECT_EQ(hit_path[path_idx].rule_id, rule3_id);
 
     path_idx++;
     ASSERT_EQ(path_idx, 4);
@@ -9970,7 +9970,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group4_id);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 6);
-    EXPECT_EQ(hit_path[path_idx].compile_id, compile3_id);
+    EXPECT_EQ(hit_path[path_idx].rule_id, rule3_id);
 
     path_idx++;
     ASSERT_EQ(path_idx, 5);
@@ -9980,7 +9980,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group3_id);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, ip_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 4);
-    EXPECT_EQ(hit_path[path_idx].compile_id, compile2_id);
+    EXPECT_EQ(hit_path[path_idx].rule_id, rule2_id);
 
     path_idx++;
     ASSERT_EQ(path_idx, 6);
@@ -9990,7 +9990,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 2);
-    EXPECT_EQ(hit_path[path_idx].compile_id, compile1_id);
+    EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
     maat_state_free(state);
     state = NULL;
@@ -9998,8 +9998,8 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 
 TEST_F(MaatCmd, HitPathHasNotGroup) {
     const char *g2g_table_name = "GROUP2GROUP";
-	const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
-	const char *compile_table_name = "COMPILE_DEFAULT";
+	const char *g2c_table_name = "GROUP2RULE_DEFAULT";
+	const char *rule_table_name = "RULE_DEFAULT";
 	const char *http_sig_table_name = "HTTP_SIGNATURE";
 	const char *ip_table_name = "IP_CONFIG";
 	const char *keywords_table_name = "KEYWORDS_TABLE";
@@ -10007,36 +10007,36 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    /* compile1 */
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile1_id, "null", 2, 0);
+    /* rule1 */
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    // !group1 -> compile1
+    // !group1 -> rule1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 1,
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group1_id, rule1_id, 1,
                                        "HTTP_REQUEST_HEADER", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    // !(item1 -> group1) -> compile1
+    // !(item1 -> group1) -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD,
                               item1_id, group1_id, "math_theory", "URL", 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    /* !(item1 -> group1) -> compile1
+    /* !(item1 -> group1) -> rule1
                              /
                     group21_/
     */
     long long group21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group21_id, compile1_id, 0,
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group21_id, rule1_id, 0,
                                        "HTTP_RESPONSE_HEADER", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    /* !(item1 -> group1) -> compile1
+    /* !(item1 -> group1) -> rule1
                             /
         group2 -> group21 _/
     */
@@ -10045,7 +10045,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
                                      group21_id, group2_id, 0);
     EXPECT_EQ(ret, 1);
 
-    /*       !(item1 -> group1) -> compile1
+    /*       !(item1 -> group1) -> rule1
                                     /
        item2 -> group2 -> group21 _/
     */
@@ -10058,7 +10058,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
     /*
           item1 -> group1 -> group11
 
-            !(item1 -> group1) -> compile1
+            !(item1 -> group1) -> rule1
                                   /
      item2 -> group2 -> group21 _/
     */
@@ -10067,14 +10067,14 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
                                      group11_id, group1_id, 0);
     EXPECT_EQ(ret, 1);
     
-    //item3 -> group3, group3 is not referenced by any compile.
+    //item3 -> group3, group3 is not referenced by any rule.
     long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_id,
                             group3_id, "220.181.38.158-220.181.38.159", 0);
     EXPECT_EQ(ret, 1);
 
-    //item4 -> group4, group4 is not referenced by any compile.
+    //item4 -> group4, group4 is not referenced by any rule.
     long long item4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD,
@@ -10123,7 +10123,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group11_id);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, http_req_table_id);
     EXPECT_EQ(hit_path[path_idx].NOT_flag, 1);
-	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     path_idx++;
     EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
@@ -10132,7 +10132,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, http_req_table_id);
     EXPECT_EQ(hit_path[path_idx].NOT_flag, 1);
-	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     int http_res_table_id = maat_get_table_id(maat_inst, "HTTP_RESPONSE_HEADER");
 	ASSERT_GT(http_res_table_id, 0);
@@ -10147,7 +10147,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile1_id);
+    EXPECT_EQ(results[0], rule1_id);
 
     ret = maat_scan_not_logic(maat_inst, http_res_table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -10165,7 +10165,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group11_id);
     EXPECT_EQ(hit_path[path_idx].NOT_flag, 1);
-    EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+    EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     path_idx++;
     ASSERT_EQ(path_idx, 1);
@@ -10174,7 +10174,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
     EXPECT_EQ(hit_path[path_idx].NOT_flag, 1);
-    EXPECT_EQ(hit_path[path_idx].compile_id, compile1_id);
+    EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
     path_idx++;
     ASSERT_EQ(path_idx, 2);
@@ -10184,7 +10184,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, http_res_table_id);
     EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
-	EXPECT_EQ(hit_path[path_idx].compile_id, compile1_id);
+	EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
     path_idx++;
     ASSERT_EQ(path_idx, 3);
@@ -10194,7 +10194,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, http_res_table_id);
     EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
-	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
    
     const char *keywords1 = "In math theory, a finite and infinite come up all the time.";
     const char *keywords2= "a finite and infinite come up again.";
@@ -10226,7 +10226,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
     EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
-	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(ip_table_id, 0);
@@ -10256,7 +10256,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, ip_table_id);
     EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
-	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     Nth_scan++;   
     ret = maat_stream_scan(stream, keywords2, strlen(keywords2), results,
@@ -10281,30 +10281,30 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
     EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
-	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     maat_stream_free(stream);
     maat_state_free(state);
     state = NULL;
 }
 
-TEST_F(MaatCmd, SameSuperGroupRefByMultiCompile) {
+TEST_F(MaatCmd, SameSuperGroupRefByMultiRule) {
     int thread_id = 0;
     const char *g2g_table_name = "GROUP2GROUP";
-	const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
-	const char *compile_table_name = "COMPILE_DEFAULT";
+	const char *g2c_table_name = "GROUP2RULE_DEFAULT";
+	const char *rule_table_name = "RULE_DEFAULT";
 	const char *http_sig_table_name = "HTTP_SIGNATURE";
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
 
-    /* item5 -> group5 -> group52 -> compile2
+    /* item5 -> group5 -> group52 -> rule2
                               \
-                               \ -> compile3
+                               \ -> rule3
     */
     long long item5_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group5_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     int ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD,
                                   item5_id, group5_id,
-                                  "same supergroup referenced by multi compile",
+                                  "same supergroup referenced by multi rule",
                                   "KEY", 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
@@ -10313,23 +10313,23 @@ TEST_F(MaatCmd, SameSuperGroupRefByMultiCompile) {
                                      group52_id, group5_id, 0);
     EXPECT_EQ(ret, 1);
 
-    long long compile2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                 compile2_id, "HTTP_RESPONSE_HEADER", 1, 0);
+    long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                 rule2_id, "HTTP_RESPONSE_HEADER", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group52_id, compile2_id, 0,
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group52_id, rule2_id, 0,
                                        "HTTP_RESPONSE_HEADER", 0, 0);
     EXPECT_EQ(ret, 1);
 
-    long long compile3_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                 compile3_id, "HTTP_RESPONSE_HEADER", 1, 0);
+    long long rule3_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                 rule3_id, "HTTP_RESPONSE_HEADER", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group52_id, compile3_id, 0,
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group52_id, rule3_id, 0,
                                        "HTTP_RESPONSE_HEADER", 0, 0);
     EXPECT_EQ(ret, 1);
 
@@ -10342,7 +10342,7 @@ TEST_F(MaatCmd, SameSuperGroupRefByMultiCompile) {
     ret = maat_state_set_scan_district(state, http_res_table_id, "KEY", strlen("KEY"));
     EXPECT_EQ(ret, 0);
     
-    const char *http_res_key_str = "same supergroup referenced by multi compile";
+    const char *http_res_key_str = "same supergroup referenced by multi rule";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_hit_path hit_path[128];
@@ -10352,8 +10352,8 @@ TEST_F(MaatCmd, SameSuperGroupRefByMultiCompile) {
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], compile3_id);
-    EXPECT_EQ(results[1], compile2_id);
+    EXPECT_EQ(results[0], rule3_id);
+    EXPECT_EQ(results[1], rule2_id);
     
     ret = maat_scan_not_logic(maat_inst, http_res_table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -10368,47 +10368,47 @@ TEST_F(MaatCmd, SameSuperGroupRefByMultiCompile) {
     EXPECT_EQ(hit_path[path_idx].item_id, item5_id);
     EXPECT_EQ(hit_path[path_idx].sub_group_id, group5_id);
     EXPECT_EQ(hit_path[path_idx].top_group_id, group52_id);
-    EXPECT_EQ(hit_path[path_idx].compile_id, compile3_id);
+    EXPECT_EQ(hit_path[path_idx].rule_id, rule3_id);
 
     path_idx++;
     EXPECT_EQ(hit_path[path_idx].Nth_scan, 1);
     EXPECT_EQ(hit_path[path_idx].item_id, item5_id);
     EXPECT_EQ(hit_path[path_idx].sub_group_id, group5_id);
     EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-    EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+    EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     path_idx++;
     EXPECT_EQ(hit_path[path_idx].Nth_scan, 1);
     EXPECT_EQ(hit_path[path_idx].item_id, item5_id);
     EXPECT_EQ(hit_path[path_idx].sub_group_id, group5_id);
     EXPECT_EQ(hit_path[path_idx].top_group_id, group52_id);
-    EXPECT_EQ(hit_path[path_idx].compile_id, compile2_id);
+    EXPECT_EQ(hit_path[path_idx].rule_id, rule2_id);
 
     maat_state_free(state);
     state = NULL;
 }
 
 TEST_F(MaatCmd, SameScanStatusWhenClauseUpdate_TSG6419) {
-    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
-	const char* compile_table_name = "COMPILE_DEFAULT";
+    const char *g2c_table_name = "GROUP2RULE_DEFAULT";
+	const char* rule_table_name = "RULE_DEFAULT";
 	const char* ip_table_name = "IP_PLUS_CONFIG";
     const char *app_id_table_name = "APP_ID";
     int thread_id = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile1_id, "null", 2, 0);
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    /* item11 -> group11 -> clause1 -> compile1
+    /* item11 -> group11 -> clause1 -> rule1
                                           /
            item21 -> group21 -> clause2 _/
     */
     long long group11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group11_id, compile1_id, 0, ip_table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group11_id, rule1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long item11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -10417,8 +10417,8 @@ TEST_F(MaatCmd, SameScanStatusWhenClauseUpdate_TSG6419) {
     EXPECT_EQ(ret, 1);
 
     long long group21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group21_id, compile1_id, 0, app_id_table_name, 2, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group21_id, rule1_id, 0, app_id_table_name, 2, 0);
     EXPECT_EQ(ret, 1);
 
     long long item21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -10451,21 +10451,21 @@ TEST_F(MaatCmd, SameScanStatusWhenClauseUpdate_TSG6419) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    /* item11 -> group11 -> clause1 -> compile1
+    /* item11 -> group11 -> clause1 -> rule1
                                           /
            item21 -> group21 -> clause2 _/
           item22 -> group22 -> clause3 _/
     */
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL,
-                                 compile1_id, "null", 2, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
+                                 rule1_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                 compile1_id, "null", 3, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                 rule1_id, "null", 3, 0);
     EXPECT_EQ(ret, 1);
 
     long long group22_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group22_id, compile1_id, 0, app_id_table_name, 3, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group22_id, rule1_id, 0, app_id_table_name, 3, 0);
     EXPECT_EQ(ret, 1);
 
     long long item22_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -10488,7 +10488,7 @@ TEST_F(MaatCmd, SameScanStatusWhenClauseUpdate_TSG6419) {
                             ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile1_id);
+    EXPECT_EQ(results[0], rule1_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -10499,25 +10499,25 @@ TEST_F(MaatCmd, SameScanStatusWhenClauseUpdate_TSG6419) {
 }
 
 TEST_F(MaatCmd, GroupEdit) {
-    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
-	const char *compile_table_name = "COMPILE_DEFAULT";
+    const char *g2c_table_name = "GROUP2RULE_DEFAULT";
+	const char *rule_table_name = "RULE_DEFAULT";
 	const char *ip_table_name = "IP_PLUS_CONFIG"; 
     const char *app_id_table_name = "APP_ID";
     int thread_id = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile1_id, "null", 2, 0);
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    /* item11 -> group11 -> clause1 -> compile1
+    /* item11 -> group11 -> clause1 -> rule1
            item21 -> group21 -> clause2 _/
     */
     long long group11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group11_id, compile1_id, 0, ip_table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group11_id, rule1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long item11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -10526,8 +10526,8 @@ TEST_F(MaatCmd, GroupEdit) {
     EXPECT_EQ(ret, 1);
 
     long long group21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group21_id, compile1_id, 0, app_id_table_name, 2, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group21_id, rule1_id, 0, app_id_table_name, 2, 0);
     EXPECT_EQ(ret, 1);
 
     long long item21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -10568,7 +10568,7 @@ TEST_F(MaatCmd, GroupEdit) {
 
     maat_state_reset(state);
 
-    /* item11 -> group11 -> clause1 -> compile1
+    /* item11 -> group11 -> clause1 -> rule1
             item21 -> group21 -> clause2 _/
               item22 -> /
     */
@@ -10595,7 +10595,7 @@ TEST_F(MaatCmd, GroupEdit) {
                             ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile1_id);
+    EXPECT_EQ(results[0], rule1_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -10608,7 +10608,7 @@ TEST_F(MaatCmd, GroupEdit) {
     EXPECT_EQ(n_read, 2);
     maat_state_reset(state);
 
-    /* item11 -> group11 -> clause1 -> compile1
+    /* item11 -> group11 -> clause1 -> rule1
            item21 -> group21 -> clause2 _/
     */
     ret = interval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_DEL,
@@ -10640,23 +10640,23 @@ TEST_F(MaatCmd, GroupEdit) {
     state = NULL;
 }
 
-TEST_F(MaatCmd, CompileDelete_TSG6548) {
-    const char* g2c_table_name = "GROUP2COMPILE_DEFAULT";
-	const char* compile_table_name = "COMPILE_DEFAULT";
+TEST_F(MaatCmd, RuleDelete_TSG6548) {
+    const char* g2c_table_name = "GROUP2RULE_DEFAULT";
+	const char* rule_table_name = "RULE_DEFAULT";
 	const char* ip_table_name = "IP_PLUS_CONFIG";
     int thread_id = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile1_id, "null", 1, 0);
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    //item11 -> group11 -> clause1 -> compile1
+    //item11 -> group11 -> clause1 -> rule1
     long long group11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group11_id, compile1_id, 0, ip_table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group11_id, rule1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long item11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -10679,18 +10679,18 @@ TEST_F(MaatCmd, CompileDelete_TSG6548) {
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile1_id);
+    EXPECT_EQ(results[0], rule1_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL,
-                                 compile1_id, "null", 1, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
+                                 rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
-                                       group11_id, compile1_id, 0, ip_table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+                                       group11_id, rule1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     int hit_cnt = 0;
@@ -10702,7 +10702,7 @@ TEST_F(MaatCmd, CompileDelete_TSG6548) {
                              ARRAY_SIZE, &n_hit_result, state);
 		if (ret == MAAT_SCAN_HIT) {
 			hit_cnt++;
-			EXPECT_EQ(results[0], compile1_id);
+			EXPECT_EQ(results[0], rule1_id);
 		} 
         if (ret == MAAT_SCAN_HALF_HIT) {
 			miss_cnt++;
@@ -10716,25 +10716,25 @@ TEST_F(MaatCmd, CompileDelete_TSG6548) {
 }
 
 TEST_F(MaatCmd, UpdateDeadLockDetection) {
-    const char* g2c_table_name = "GROUP2COMPILE_DEFAULT";
-	const char* compile_table_name = "COMPILE_DEFAULT";
+    const char* g2c_table_name = "GROUP2RULE_DEFAULT";
+	const char* rule_table_name = "RULE_DEFAULT";
 	const char* table_http_url = "HTTP_URL";
     int thread_id = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile1_id, "null", 1, 0);
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    //group1 -> compile1
+    //group1 -> rule1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0, table_http_url, 0, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group1_id, rule1_id, 0, table_http_url, 0, 0);
     EXPECT_EQ(ret, 1);
 
-    //item1 -> group1 -> compile1
+    //item1 -> group1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, table_http_url, MAAT_OP_ADD, item1_id,
                               group1_id, "part-1", NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
@@ -10755,24 +10755,24 @@ TEST_F(MaatCmd, UpdateDeadLockDetection) {
                           results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile1_id);
+    EXPECT_EQ(results[0], rule1_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    long long compile2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                 compile2_id, "null", 1, 0);
+    long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                 rule2_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    //group2 -> compile2
+    //group2 -> rule2
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group2_id, compile2_id, 0, table_http_url, 0, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group2_id, rule2_id, 0, table_http_url, 0, 0);
     EXPECT_EQ(ret, 1);
 
-    //item2 -> group2 -> compile2
+    //item2 -> group2 -> rule2
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, table_http_url, MAAT_OP_ADD, item2_id,
                               group2_id, "part-2", NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
@@ -10801,22 +10801,22 @@ TEST_F(MaatCmd, UpdateDeadLockDetection) {
 }
 
 TEST_F(MaatCmd, StreamScanWhenExprTableIncUpdate) {
-    const char* g2c_table_name = "GROUP2COMPILE_DEFAULT";
-	const char* compile_table_name = "COMPILE_DEFAULT";
+    const char* g2c_table_name = "GROUP2RULE_DEFAULT";
+	const char* rule_table_name = "RULE_DEFAULT";
 	const char* scan_table_name = "KEYWORDS_TABLE";
     int thread_id = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile1_id, "null", 1, 0);
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    //group1 -> compile1
+    //group1 -> rule1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0, scan_table_name, 0, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group1_id, rule1_id, 0, scan_table_name, 0, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -10837,7 +10837,7 @@ TEST_F(MaatCmd, StreamScanWhenExprTableIncUpdate) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    //item1 -> group1 -> compile1
+    //item1 -> group1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, scan_table_name, MAAT_OP_ADD,
                               item1_id, group1_id, "stream-keywords-001-inc-update",
@@ -10864,7 +10864,7 @@ TEST_F(MaatCmd, StreamScanWhenExprTableIncUpdate) {
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile1_id);
+    EXPECT_EQ(results[0], rule1_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -10876,25 +10876,25 @@ TEST_F(MaatCmd, StreamScanWhenExprTableIncUpdate) {
 }
 
 TEST_F(MaatCmd, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
-    const char* g2c_table_name = "GROUP2COMPILE_DEFAULT";
-	const char* compile_table_name = "COMPILE_DEFAULT";
+    const char* g2c_table_name = "GROUP2RULE_DEFAULT";
+	const char* rule_table_name = "RULE_DEFAULT";
 	const char* scan_table_name = "KEYWORDS_TABLE";
     int thread_id = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile1_id, "null", 1, 0);
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    //group1 -> compile1
+    //group1 -> rule1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0, scan_table_name, 0, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group1_id, rule1_id, 0, scan_table_name, 0, 0);
     EXPECT_EQ(ret, 1);
 
-    //item1 -> group1 -> compile1
+    //item1 -> group1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, scan_table_name, MAAT_OP_ADD, item1_id,
                               group1_id, "stream-keywords-002", NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
@@ -10914,7 +10914,7 @@ TEST_F(MaatCmd, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile1_id);
+    EXPECT_EQ(results[0], rule1_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -10923,7 +10923,7 @@ TEST_F(MaatCmd, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
     //DON'T DO THIS!!!
 	//Roll back version, trigger full update.	
 	//This operation generates FATAL logs in test_maat_redis.log.yyyy-mm-dd.
-	//For example: Add group 22 vt_id 0 to clause 2 of compile 979 failed, group is already existed
+	//For example: Add group 22 vt_id 0 to clause 2 of rule 979 failed, group is already existed
 	maat_cmd_incrby(maat_inst, "MAAT_VERSION", -100);
 
 	//Wating for scanner garbage collect expiration.
@@ -10943,32 +10943,32 @@ TEST_F(MaatCmd, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
 }
 
 TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
-    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
-	const char *compile_table_name = "COMPILE_DEFAULT";
+    const char *g2c_table_name = "GROUP2RULE_DEFAULT";
+	const char *rule_table_name = "RULE_DEFAULT";
 	const char *expr_table_name = "KEYWORDS_TABLE";
     const char *ip_table_name = "IP_PLUS_CONFIG";
     int thread_id = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile1_id, "null", 2, 0);
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    //group1 -> compile1
+    //group1 -> rule1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0, expr_table_name, 0, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group1_id, rule1_id, 0, expr_table_name, 0, 0);
     EXPECT_EQ(ret, 1);
 
-    //item1 -> group1 -> compile1
+    //item1 -> group1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, expr_table_name, MAAT_OP_ADD, item1_id,
                               group1_id, "stream-keywords-003", NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    /* item1 -> group1 -> compile1 
+    /* item1 -> group1 -> rule1 
                             /
          item2 -> group2 --/
     */
@@ -10978,8 +10978,8 @@ TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
                             group2_id, "100.100.100.1", 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group2_id, compile1_id, 0, ip_table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group2_id, rule1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -11002,10 +11002,10 @@ TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    //add compile2 for compile runtime inc update
-    long long compile2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                 compile2_id, "null", 1, 0);
+    //add rule2 for rule runtime inc update
+    long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                 rule2_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -11019,14 +11019,14 @@ TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile1_id);
+    EXPECT_EQ(results[0], rule1_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     /* 
-        becase compile1_id has been returned, maat_scan_xx will not return duplicate compile_id again
+        becase rule1_id has been returned, maat_scan_xx will not return duplicate rule_id again
     */
     table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
@@ -11044,33 +11044,33 @@ TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
 }
 
 TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
-    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
-	const char *compile_table_name = "COMPILE_DEFAULT";
+    const char *g2c_table_name = "GROUP2RULE_DEFAULT";
+	const char *rule_table_name = "RULE_DEFAULT";
 	const char *ip_table_name = "IP_PLUS_CONFIG";
     const char *expr_table_name = "KEYWORDS_TABLE";
     int thread_id = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile1_id, "null", 1, 0);
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    //group1 -> compile1
+    //group1 -> rule1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0, expr_table_name, 0, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group1_id, rule1_id, 0, expr_table_name, 0, 0);
     EXPECT_EQ(ret, 1);
 
-    //item1 -> group1 -> compile1
+    //item1 -> group1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, expr_table_name, MAAT_OP_ADD,
                               item1_id, group1_id, "stream-keywords-004",
                               NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    /* item1 -> group1 -> compile1 
+    /* item1 -> group1 -> rule1 
                             /
          item2 -> group2 --/
     */
@@ -11080,8 +11080,8 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
                             item2_id, group2_id, "100.100.100.2", 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group2_id, compile1_id, 0, ip_table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group2_id, rule1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -11124,8 +11124,8 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    /* maat_state keep the compile_rt version when maat_state_new().
-       After full updating, new compile_rt version is different from that of maat_state,
+    /* maat_state keep the rule_rt version when maat_state_new().
+       After full updating, new rule_rt version is different from that of maat_state,
        so MAAT_SCAN_HIT will never happen.
     */
     table_id = maat_get_table_id(maat_inst, ip_table_name);
@@ -11144,8 +11144,8 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
 }
 
 TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
-     const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
-	const char *compile_table_name = "COMPILE_DEFAULT";
+     const char *g2c_table_name = "GROUP2RULE_DEFAULT";
+	const char *rule_table_name = "RULE_DEFAULT";
 	const char *expr_table_name = "HTTP_URL";
     const char *ip_table_name = "IP_PLUS_CONFIG";
     const char *keywords = "IP&stringinc";
@@ -11153,24 +11153,24 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile1_id, "null", 2, 0);
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    //group1 -> compile1
+    //group1 -> rule1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0, expr_table_name, 0, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group1_id, rule1_id, 0, expr_table_name, 0, 0);
     EXPECT_EQ(ret, 1);
 
-    //item1 -> group1 -> compile1
+    //item1 -> group1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, expr_table_name, MAAT_OP_ADD, item1_id,
                               group1_id, keywords, NULL, 1, 0); /*EXPR_TYPE_AND MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    /* item1 -> group1 -> compile1 
+    /* item1 -> group1 -> rule1 
                             /
          item2 -> group2 --/
     */
@@ -11180,8 +11180,8 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
                             group2_id, "100.100.100.1", 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group2_id, compile1_id, 0, ip_table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group2_id, rule1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -11204,10 +11204,10 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    //add compile2 for compile runtime inc update
-    long long compile2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                 compile2_id, "null", 1, 0);
+    //add rule2 for rule runtime inc update
+    long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                 rule2_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -11220,14 +11220,14 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], compile1_id);
+    EXPECT_EQ(results[0], rule1_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     /* 
-        becase compile1_id has been returned, maat_scan_xx will not return duplicate compile_id again
+        becase rule1_id has been returned, maat_scan_xx will not return duplicate rule_id again
     */
     table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
@@ -11244,8 +11244,8 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
 }
 
 TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
-    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
-    const char *compile_table_name = "COMPILE_DEFAULT";
+    const char *g2c_table_name = "GROUP2RULE_DEFAULT";
+    const char *rule_table_name = "RULE_DEFAULT";
     const char *ip_table_name = "IP_PLUS_CONFIG";
     const char *expr_table_name = "HTTP_URL";
     const char *keywords = "IP&string";
@@ -11253,24 +11253,24 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
-                                     compile1_id, "null", 1, 0);
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    //group1 -> compile1
+    //group1 -> rule1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0, expr_table_name, 0, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group1_id, rule1_id, 0, expr_table_name, 0, 0);
     EXPECT_EQ(ret, 1);
 
-    //item1 -> group1 -> compile1
+    //item1 -> group1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, expr_table_name, MAAT_OP_ADD, item1_id,
                               group1_id, keywords, "null", 1, 0); /*EXPR_TYPE_AND MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    /* item1 -> group1 -> compile1 
+    /* item1 -> group1 -> rule1 
                             /
          item2 -> group2 --/
     */
@@ -11280,8 +11280,8 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
                             group2_id, "100.100.100.3", 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group2_id, compile1_id, 0, ip_table_name, 1, 0);
+    ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group2_id, rule1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -11323,8 +11323,8 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    /* maat_state keep the compile_rt version when maat_state_new().
-       After full updating, new compile_rt version is different from that of maat_state,
+    /* maat_state keep the rule_rt version when maat_state_new().
+       After full updating, new rule_rt version is different from that of maat_state,
        so MAAT_SCAN_HIT will never happen.
     */
     table_id = maat_get_table_id(maat_inst, ip_table_name);

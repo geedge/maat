@@ -120,7 +120,7 @@ void generate_flag_sample(const char *table_name, int sample_count)
     fclose(fp);
 }
 
-void generate_compile_sample(const char *table_name, int sample_count)
+void generate_rule_sample(const char *table_name, int sample_count)
 {
     FILE *fp = fopen(table_name, "w+");
     if (NULL == fp) {
@@ -137,7 +137,7 @@ void generate_compile_sample(const char *table_name, int sample_count)
     fclose(fp);
 }
 
-void generate_group2compile_sample(const char *table_name, const char *vtable_name,
+void generate_group2rule_sample(const char *table_name, const char *vtable_name,
                                    int sample_count)
 {
     FILE *fp = fopen(table_name, "w+");
@@ -526,12 +526,12 @@ protected:
             return;
         }
         fprintf(fp, "REGEX_100\t100\t./regex_rules/REGEX_100\n");
-        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF\t10\t./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF\t10\t./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "REGEX_100", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "REGEX_100", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -622,8 +622,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("./COMPILE_PERF");
-        system_cmd_rmdir("./GROUP2COMPILE_PERF");
+        system_cmd_rmdir("./RULE_PERF");
+        system_cmd_rmdir("./GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -693,12 +693,12 @@ protected:
             return;
         }
         fprintf(fp, "REGEX_200\t200\t./regex_rules/REGEX_200\n");
-        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF\t10\t./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF\t10\t./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "REGEX_200", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "REGEX_200", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -789,8 +789,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("./COMPILE_PERF");
-        system_cmd_rmdir("./GROUP2COMPILE_PERF");
+        system_cmd_rmdir("./RULE_PERF");
+        system_cmd_rmdir("./GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -860,12 +860,12 @@ protected:
             return;
         }
         fprintf(fp, "REGEX_300\t300\t./regex_rules/REGEX_300\n");
-        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF\t10\t./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF\t10\t./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "REGEX_300", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "REGEX_300", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -956,8 +956,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("./COMPILE_PERF");
-        system_cmd_rmdir("./GROUP2COMPILE_PERF");
+        system_cmd_rmdir("./RULE_PERF");
+        system_cmd_rmdir("./GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -1027,12 +1027,12 @@ protected:
             return;
         }
         fprintf(fp, "REGEX_500\t500\t./regex_rules/REGEX_500\n");
-        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF\t10\t./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF\t10\t./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "REGEX_500", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "REGEX_500", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -1123,8 +1123,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("./COMPILE_PERF");
-        system_cmd_rmdir("./GROUP2COMPILE_PERF");
+        system_cmd_rmdir("./RULE_PERF");
+        system_cmd_rmdir("./GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -1194,12 +1194,12 @@ protected:
             return;
         }
         fprintf(fp, "REGEX_1K\t1000\t./regex_rules/REGEX_1K\n");
-        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF\t10\t./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF\t10\t./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "REGEX_1K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "REGEX_1K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -1290,8 +1290,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("./COMPILE_PERF");
-        system_cmd_rmdir("./GROUP2COMPILE_PERF");
+        system_cmd_rmdir("./RULE_PERF");
+        system_cmd_rmdir("./GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -1361,12 +1361,12 @@ protected:
             return;
         }
         fprintf(fp, "REGEX_2K\t2000\t./regex_rules/REGEX_2K\n");
-        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF\t10\t./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF\t10\t./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "REGEX_2K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "REGEX_2K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -1457,8 +1457,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("./COMPILE_PERF");
-        system_cmd_rmdir("./GROUP2COMPILE_PERF");
+        system_cmd_rmdir("./RULE_PERF");
+        system_cmd_rmdir("./GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -1528,12 +1528,12 @@ protected:
             return;
         }
         fprintf(fp, "REGEX_3K\t3000\t./regex_rules/REGEX_3K\n");
-        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF\t10\t./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF\t10\t./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "REGEX_3K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "REGEX_3K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -1624,8 +1624,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -1695,12 +1695,12 @@ protected:
             return;
         }
         fprintf(fp, "REGEX_5K\t5000\t./regex_rules/REGEX_5K\n");
-        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF\t10\t./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF\t10\t./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "REGEX_5K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "REGEX_5K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -1791,8 +1791,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -1862,12 +1862,12 @@ protected:
             return;
         }
         fprintf(fp, "REGEX_10K\t10000\t./regex_rules/REGEX_10K\n");
-        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF\t10\t./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF\t10\t./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "REGEX_10K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "REGEX_10K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -1958,8 +1958,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -2029,12 +2029,12 @@ protected:
             return;
         }
         fprintf(fp, "REGEX_15K\t15000\t./regex_rules/REGEX_15K\n");
-        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF\t10\t./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF\t10\t./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "REGEX_15K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "REGEX_15K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -2125,8 +2125,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -2197,12 +2197,12 @@ protected:
             return;
         }
         fprintf(fp, "EXPR_LITERAL_1K 1000 ./EXPR_LITERAL_1K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "EXPR_LITERAL_1K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "EXPR_LITERAL_1K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -2293,8 +2293,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -2365,12 +2365,12 @@ protected:
             return;
         }
         fprintf(fp, "EXPR_LITERAL_5K 5000 ./EXPR_LITERAL_5K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "EXPR_LITERAL_5K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "EXPR_LITERAL_5K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -2461,8 +2461,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -2533,12 +2533,12 @@ protected:
             return;
         }
         fprintf(fp, "EXPR_LITERAL_10K 10000 ./EXPR_LITERAL_10K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "EXPR_LITERAL_10K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "EXPR_LITERAL_10K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -2629,8 +2629,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -2701,12 +2701,12 @@ protected:
             return;
         }
         fprintf(fp, "EXPR_LITERAL_50K 50000 ./EXPR_LITERAL_50K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "EXPR_LITERAL_50K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "EXPR_LITERAL_50K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -2797,8 +2797,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -2869,12 +2869,12 @@ protected:
             return;
         }
         fprintf(fp, "EXPR_LITERAL_100K 100000 ./EXPR_LITERAL_100K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "EXPR_LITERAL_100K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "EXPR_LITERAL_100K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -2965,8 +2965,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -3037,12 +3037,12 @@ protected:
             return;
         }
         fprintf(fp, "EXPR_LITERAL_500K 500000 ./EXPR_LITERAL_500K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "EXPR_LITERAL_500K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "EXPR_LITERAL_500K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -3133,8 +3133,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -3205,12 +3205,12 @@ protected:
             return;
         }
         fprintf(fp, "EXPR_LITERAL_1M 1000000 ./EXPR_LITERAL_1M\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "EXPR_LITERAL_1M", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "EXPR_LITERAL_1M", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -3301,8 +3301,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -3373,12 +3373,12 @@ protected:
             return;
         }
         fprintf(fp, "EXPR_LITERAL_2M 2000000 ./EXPR_LITERAL_2M\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "EXPR_LITERAL_2M", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "EXPR_LITERAL_2M", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -3469,8 +3469,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -3541,12 +3541,12 @@ protected:
             return;
         }
         fprintf(fp, "STREAM_1K 1000 ./STREAM_1K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "STREAM_1K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "STREAM_1K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -3634,8 +3634,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -3703,12 +3703,12 @@ protected:
             return;
         }
         fprintf(fp, "STREAM_5K 5000 ./STREAM_5K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "STREAM_5K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "STREAM_5K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -3796,8 +3796,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -3865,12 +3865,12 @@ protected:
             return;
         }
         fprintf(fp, "STREAM_10K 10000 ./STREAM_10K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "STREAM_10K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "STREAM_10K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -3958,8 +3958,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -4027,12 +4027,12 @@ protected:
             return;
         }
         fprintf(fp, "STREAM_50K 50000 ./STREAM_50K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "STREAM_50K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "STREAM_50K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -4120,8 +4120,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -4189,12 +4189,12 @@ protected:
             return;
         }
         fprintf(fp, "STREAM_100K 100000 ./STREAM_100K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "STREAM_100K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "STREAM_100K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -4282,8 +4282,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -4351,12 +4351,12 @@ protected:
             return;
         }
         fprintf(fp, "STREAM_500K 500000 ./STREAM_500K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "STREAM_500K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "STREAM_500K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -4444,8 +4444,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -4513,12 +4513,12 @@ protected:
             return;
         }
         fprintf(fp, "STREAM_1M 1000000 ./STREAM_1M\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "STREAM_1M", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "STREAM_1M", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -4606,8 +4606,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -4675,12 +4675,12 @@ protected:
             return;
         }
         fprintf(fp, "STREAM_2M 2000000 ./STREAM_2M\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "STREAM_2M", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "STREAM_2M", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -4768,8 +4768,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -4837,12 +4837,12 @@ protected:
             return;
         }
         fprintf(fp, "IP_1K 1000 ./IP_1K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "IP_1K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "IP_1K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -4855,8 +4855,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -4927,12 +4927,12 @@ protected:
             return;
         }
         fprintf(fp, "IP_5K 5000 ./IP_5K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "IP_5K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "IP_5K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -4945,8 +4945,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -5017,12 +5017,12 @@ protected:
             return;
         }
         fprintf(fp, "IP_10K 10000 ./IP_10K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "IP_10K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "IP_10K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -5035,8 +5035,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -5107,12 +5107,12 @@ protected:
             return;
         }
         fprintf(fp, "IP_50K 50000 ./IP_50K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "IP_50K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "IP_50K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -5125,8 +5125,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -5197,12 +5197,12 @@ protected:
             return;
         }
         fprintf(fp, "IP_100K 100000 ./IP_100K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "IP_100K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "IP_100K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -5215,8 +5215,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -5287,12 +5287,12 @@ protected:
             return;
         }
         fprintf(fp, "IP_500K 500000 ./IP_500K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "IP_500K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "IP_500K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -5305,8 +5305,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -5377,12 +5377,12 @@ protected:
             return;
         }
         fprintf(fp, "IP_1M 1000000 ./IP_1M\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "IP_1M", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "IP_1M", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -5395,8 +5395,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -5467,12 +5467,12 @@ protected:
             return;
         }
         fprintf(fp, "IP_5M 5000000 ./IP_5M\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "IP_5M", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "IP_5M", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -5485,8 +5485,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -5557,12 +5557,12 @@ protected:
             return;
         }
         fprintf(fp, "IP_10M 10000000 ./IP_10M\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "IP_10M", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "IP_10M", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -5575,8 +5575,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -5647,12 +5647,12 @@ protected:
             return;
         }
         fprintf(fp, "INTEGER_1K 1000 ./INTEGER_1K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "INTEGER_1K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "INTEGER_1K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -5665,8 +5665,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -5737,12 +5737,12 @@ protected:
             return;
         }
         fprintf(fp, "INTEGER_5K 5000 ./INTEGER_5K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "INTEGER_5K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "INTEGER_5K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -5755,8 +5755,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -5827,12 +5827,12 @@ protected:
             return;
         }
         fprintf(fp, "INTEGER_10K 10000 ./INTEGER_10K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "INTEGER_10K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "INTEGER_10K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -5845,8 +5845,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -5917,12 +5917,12 @@ protected:
             return;
         }
         fprintf(fp, "FLAG_1K 1000 ./FLAG_1K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "FLAG_1K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "FLAG_1K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -5935,8 +5935,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -6007,12 +6007,12 @@ protected:
             return;
         }
         fprintf(fp, "FLAG_5K 5000 ./FLAG_5K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "FLAG_5K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "FLAG_5K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -6025,8 +6025,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;
@@ -6097,12 +6097,12 @@ protected:
             return;
         }
         fprintf(fp, "FLAG_10K 10000 ./FLAG_10K\n");
-        fprintf(fp, "COMPILE_PERF 10 ./COMPILE_PERF\n");
-        fprintf(fp, "GROUP2COMPILE_PERF 10 ./GROUP2COMPILE_PERF\n");
+        fprintf(fp, "RULE_PERF 10 ./RULE_PERF\n");
+        fprintf(fp, "GROUP2RULE_PERF 10 ./GROUP2RULE_PERF\n");
         fclose(fp);
 
-        generate_compile_sample("COMPILE_PERF", 10);
-        generate_group2compile_sample("GROUP2COMPILE_PERF", "FLAG_10K", 10);
+        generate_rule_sample("RULE_PERF", 10);
+        generate_group2rule_sample("GROUP2RULE_PERF", "FLAG_10K", 10);
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_gtest.log", LOG_LEVEL_INFO);
@@ -6115,8 +6115,8 @@ protected:
     static void TearDownTestCase() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
-        system_cmd_rmdir("COMPILE_PERF");
-        system_cmd_rmdir("GROUP2COMPILE_PERF");
+        system_cmd_rmdir("RULE_PERF");
+        system_cmd_rmdir("GROUP2RULE_PERF");
     }
 
     static struct log_handle *logger;

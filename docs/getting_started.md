@@ -31,7 +31,7 @@ A complete use case consists of three parts:
 
 ### Case1
 
-In the scanning scenario, it is necessary to configure the schema of multiple tables, including the item table, group2compile table, and compile table. If there is also group nesting involved, the schema of the group2group table needs to be configured.
+In the scanning scenario, it is necessary to configure the schema of multiple tables, including the item table, group2rule table, and rule table. If there is also group nesting involved, the schema of the group2group table needs to be configured.
 
 **(1) table schema**
 
@@ -41,25 +41,25 @@ Table schema is stored in a json file(such as table_info.conf), which is loaded 
  [
     {
         "table_id":0,
-        "table_name":"COMPILE",
-        "table_type":"compile",
-        "default_compile_table":0, /* key:indicate this is the default compile table, value:can be anything(not care) */
+        "table_name":"RULE",
+        "table_type":"rule",
+        "default_rule_table":0, /* key:indicate this is the default rule table, value:can be anything(not care) */
         "valid_column":8,
         "custom": {
-            "compile_id":1,
+            "rule_id":1,
             "tags":6,
             "clause_num":9
         }
     },
     {
         "table_id":1,
-        "table_name":"GROUP2COMPILE",
-        "table_type":"group2compile",
-        "associated_compile_table_id":0, /* associate compile table_id, group2compile table shares the same runtime with the corresponding compile table, so it needs to be mapped to the corresponding compile table. */
+        "table_name":"GROUP2RULE",
+        "table_type":"group2rule",
+        "associated_rule_table_id":0, /* associate rule table_id, group2rule table shares the same runtime with the corresponding rule table, so it needs to be mapped to the corresponding rule table. */
         "valid_column":3,
         "custom": {
             "group_id":1,
-            "compile_id":2,
+            "rule_id":2,
             "not_flag":4,
             "virtual_table_name":5,
             "clause_index":6
@@ -98,12 +98,12 @@ Table schema is stored in a json file(such as table_info.conf), which is loaded 
 Configurations are stored in a json file(such as maat_json.json), which is loaded when maat instance is created.
 ```json
 {
-    "compile_table": "COMPILE",
-    "group2compile_table": "GROUP2COMPILE",
+    "rule_table": "RULE",
+    "group2rule_table": "GROUP2RULE",
     "group2group_table": "GROUP2GROUP",
     "rules": [
         {
-            "compile_id": 123,
+            "rule_id": 123,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -172,7 +172,7 @@ int main()
 
     /**
      * Becase maat instance has loaded rule in table_info.conf which keywords is "Hello Maat",
-       so maat_scan_string should return hit flag and rule's compile_id stored in results array.
+       so maat_scan_string should return hit flag and rule's rule_id stored in results array.
     */
     int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
                                results, ARRAY_SIZE, &n_hit_result, state);
@@ -215,8 +215,8 @@ In the callback scenario, only the schema of the corresponding table needs to be
 
 ```json
 {
-    "compile_table": "COMPILE",
-    "group2compile_table": "GROUP2COMPILE",
+    "rule_table": "RULE",
+    "group2rule_table": "GROUP2RULE",
     "group2group_table": "GROUP2GROUP",
     "plugin_table": {
         "table_name": "TEST_IP_PLUGIN_WITH_EXDATA",

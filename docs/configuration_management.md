@@ -9,7 +9,7 @@ Maat supports three configuration loading modes:
 
 ## 1.<a name='Redis mode'></a> Redis mode
 
-As shown in the diagram below, the data source is stored in the relational database `MariaDB`. An adapter writes this data into the `leader redis`, which is then distributed through redis's `leader-follower synchronization` mechanism. The storage structure design in redis for configurations does not need to consider the logical relationships between compile, group, and item. Maat will construct these logical relationships internally after loading the configurations from redis.
+As shown in the diagram below, the data source is stored in the relational database `MariaDB`. An adapter writes this data into the `leader redis`, which is then distributed through redis's `leader-follower synchronization` mechanism. The storage structure design in redis for configurations does not need to consider the logical relationships between rule, group, and item. Maat will construct these logical relationships internally after loading the configurations from redis.
 
 <img src="./imgs/sync-with-redis.png" width="600" height="300" >
 
@@ -23,7 +23,7 @@ As shown in the diagram below, the data source is stored in the relational datab
 | MAAT_UPDATE_STATUS | Configuration status | sorted set, where the member is a configuration rule and the score is the version number | MAAT reads this using ZRANGEBYSCORE command. |
 | MAAT_RULE_TIMER    | Main configuration timeout information | Sorted Set, where the member is a configuration rule and the score is the timeout | MAAT configuration update thread periodically checks timeout status and sets timeout state. |
 | MAAT_VERSION_TIMER | Version creation time | Sorted Set  | Stores the creation time of each version, where the score is the version creation time and the member is the version, used to keep MAAT_UPDATE_STATUS within a smaller scale. |
-| MAAT_LABEL_INDEX   | Label index | Sorted Set, where the element is the configuration table name, compile_id, and the score is the label_id |      |
+| MAAT_LABEL_INDEX   | Label index | Sorted Set, where the element is the configuration table name, rule_id, and the score is the label_id |      |
 | EFFECTIVE_RULE:TableName,ID  OBSOLETE_RULE:TableName,ID | Main configuration | string     | Active configurations, loaded one by one by MAAT.  |
 | SEQUENCE_REGION    | Region ID generation sequence   | INTEGER  | Used by producers to generate unique region_id(item_id)  |
 | SEQUENCE_GROUP     | Group ID generation sequence | INTEGER  | Used by producers to generate unique group_id  |
@@ -161,6 +161,6 @@ To manually add an existing table configuration, the following files need to be 
 
 * Append a new line to the table file that needs modification. The region_id should not conflict with any existing domain tables, and update the first line of the file with the new number of rows.
 
-* Add the summary information of the new configuration to the configuration summary table. Ensure it matches the compile_id in the table file and does not conflict with any existing compile_id. Update the first line of the file with the new number of rows.
+* Add the summary information of the new configuration to the configuration summary table. Ensure it matches the rule_id in the table file and does not conflict with any existing rule_id. Update the first line of the file with the new number of rows.
 
 * Modify the row counts for the configuration summary table and domain tables in the table index file.

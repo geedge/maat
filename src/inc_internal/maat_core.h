@@ -8,8 +8,8 @@
 ***********************************************************************************************
 */
 
-#ifndef _MAAT_RULE_H_
-#define _MAAT_RULE_H_
+#ifndef _MAAT_CORE_H_
+#define _MAAT_CORE_H_
 
 #ifdef __cplusplus
 extern "C"
@@ -153,9 +153,9 @@ struct maat_stat {
     
     long long *thread_call_cnt;
     long long *stream_cnt;
-    long long *hit_compile_cnt;
+    long long *hit_rule_cnt;
     long long *maat_state_cnt;
-    long long *compile_state_cnt;
+    long long *rule_state_cnt;
     long long *maat_state_free_cnt;
     long long *maat_state_free_bytes;
 
@@ -189,11 +189,11 @@ struct maat {
 
 struct maat_state {
 	struct maat *maat_inst;
-    struct compile_state *compile_state;
+    struct rule_state *rule_state;
     int Nth_scan;
     int district_id; //-1: Any District; -2: Unkonwn District;
 	uint16_t thread_id;
-    int16_t compile_table_id;
+    int16_t rule_table_id;
 	uint8_t district_flag;
     uint8_t logic_not_flag;
 };

@@ -9,7 +9,7 @@ global:
         maat_get_table_schema_tag;
         maat_reload_log_level;
         maat_table*;
-        maat_compile_table*;
+        maat_rule_table*;
         maat_plugin_table*;
         maat_ip_plugin_table*;
         maat_ipport_plugin_table*;

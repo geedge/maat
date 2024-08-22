@@ -55,7 +55,7 @@ extern "C"
 #endif
 
 #define MAX_HIT_PATH_NUM     4096
-#define	MAX_HIT_COMPILE_NUM  4096
+#define	MAX_HIT_RULE_NUM  4096
 #define MAX_HIT_GROUP_NUM    4096
 #define MAX_HIT_ITEM_NUM     4096
 

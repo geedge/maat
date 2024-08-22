@@ -24,7 +24,7 @@
 #include "maat_table.h"
 #include "maat_config_monitor.h"
 #include "maat_redis_monitor.h"
-#include "maat_compile.h"
+#include "maat_rule.h"
 #include "alignment.h"
 #include "ip_matcher.h"
 #include "adapter_hs.h"
@@ -1300,23 +1300,23 @@ string_scan(struct table_manager *tbl_mgr, int thread_id,
 }
 
 static size_t
-group_to_compile(struct maat *maat_inst, long long *results, size_t n_result,
+group_to_rule(struct maat *maat_inst, long long *results, size_t n_result,
                  struct maat_state *state)
 {
-    int compile_table_id =
-        table_manager_get_default_compile_table_id(maat_inst->tbl_mgr);
+    int rule_table_id =
+        table_manager_get_default_rule_table_id(maat_inst->tbl_mgr);
 
-    if (state->compile_table_id > 0) {
-        compile_table_id = state->compile_table_id;
+    if (state->rule_table_id > 0) {
+        rule_table_id = state->rule_table_id;
     }
 
-    void *compile_rt = table_manager_get_runtime(maat_inst->tbl_mgr,
-                                                 compile_table_id);
-    if (NULL == compile_rt) {
+    void *rule_rt = table_manager_get_runtime(maat_inst->tbl_mgr,
+                                                 rule_table_id);
+    if (NULL == rule_rt) {
         return 0;
     }
 
-    return compile_runtime_match((struct compile_runtime *)compile_rt,
+    return rule_runtime_match((struct rule_runtime *)rule_rt,
                                  results, n_result, state);
 }
 
@@ -1372,15 +1372,15 @@ int maat_scan_flag(struct maat *maat_inst, int table_id,
 
     maat_runtime_ref_inc(maat_rt, state->thread_id);
 
-    size_t sum_hit_compile_cnt = 0;
+    size_t sum_hit_rule_cnt = 0;
     if (hit_group_cnt > 0) {
-        sum_hit_compile_cnt = group_to_compile(maat_inst, results, n_result, state);
-        *n_hit_result = sum_hit_compile_cnt;
+        sum_hit_rule_cnt = group_to_rule(maat_inst, results, n_result, state);
+        *n_hit_result = sum_hit_rule_cnt;
     }
 
-    if (sum_hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_inst->stat->hit_compile_cnt, state->thread_id,
-                                  sum_hit_compile_cnt);
+    if (sum_hit_rule_cnt > 0) {
+        alignment_int64_array_add(maat_inst->stat->hit_rule_cnt, state->thread_id,
+                                  sum_hit_rule_cnt);
     }
 
     void *flag_rt = table_manager_get_runtime(maat_inst->tbl_mgr, phy_table_id);
@@ -1395,7 +1395,7 @@ int maat_scan_flag(struct maat *maat_inst, int table_id,
 
     maat_runtime_ref_dec(maat_rt, state->thread_id);
 
-    if (sum_hit_compile_cnt > 0) {
+    if (sum_hit_rule_cnt > 0) {
         return MAAT_SCAN_HIT;
     } else if (hit_group_cnt > 0) {
         return MAAT_SCAN_HALF_HIT;
@@ -1457,15 +1457,15 @@ int maat_scan_integer(struct maat *maat_inst, int table_id,
     
     maat_runtime_ref_inc(maat_rt, state->thread_id);
 
-    size_t sum_hit_compile_cnt = 0;
+    size_t sum_hit_rule_cnt = 0;
     if (hit_group_cnt > 0) {
-        sum_hit_compile_cnt = group_to_compile(maat_inst, results, n_result, state);
-        *n_hit_result = sum_hit_compile_cnt;
+        sum_hit_rule_cnt = group_to_rule(maat_inst, results, n_result, state);
+        *n_hit_result = sum_hit_rule_cnt;
     }
 
-    if (sum_hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_inst->stat->hit_compile_cnt, state->thread_id,
-                                  sum_hit_compile_cnt);
+    if (sum_hit_rule_cnt > 0) {
+        alignment_int64_array_add(maat_inst->stat->hit_rule_cnt, state->thread_id,
+                                  sum_hit_rule_cnt);
     }
 
     void *interval_rt = table_manager_get_runtime(maat_inst->tbl_mgr, phy_table_id);
@@ -1480,7 +1480,7 @@ int maat_scan_integer(struct maat *maat_inst, int table_id,
 
     maat_runtime_ref_dec(maat_rt, state->thread_id);
 
-    if (sum_hit_compile_cnt > 0) {
+    if (sum_hit_rule_cnt > 0) {
         return MAAT_SCAN_HIT;
     } else if (hit_group_cnt > 0) {
         return MAAT_SCAN_HALF_HIT;
@@ -1541,15 +1541,15 @@ int maat_scan_ipv4_port(struct maat *maat_inst, int table_id, uint32_t ip_addr,
     
     maat_runtime_ref_inc(maat_rt, state->thread_id);
 
-    size_t sum_hit_compile_cnt = 0;
+    size_t sum_hit_rule_cnt = 0;
     if (hit_group_cnt > 0) {
-        sum_hit_compile_cnt = group_to_compile(maat_inst, results, n_result, state);
-        *n_hit_result = sum_hit_compile_cnt;
+        sum_hit_rule_cnt = group_to_rule(maat_inst, results, n_result, state);
+        *n_hit_result = sum_hit_rule_cnt;
     }
 
-    if (sum_hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_inst->stat->hit_compile_cnt, state->thread_id,
-                                  sum_hit_compile_cnt);
+    if (sum_hit_rule_cnt > 0) {
+        alignment_int64_array_add(maat_inst->stat->hit_rule_cnt, state->thread_id,
+                                  sum_hit_rule_cnt);
     }
 
     void *ip_rt = table_manager_get_runtime(maat_inst->tbl_mgr, phy_table_id);
@@ -1564,7 +1564,7 @@ int maat_scan_ipv4_port(struct maat *maat_inst, int table_id, uint32_t ip_addr,
 
     maat_runtime_ref_dec(maat_rt, state->thread_id);
 
-    if (sum_hit_compile_cnt > 0) {
+    if (sum_hit_rule_cnt > 0) {
         return MAAT_SCAN_HIT;
     } else if (hit_group_cnt > 0) {
         return MAAT_SCAN_HALF_HIT;
@@ -1625,15 +1625,15 @@ int maat_scan_ipv6_port(struct maat *maat_inst, int table_id, uint8_t *ip_addr,
 
     maat_runtime_ref_inc(maat_rt, state->thread_id);
 
-    size_t sum_hit_compile_cnt = 0;
+    size_t sum_hit_rule_cnt = 0;
     if (hit_group_cnt > 0) {
-        sum_hit_compile_cnt = group_to_compile(maat_inst, results, n_result, state);
-        *n_hit_result = sum_hit_compile_cnt;
+        sum_hit_rule_cnt = group_to_rule(maat_inst, results, n_result, state);
+        *n_hit_result = sum_hit_rule_cnt;
     }
 
-    if (sum_hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_inst->stat->hit_compile_cnt, state->thread_id,
-                                  sum_hit_compile_cnt);
+    if (sum_hit_rule_cnt > 0) {
+        alignment_int64_array_add(maat_inst->stat->hit_rule_cnt, state->thread_id,
+                                  sum_hit_rule_cnt);
     }
 
     void *ip_rt = table_manager_get_runtime(maat_inst->tbl_mgr, phy_table_id);
@@ -1648,7 +1648,7 @@ int maat_scan_ipv6_port(struct maat *maat_inst, int table_id, uint8_t *ip_addr,
 
     maat_runtime_ref_dec(maat_rt, state->thread_id);
 
-    if (sum_hit_compile_cnt > 0) {
+    if (sum_hit_rule_cnt > 0) {
         return MAAT_SCAN_HIT;
     } else if (hit_group_cnt > 0) {
         return MAAT_SCAN_HALF_HIT;
@@ -1728,15 +1728,15 @@ int maat_scan_string(struct maat *maat_inst, int table_id,
 
     maat_runtime_ref_inc(maat_rt, state->thread_id);
 
-    size_t sum_hit_compile_cnt = 0;
+    size_t sum_hit_rule_cnt = 0;
     if (hit_group_cnt > 0) {
-        sum_hit_compile_cnt = group_to_compile(maat_inst, results, n_result, state);
-        *n_hit_result = sum_hit_compile_cnt;
+        sum_hit_rule_cnt = group_to_rule(maat_inst, results, n_result, state);
+        *n_hit_result = sum_hit_rule_cnt;
     }
 
-    if (sum_hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_inst->stat->hit_compile_cnt, state->thread_id,
-                                  sum_hit_compile_cnt);
+    if (sum_hit_rule_cnt > 0) {
+        alignment_int64_array_add(maat_inst->stat->hit_rule_cnt, state->thread_id,
+                                  sum_hit_rule_cnt);
     }
 
     void *expr_rt = table_manager_get_runtime(maat_inst->tbl_mgr, phy_table_id);
@@ -1751,7 +1751,7 @@ int maat_scan_string(struct maat *maat_inst, int table_id,
 
     maat_runtime_ref_dec(maat_rt, state->thread_id);
 
-    if (sum_hit_compile_cnt > 0) {
+    if (sum_hit_rule_cnt > 0) {
         return MAAT_SCAN_HIT;
     } else if (hit_group_cnt > 0) {
         return MAAT_SCAN_HALF_HIT;
@@ -1765,14 +1765,14 @@ static void maat_state_add_hit_group(struct maat_state *state, int table_id,
 {
     struct maat *maat_inst = state->maat_inst;
 
-    //clear compile_state->last_hit_group
-    if (state != NULL && state->compile_state != NULL) {
-        compile_state_clear_last_hit_group(state->compile_state);
+    //clear rule_state->last_hit_group
+    if (state != NULL && state->rule_state != NULL) {
+        rule_state_clear_last_hit_group(state->rule_state);
     }
 
-    if (NULL == state->compile_state) {
-        state->compile_state = compile_state_new();
-        alignment_int64_array_add(maat_inst->stat->compile_state_cnt,
+    if (NULL == state->rule_state) {
+        state->rule_state = rule_state_new();
+        alignment_int64_array_add(maat_inst->stat->rule_state_cnt,
                                   state->thread_id, 1); 
     }
 
@@ -1787,8 +1787,8 @@ static void maat_state_add_hit_group(struct maat_state *state, int table_id,
         hit_items[i].group_id = groups[i].group_id;
     }
 
-    compile_state_update(state->compile_state, maat_inst, table_id,
-                         state->compile_table_id, state->Nth_scan,
+    rule_state_update(state->rule_state, maat_inst, table_id,
+                         state->rule_table_id, state->Nth_scan,
                          hit_items, n_hit_item);
 }
 
@@ -1800,24 +1800,24 @@ maat_state_activate_hit_not_group(struct maat_state *state, int table_id)
     }
 
     struct maat *maat_inst = state->maat_inst;
-    int compile_table_id =
-        table_manager_get_default_compile_table_id(maat_inst->tbl_mgr);
-    if (state->compile_table_id > 0) {
-        compile_table_id = state->compile_table_id;
+    int rule_table_id =
+        table_manager_get_default_rule_table_id(maat_inst->tbl_mgr);
+    if (state->rule_table_id > 0) {
+        rule_table_id = state->rule_table_id;
     }
 
-    struct compile_runtime *compile_rt =
-        table_manager_get_runtime(maat_inst->tbl_mgr, compile_table_id);
-    if (NULL == compile_rt) {
+    struct rule_runtime *rule_rt =
+        table_manager_get_runtime(maat_inst->tbl_mgr, rule_table_id);
+    if (NULL == rule_rt) {
         return;
     }
 
-    //clear compile_state->last_hit_group
-    if (state != NULL && state->compile_state != NULL) {
-        compile_state_clear_last_hit_group(state->compile_state);
+    //clear rule_state->last_hit_group
+    if (state != NULL && state->rule_state != NULL) {
+        rule_state_clear_last_hit_group(state->rule_state);
     }
 
-    compile_state_not_logic_update(state->compile_state, compile_rt, maat_inst,
+    rule_state_not_logic_update(state->rule_state, rule_rt, maat_inst,
                                    table_id, state->Nth_scan);
 }
 
@@ -1860,13 +1860,13 @@ int maat_scan_group(struct maat *maat_inst, int table_id,
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
 
     maat_state_add_hit_group(state, table_id, groups, n_group);
-    size_t hit_compile_cnt = group_to_compile(maat_inst, results, n_result, state);
-    *n_hit_result = hit_compile_cnt;
+    size_t hit_rule_cnt = group_to_rule(maat_inst, results, n_result, state);
+    *n_hit_result = hit_rule_cnt;
 
     maat_runtime_ref_dec(maat_rt, state->thread_id);
-    if (hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_inst->stat->hit_compile_cnt, state->thread_id,
-                                  hit_compile_cnt);
+    if (hit_rule_cnt > 0) {
+        alignment_int64_array_add(maat_inst->stat->hit_rule_cnt, state->thread_id,
+                                  hit_rule_cnt);
         return MAAT_SCAN_HIT;
     }
 
@@ -1883,7 +1883,7 @@ int maat_scan_not_logic(struct maat *maat_inst, int table_id,
         return -1;
     }
 
-    if (NULL == state->compile_state) {
+    if (NULL == state->rule_state) {
         return 0;
     }
 
@@ -1896,13 +1896,13 @@ int maat_scan_not_logic(struct maat *maat_inst, int table_id,
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
 
     maat_state_activate_hit_not_group(state, table_id);
-    size_t hit_compile_cnt = group_to_compile(maat_inst, results, n_result, state);
-    *n_hit_result = hit_compile_cnt;
+    size_t hit_rule_cnt = group_to_rule(maat_inst, results, n_result, state);
+    *n_hit_result = hit_rule_cnt;
 
     maat_runtime_ref_dec(maat_rt, state->thread_id);
-    if (hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_inst->stat->hit_compile_cnt, state->thread_id,
-                                  hit_compile_cnt);
+    if (hit_rule_cnt > 0) {
+        alignment_int64_array_add(maat_inst->stat->hit_rule_cnt, state->thread_id,
+                                  hit_rule_cnt);
         return MAAT_SCAN_HIT;
     }
 
@@ -2061,15 +2061,15 @@ int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data
         return MAAT_SCAN_ERR;
     }
 
-    size_t sum_hit_compile_cnt = 0;
+    size_t sum_hit_rule_cnt = 0;
     if (hit_group_cnt > 0) {
-        sum_hit_compile_cnt = group_to_compile(maat_inst, results, n_result, state);
-        *n_hit_result = sum_hit_compile_cnt;
+        sum_hit_rule_cnt = group_to_rule(maat_inst, results, n_result, state);
+        *n_hit_result = sum_hit_rule_cnt;
     }
 
-    if (sum_hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_inst->stat->hit_compile_cnt, maat_stream->thread_id,
-                                  sum_hit_compile_cnt);
+    if (sum_hit_rule_cnt > 0) {
+        alignment_int64_array_add(maat_inst->stat->hit_rule_cnt, maat_stream->thread_id,
+                                  sum_hit_rule_cnt);
     }  
 
     if (1 == maat_inst->opts.perf_on) {
@@ -2079,7 +2079,7 @@ int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data
         expr_runtime_perf_stat(expr_rt, data_len, NULL, NULL, state->thread_id);
     }
 
-     if (sum_hit_compile_cnt > 0) {
+     if (sum_hit_rule_cnt > 0) {
         return MAAT_SCAN_HIT;
     } else if (hit_group_cnt > 0) {
         return MAAT_SCAN_HALF_HIT;
@@ -2130,7 +2130,7 @@ struct maat_state *maat_state_new(struct maat *maat_inst, int thread_id)
     state->district_id = DISTRICT_ANY;
     state->thread_id = thread_id;
 
-    /* state->compile_state no need to alloc memory at this point,
+    /* state->rule_state no need to alloc memory at this point,
        but alloc it after hitting items
      */
     alignment_int64_array_add(maat_inst->stat->maat_state_cnt, thread_id, 1);
@@ -2144,13 +2144,13 @@ void maat_state_reset(struct maat_state *state)
         return;
     }
 
-    state->compile_table_id = 0;
+    state->rule_table_id = 0;
     state->district_flag = DISTRICT_FLAG_UNSET;
     state->district_id = DISTRICT_ANY;
     state->Nth_scan = 0;
 
-    if (state->compile_state != NULL) {
-        compile_state_reset(state->compile_state);
+    if (state->rule_state != NULL) {
+        rule_state_reset(state->rule_state);
     }
 }
 
@@ -2165,10 +2165,10 @@ void maat_state_free(struct maat_state *state)
     struct maat *maat_inst = state->maat_inst;
     long long thread_id = state->thread_id;
 
-    if (state->compile_state != NULL) {
-        compile_state_free(state->compile_state, maat_inst, thread_id);
-        state->compile_state = NULL;
-        alignment_int64_array_add(maat_inst->stat->compile_state_cnt,
+    if (state->rule_state != NULL) {
+        rule_state_free(state->rule_state, maat_inst, thread_id);
+        state->rule_state = NULL;
+        alignment_int64_array_add(maat_inst->stat->rule_state_cnt,
                                   thread_id, -1);
     }
     
@@ -2244,10 +2244,10 @@ int maat_state_set_scan_district(struct maat_state *state, int table_id,
     return 0;
 }
 
-int maat_state_set_scan_compile_table(struct maat_state *state,
-                                      int compile_table_id)
+int maat_state_set_scan_rule_table(struct maat_state *state,
+                                      int rule_table_id)
 {
-    if (NULL == state || compile_table_id < 0) {
+    if (NULL == state || rule_table_id < 0) {
         return -1;
     }
 
@@ -2258,25 +2258,25 @@ int maat_state_set_scan_compile_table(struct maat_state *state,
         return -1;
     }
 
-    state->compile_table_id = compile_table_id;
+    state->rule_table_id = rule_table_id;
 
     return 0;
 }
 
-int maat_state_get_compile_table_ids(struct maat_state *state, long long *compile_ids,
-                                     size_t n_compile_ids, int *compile_table_ids)
+int maat_state_get_rule_table_ids(struct maat_state *state, long long *rule_ids,
+                                     size_t n_rule_ids, int *rule_table_ids)
 {
-    if (NULL == state || NULL == compile_ids || 0 == n_compile_ids ||
-        NULL == compile_table_ids) {
+    if (NULL == state || NULL == rule_ids || 0 == n_rule_ids ||
+        NULL == rule_table_ids) {
         return -1;
     }
 
-    for (size_t i = 0; i < n_compile_ids; i++) {
-        compile_table_ids[i] = compile_state_get_compile_table_id(state->compile_state,
-                                                                  compile_ids[i]);
+    for (size_t i = 0; i < n_rule_ids; i++) {
+        rule_table_ids[i] = rule_state_get_rule_table_id(state->rule_state,
+                                                                  rule_ids[i]);
     }
     
-    return n_compile_ids;
+    return n_rule_ids;
 }
 
 int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *path_array,
@@ -2293,19 +2293,19 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
         return -1;
     }
 
-    if (NULL == state->compile_state) {
+    if (NULL == state->rule_state) {
         return 0;
     }
 
-    int compile_table_id =
-        table_manager_get_default_compile_table_id(maat_inst->tbl_mgr);
-    if (state->compile_table_id > 0) {
-        compile_table_id = state->compile_table_id;
+    int rule_table_id =
+        table_manager_get_default_rule_table_id(maat_inst->tbl_mgr);
+    if (state->rule_table_id > 0) {
+        rule_table_id = state->rule_table_id;
     }
 
-    void *compile_rt = table_manager_get_runtime(maat_inst->tbl_mgr,
-                                                 compile_table_id);
-    if (NULL == compile_rt) {
+    void *rule_rt = table_manager_get_runtime(maat_inst->tbl_mgr,
+                                                 rule_table_id);
+    if (NULL == rule_rt) {
         return -1;
     }
 
@@ -2313,13 +2313,13 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
     void *g2g_runtime = table_manager_get_runtime(maat_inst->tbl_mgr, g2g_table_id);
 
     size_t hit_path_cnt =
-        compile_state_get_internal_hit_paths(state->compile_state,
-                                            (struct compile_runtime *)compile_rt,
+        rule_state_get_internal_hit_paths(state->rule_state,
+                                            (struct rule_runtime *)rule_rt,
                                             (struct group2group_runtime *)g2g_runtime,
                                              path_array, array_size);
 
-    return compile_runtime_get_hit_paths((struct compile_runtime *)compile_rt,
-                                         state->thread_id, state->compile_state,
+    return rule_runtime_get_hit_paths((struct rule_runtime *)rule_rt,
+                                         state->thread_id, state->rule_state,
                                          path_array, array_size, hit_path_cnt);
 }
 
@@ -2340,21 +2340,21 @@ int maat_state_get_direct_hit_groups(struct maat_state *state,
         return -1;
     }
 
-    if (NULL == state->compile_state) {
+    if (NULL == state->rule_state) {
         return 0;
     }
     
-    return compile_state_get_direct_hit_groups(state->compile_state,
+    return rule_state_get_direct_hit_groups(state->rule_state,
                                                group_array, array_size);
 }
 
 size_t maat_state_get_direct_hit_group_cnt(struct maat_state *state)
 {
-    if (NULL == state || NULL == state->compile_state) {
+    if (NULL == state || NULL == state->rule_state) {
         return 0;
     }
 
-    return compile_state_get_direct_hit_group_cnt(state->compile_state);
+    return rule_state_get_direct_hit_group_cnt(state->rule_state);
 }
 
 int maat_state_get_indirect_hit_groups(struct maat_state *state,
@@ -2365,40 +2365,40 @@ int maat_state_get_indirect_hit_groups(struct maat_state *state,
         return -1;
     }
 
-    if (NULL == state->compile_state) {
+    if (NULL == state->rule_state) {
         return 0;
     }
 
-    return compile_state_get_indirect_hit_groups(state->compile_state,
+    return rule_state_get_indirect_hit_groups(state->rule_state,
                                                  group_array, array_size);
 }
 
 size_t maat_state_get_indirect_hit_group_cnt(struct maat_state *state)
 {
-    if (NULL == state || NULL == state->compile_state) {
+    if (NULL == state || NULL == state->rule_state) {
         return 0;
     }
 
-    return compile_state_get_indirect_hit_group_cnt(state->compile_state);
+    return rule_state_get_indirect_hit_group_cnt(state->rule_state);
 }
 
 int maat_state_get_last_hit_groups(struct maat_state *state,
                                    struct maat_hit_group *group_array,
                                    size_t array_size)
 {
-    if (NULL == state || NULL == state->compile_state) {
+    if (NULL == state || NULL == state->rule_state) {
         return 0;
     }
 
-    return compile_state_get_last_hit_groups(state->compile_state,
+    return rule_state_get_last_hit_groups(state->rule_state,
                                              group_array, array_size);
 }
 
 size_t maat_state_get_last_hit_group_cnt(struct maat_state *state)
 {
-    if (NULL == state || NULL == state->compile_state) {
+    if (NULL == state || NULL == state->rule_state) {
         return 0;
     }
 
-    return compile_state_get_last_hit_group_cnt(state->compile_state);
+    return rule_state_get_last_hit_group_cnt(state->rule_state);
 }

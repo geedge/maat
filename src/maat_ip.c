@@ -17,7 +17,7 @@
 #include "ip_matcher.h"
 #include "maat_ip.h"
 #include "maat_core.h"
-#include "maat_compile.h"
+#include "maat_rule.h"
 #include "alignment.h"
 #include "maat_garbage_collection.h"
 
@@ -522,9 +522,9 @@ long long ip_runtime_ipv6_rule_count(void *ip_runtime)
 int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type, 
                     uint8_t *ip_addr, int port, int vtable_id, struct maat_state *state)
 {
-    //clear compile_state->last_hit_group
-    if (state != NULL && state->compile_state != NULL) {
-        compile_state_clear_last_hit_group(state->compile_state);
+    //clear rule_state->last_hit_group
+    if (state != NULL && state->rule_state != NULL) {
+        rule_state_clear_last_hit_group(state->rule_state);
     }
 
     if (0 == ip_rt->rule_num) {
@@ -593,14 +593,14 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
                                   real_hit_item_cnt);
     }
 next:
-    if (NULL == state->compile_state) {
-        state->compile_state = compile_state_new();
-        alignment_int64_array_add(state->maat_inst->stat->compile_state_cnt,
+    if (NULL == state->rule_state) {
+        state->rule_state = rule_state_new();
+        alignment_int64_array_add(state->maat_inst->stat->rule_state_cnt,
                                   state->thread_id, 1);
     }
 
-    return compile_state_update(state->compile_state, state->maat_inst, vtable_id,
-                                state->compile_table_id, state->Nth_scan,
+    return rule_state_update(state->rule_state, state->maat_inst, vtable_id,
+                                state->rule_table_id, state->Nth_scan,
                                 hit_maat_items, real_hit_item_cnt);
 }
 

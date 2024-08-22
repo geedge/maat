@@ -11,8 +11,8 @@ Maat tables are divided into two categories: physical tables that actually exist
 
 The types of physical tables are as follows:
 - [item table](#11-item-table)
-- [compile table](#12-compile-table)
-- [group2compile table](#13-group2compile-table)
+- [rule table](#12-rule-table)
+- [group2rule table](#13-group2rule-table)
 - [group2group table](#14-group2group-table)
 - [plugin table](#15-plugin-table)
 - [ip_plugin table](#16-ip_plugin-table)
@@ -43,7 +43,7 @@ Each item table must has the following columns:
 
 - is_valid: In incremental updates, 1(valid means add) 0(invalid means del)
 
-The range of item_id(group_id, compile_id) is 0～2^63，which is 8 bytes.
+The range of item_id(group_id, rule_id) is 0～2^63，which is 8 bytes.
 
 #### 1.1.1 <a name='exprtable'></a> expr item table
 
@@ -52,7 +52,7 @@ Describe matching rules for strings.
 | **FieldName**    | **type**       | **constraint** |
 | ---------------- | -------------- | ------- |
 | **item_id**      | LONG LONG      | primary key |
-| **group_id**     | LONG LONG      | leaf group id, can be referenced by group2group & group2compile table |
+| **group_id**     | LONG LONG      | leaf group id, can be referenced by group2group & group2rule table |
 | **keywords**     | VARCHAR2(1024) | field to match during scanning |
 | **expr_type**    | INT            | 0(keywords), 1(AND expr), 2(regular expr), 3(substring with offset)
 | **match_method** | INT            | only useful when expr_type is 0. 0(sub), 1(suffix), 2(prefix), 3(exactly) |
@@ -158,7 +158,7 @@ Describe extended matching rules for strings by adding the district column.
 | **FieldName**    | **type**       | **constraint** |
 | ---------------- | -------------- | ------- |
 | **item_id**      | LONG LONG      | primary key |
-| **group_id**     | LONG LONG      | leaf group id, can be referenced by group2group & group2compile table |
+| **group_id**     | LONG LONG      | leaf group id, can be referenced by group2group & group2rule table |
 | **district**     | VARCHAR2(1024) | describe the effective position of the keywords |
 | **keywords**     | VARCHAR2(1024) | field to match during scanning |
 | **expr_type**    | INT            | 0(keywords), 1(AND expr), 2(regular expr), 3(substring with offset)
@@ -183,7 +183,7 @@ Describe matching rules for IP address. Both the address and port are represente
 | **FieldName**  | **type**     | **constraint** |
 | -------------- | ------------ | -------------- |
 | **item_id**    | LONG LONG    | primary key |
-| **group_id**   | LONG LONG    | leaf group id, can be referenced by group2group & group2compile table |
+| **group_id**   | LONG LONG    | leaf group id, can be referenced by group2group & group2rule table |
 | **addr_type**  | INT          | Ipv4 = 4 Ipv6 = 6 |
 | **addr_format**| VARCHAR2(40) | ip addr format, single/range/CIDR/mask |
 | **ip1**        | VARCHAR2(40) | start ip |
@@ -197,7 +197,7 @@ Determine whether an integer is within a certain numerical range.
 | **FieldName**    | **type** | **constraint** |
 | ---------------- | -------- | -------------- |
 | **item_id**      | INT      | primary key |
-| **group_id**     | INT      | leaf group id, can be referenced by group2group & group2compile table |
+| **group_id**     | INT      | leaf group id, can be referenced by group2group & group2rule table |
 | **low_boundary** | INT      | lower bound of the numerical range(including lb), 0 ~ (2^32 - 1)|
 | **up_boundary**  | INT      | upper bound of the numerical range(including ub), 0 ~ (2^32 - 1)|
 | **is_valid**     | INT      | 0(invalid), 1(valid) |
@@ -209,7 +209,7 @@ Describe extended matching rules for integer by adding the district column.
 | **FieldName**    | **type** | **constraint** |
 | ---------------- | -------- | -------------- |
 | **item_id**      | INT      | primary key |
-| **group_id**     | INT      | leaf group id, can be referenced by group2group & group2compile table |
+| **group_id**     | INT      | leaf group id, can be referenced by group2group & group2rule table |
 | **district**     | VARCHAR2(1024)| describe the effective position of the keywords |
 | **low_boundary** | INT      | lower bound of the numerical range(including lb), 0 ~ (2^32 - 1)|
 | **up_boundary**  | INT      | upper bound of the numerical range(including ub), 0 ~ (2^32 - 1)|
@@ -220,7 +220,7 @@ Describe extended matching rules for integer by adding the district column.
 | **FieldName** | **type** | **constraint** |
 | ------------- | -------- | -------------- |
 | **item_id**   | INT      | primary key |
-| **group_id**  | INT      | leaf group id, can be referenced by group2group & group2compile table |
+| **group_id**  | INT      | leaf group id, can be referenced by group2group & group2rule table |
 | **flag**      | INT      | flag, 0 ~ (2^32 - 1)|
 | **flag_mask** | INT      | flag_mask, 0 ~ (2^32 - 1)|
 | **is_valid**  | INT      | 0(invalid), 1(valid) |
@@ -230,31 +230,31 @@ Describe extended matching rules for integer by adding the district column.
 | **FieldName** | **type** | **constraint** |
 | ------------- | -------- | -------------- |
 | **item_id**   | INT      | primary key |
-| **group_id**  | INT      | leaf group id, can be referenced by group2group & group2compile table |
+| **group_id**  | INT      | leaf group id, can be referenced by group2group & group2rule table |
 | **district**  | INT      | describe the effective position of the flag |
 | **flag**      | INT      | flag, 0 ~ (2^32 - 1)|
 | **flag_mask** | INT      | flag_mask, 0 ~ (2^32 - 1)|
 | **is_valid**  | INT      | 0(invalid), 1(valid) |
 
-### 1.2 <a name='CompileTable'></a> compile table
+### 1.2 <a name='RuleTable'></a> rule table
 
-Describe the specific policy, one maat instance can has multiple compile tables with different names.
+Describe the specific policy, one maat instance can has multiple rule tables with different names.
 
 | **FieldName**  | **type**       | **constraint**  |
 | -------------- | -------------- | --------------- |
-| **compile_id** | LONG LONG      | primary key, compile id |
+| **rule_id** | LONG LONG      | primary key, rule id |
 | **tags**       | VARCHAR2(1024) | default 0，means no tag |
 | **is_valid**   | INT            | 0(invalid)，1(valid)  |
 | **clause_num** | INT            | no more than 8 clauses |
 
-### 1.3 <a name='Group2CompileTable'></a> group2compile table
+### 1.3 <a name='Group2RuleTable'></a> group2rule table
 
-Describe the relationship between group and compile.
+Describe the relationship between group and rule.
 
 | **FieldName**     | **type**      | **constraint** |
 | ----------------- | ------------- | -------------- |
 | **group_ids**     | VARCHAR(256)  | group ids are separated by commas(g1,g2,g3) |
-| **compile_id**    | LONG LONG     | compile id |
+| **rule_id**    | LONG LONG     | rule id |
 | **is_valid**      | INT           | 0(invalid), 1(valid) |
 | **not_flag**      | INT           | logical 'NOT', identify a NOT clause, 0(no) 1(yes) |
 | **virtual_table** | VARCHAR2(256) | virtual table name, NOT NULL |
@@ -402,7 +402,7 @@ Configuration tags are tags stored on compilation configurations or group config
 
 Maat loads the configuration of different types of tables into memory to form the corresponding runtime for each table. We can see all table types from the table schema, and the runtime for the item table is similar, as it is an abstraction of the scanning engine. When we provide the data to be scanned and call the corresponding scanning interface, we can return whether the item is hit or not, and if it is hit, we can return the corresponding item’s group_id.
 
-From the [configuration relationship](./overview.md#12-configuration-relationship) diagram, we can see how the hit group is referenced by other groups or compiles. If a hit group is referenced by other groups or compiles, there will be one or more hit paths that follow the `item_id -> group_id` {-> super group_id} `-> compile_id`. This requires two special runtimes: group2group_runtime and compile_runtime. 
+From the [configuration relationship](./overview.md#12-configuration-relationship) diagram, we can see how the hit group is referenced by other groups or rules. If a hit group is referenced by other groups or rules, there will be one or more hit paths that follow the `item_id -> group_id` {-> super group_id} `-> rule_id`. This requires two special runtimes: group2group_runtime and rule_runtime. 
 
 Based on this, we can divide the runtime into the following three categories:
 
@@ -412,9 +412,9 @@ Based on this, we can divide the runtime into the following three categories:
     * flag_runtime
     * interval_runtime
 
-2. group & compile table runtime
+2. group & rule table runtime
     * group2group_runtime
-    * compile_runtime
+    * rule_runtime
 
 3. xx_plugin table runtime
     * plugin_runtime
@@ -431,47 +431,47 @@ Among the four types of runtimes mentioned above, `expr_runtime` is relatively u
 
 **Note**: Due to the inability to unify the native rulescan usage with hyperscan, a partial refactoring has been done on rulescan. The refactored rulescan follows the same interface and usage as hyperscan, making it compatible with the design of the expr_matcher abstraction layer.
 
-### 2.2 group & compile table runtime
+### 2.2 group & rule table runtime
 
 #### 2.2.1 group2group runtime
 
 The `group2group_runtime` is a runtime that is built based on the reference relationships between groups, which are stored in the [group2group table](#14-group2group-table). From the [group hierarchy](./group_hierarchy.md), we can understand that if a hit occurs in a leaf group that is referenced by other groups, there may be certain super groups that are also hit. This is exactly the functionality provided by this runtime.
 
-#### 2.2.2 compile runtime
+#### 2.2.2 rule runtime
 
-In addition to the compile table, there is also the group2compile table in the table schema. However, from a runtime perspective, the configurations of these two tables together constitute compile_runtime. This means that there is no standalone group2compile_runtime. Compile_runtime is the most complex among all runtime types because it serves multiple functions.
+In addition to the rule table, there is also the group2rule table in the table schema. However, from a runtime perspective, the configurations of these two tables together constitute rule_runtime. This means that there is no standalone group2rule_runtime. Rule_runtime is the most complex among all runtime types because it serves multiple functions.
 
 **Note:** This will involve the terminology of [clause](./terminology.md#clause).
 
-1. For expressions without NOT-clauses, returning the matched compile_id:
+1. For expressions without NOT-clauses, returning the matched rule_id:
 
-    * compile1 = clause1 & clause2 = {vtable1, g1} & {vtable2, g2}
+    * rule1 = clause1 & clause2 = {vtable1, g1} & {vtable2, g2}
 
-    * compile2 = clause1 & clause2 = {vtable1, g2} & {vtable2, g3}
+    * rule2 = clause1 & clause2 = {vtable1, g2} & {vtable2, g3}
 
-    Given the matched vtable_id and group_id, all matching compile_ids can be provided. For example, if scanning vtable1 matches g2 and vtable2 matches g3, compile_runtime will return the matched compile_id 2.
+    Given the matched vtable_id and group_id, all matching rule_ids can be provided. For example, if scanning vtable1 matches g2 and vtable2 matches g3, rule_runtime will return the matched rule_id 2.
 
-2. For expressions with NOT-clauses, returning the matched compile_id:
+2. For expressions with NOT-clauses, returning the matched rule_id:
 
-    * compile3 = clause1 & !clause2 = {vtable1, g1} & !{vtable2, g2}
+    * rule3 = clause1 & !clause2 = {vtable1, g1} & !{vtable2, g2}
 
-    * compile4 = !clause1 & clause2 = !{vtable1, g2} & {vtable2, g3}
+    * rule4 = !clause1 & clause2 = !{vtable1, g2} & {vtable2, g3}
 
-    If scanning vtable1 matches g1 and vtable2 matches g3, compile_runtime will return the matched compile_id 4.
+    If scanning vtable1 matches g1 and vtable2 matches g3, rule_runtime will return the matched rule_id 4.
 
-3. If a compile_id is matched, the full hit path can be obtained: **item_id -> group_id ->** {super_group_id} -> clause{**vtable_id, not_flag, clause_index} -> compile_id**. If the matched group is not referenced by a compile, a half hit path can be obtained: **item_id -> group_id** -> {super_group_id}.
+3. If a rule_id is matched, the full hit path can be obtained: **item_id -> group_id ->** {super_group_id} -> clause{**vtable_id, not_flag, clause_index} -> rule_id**. If the matched group is not referenced by a rule, a half hit path can be obtained: **item_id -> group_id** -> {super_group_id}.
 
 4. Getting the matched group_ids and the count of hit groups.
 
-The internal structure of compile_runtime is as follows, including the control plane for configuration loading and the data plane for external calls.
+The internal structure of rule_runtime is as follows, including the control plane for configuration loading and the data plane for external calls.
 
-![compile runtime](./imgs/compile-runtime.png)
+![rule runtime](./imgs/rule-runtime.png)
 
 * **Control plane**
 
-Compile runtime loads the compile table and group2compile table configurations into memory, assigning a unique clause_id to all clauses of each compile. The following three parts are constructed based on the clause_id:
+Rule runtime loads the rule table and group2rule table configurations into memory, assigning a unique clause_id to all clauses of each rule. The following three parts are constructed based on the clause_id:
 
-1. All clause_ids under the same compile are used to construct AND expressions, and all compile AND expressions are used to build a bool_matcher.
+1. All clause_ids under the same rule are used to construct AND expressions, and all rule AND expressions are used to build a bool_matcher.
 
 2. For not_flag=0 (clauses), a `clause_id hash` is built, key:{group_id, vtable_id, not_flag}, value:clause_id.
 
@@ -491,12 +491,12 @@ On the data plane, services are provided externally through the maat API, primar
 
 * Identify the group_ids in vtable_id table that appear in the NOT_clause and add them to the `NOT_clause_group` set. Ensure that this set does not contain any group_id that was hit during scanning. If any such group_id is present, remove it from the set to form the final `NOT_clause_group` for the vtable_id table.
 
-* Use the hit clause_ids to determine if there are any hit compile_ids. If there are, populate the half-hit path which will become full-hit path.
+* Use the hit clause_ids to determine if there are any hit rule_ids. If there are, populate the half-hit path which will become full-hit path.
 
 2. **maat_scan_not_logic**: This interface is used to activate NOT-clause logic.
 
 * Traverse the `NOT_clause_group` of `vtable_id`. For each `group_id`, form a key `{group_id, vtable_id, 1}` to obtain the `NOT_clause_id`. If it is in the `exclude clause_ids` set, ignore it; otherwise, add it to the `all hit clause_ids` set as a hit `NOT_clause_id`, and record the half-hit path of the NOT-clause.
 
-* Use the `all hit clause_ids` to calculate if there are any newly hit compile_ids. If there are, populate the half-hit path of the NOT-clause which will become full-hit path.
+* Use the `all hit clause_ids` to calculate if there are any newly hit rule_ids. If there are, populate the half-hit path of the NOT-clause which will become full-hit path.
 
 3. **xx_get_hit_path**: This interface is used to retrieve the hit path.

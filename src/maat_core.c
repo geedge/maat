@@ -23,7 +23,7 @@
 #include "maat_config_monitor.h"
 #include "maat_redis_monitor.h"
 #include "maat_table.h"
-#include "maat_compile.h"
+#include "maat_rule.h"
 #include "maat_plugin.h"
 #include "maat_ip_plugin.h"
 #include "maat_ipport_plugin.h"
@@ -108,12 +108,12 @@ maat_start_cb(long long new_version, int update_type, void *u_param)
 
         for (i = 0; i < max_table_cnt; i++) {
             table_type = table_manager_get_table_type(maat_inst->tbl_mgr, i);
-            if (table_type == TABLE_TYPE_COMPILE) {
-                // compile runtime need a reference to maat runtime
-                void *compile_rt =
+            if (table_type == TABLE_TYPE_RULE) {
+                // rule runtime need a reference to maat runtime
+                void *rule_rt =
                     table_manager_get_updating_runtime(maat_inst->tbl_mgr, i);
 
-                compile_runtime_init(compile_rt, maat_inst->creating_maat_rt);
+                rule_runtime_init(rule_rt, maat_inst->creating_maat_rt);
             }
         }
     } else {

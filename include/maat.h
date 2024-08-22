@@ -35,7 +35,7 @@ struct maat_hit_path {
     long long item_id;
     long long sub_group_id;
     long long top_group_id;
-    long long compile_id;
+    long long rule_id;
 };
 
 struct maat_hit_group {
@@ -46,9 +46,9 @@ struct maat_hit_group {
 
 enum maat_scan_status {
     MAAT_SCAN_ERR = -1,  //scan error
-    MAAT_SCAN_OK,        //scan but not hit(group or compile)
-    MAAT_SCAN_HALF_HIT,  //half hit: hit group, not hit compile
-    MAAT_SCAN_HIT        //scan hit compile
+    MAAT_SCAN_OK,        //scan but not hit(group or rule)
+    MAAT_SCAN_HALF_HIT,  //half hit: hit group, not hit rule
+    MAAT_SCAN_HIT        //scan hit rule
 };
 
 enum maat_update_type {
@@ -245,9 +245,9 @@ struct maat_state;
  * @param instance:     maat instance created by maat_new()
  * @param table_id:     the id of table which to be scanned
  * @param thread_id:    thread index
- * @param results:      array to store hit compile id
+ * @param results:      array to store hit rule id
  * @param n_result:     the array size
- * @param n_hit_result: the number of hit compile id
+ * @param n_hit_result: the number of hit rule id
  * @param state:        scan mid status
  * 
  * @retval MAAT_SCAN_ERR
@@ -316,13 +316,13 @@ void maat_state_free(struct maat_state *state);
 int maat_state_set_scan_district(struct maat_state *state, int table_id, 
                                  const char *district, size_t district_len);
 
-int maat_state_set_scan_compile_table(struct maat_state *state, int compile_table_id);
+int maat_state_set_scan_rule_table(struct maat_state *state, int rule_table_id);
 
 int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *path_array, 
                              size_t array_size);
 
-int maat_state_get_compile_table_ids(struct maat_state *state, long long *compile_ids,
-                                    size_t n_compile_ids, int *compile_table_ids);
+int maat_state_get_rule_table_ids(struct maat_state *state, long long *rule_ids,
+                                    size_t n_rule_ids, int *rule_table_ids);
                              
 /**
  * @brief get the total number of scans after maat_state_new

@@ -14,7 +14,7 @@ After that, call maat_new to create a maat instance. Next, for the two main usag
 
     * Call maat_state_new to create a maat_state structure to save the intermediate state of the scan.
 
-    * Call the maat_scan_xx interface to perform the scan task and return the hit compile_id.
+    * Call the maat_scan_xx interface to perform the scan task and return the hit rule_id.
 
     * If you are interested in the hit item, group, or path information, you can call the maat_state_get_xx interface as needed.
 
@@ -68,9 +68,9 @@ After that, call maat_new to create a maat instance. Next, for the two main usag
 * [maat_state_reset](#maat_state_reset)
 * [maat_state_free](#maat_state_free)
 * [maat_state_set_scan_district](#maat_state_set_scan_district)
-* [maat_state_set_scan_compile_table](#maat_state_set_scan_compile_table)
+* [maat_state_set_scan_rule_table](#maat_state_set_scan_rule_table)
 * [maat_state_get_hit_paths](#maat_state_get_hit_paths)
-* [maat_state_get_compile_table_ids](#maat_state_get_compile_table_ids)
+* [maat_state_get_rule_table_ids](#maat_state_get_rule_table_ids)
 * [maat_state_get_scan_count](#maat_state_get_scan_count)
 * [maat_state_get_direct_hit_groups](#maat_state_get_direct_hit_groups)
 * [maat_state_get_direct_hit_group_cnt](#maat_state_get_direct_hit_group_cnt)
@@ -602,18 +602,18 @@ To set the field to be matched in the next scan, for example: if you want to mat
 **Returns**: success(0) failure(-1)
 
 
-### maat_state_set_scan_compile_table
+### maat_state_set_scan_rule_table
 
 ```c
-int maat_state_set_scan_compile_table(struct maat_state *state,
-                                      int compile_table_id);
+int maat_state_set_scan_rule_table(struct maat_state *state,
+                                      int rule_table_id);
 ```
 
-Maat supports loading multiple compile tables and building their respective runtime. Within the table schema, there is a compile table that has a `default_compile_table` field, indicating that maat will use the runtime of this table to calculate which compile_id will be hit by the hit group_id. If the caller wants to use another compile table runtime for the above calculation, this interface can be invoked to set it up.
+Maat supports loading multiple rule tables and building their respective runtime. Within the table schema, there is a rule table that has a `default_rule_table` field, indicating that maat will use the runtime of this table to calculate which rule_id will be hit by the hit group_id. If the caller wants to use another rule table runtime for the above calculation, this interface can be invoked to set it up.
 
 **Parameters**:
 * state - Pointer to the maat state structure.
-* compile_table_id - The compile table ID.
+* rule_table_id - The rule table ID.
 
 **Returns**: success(0) failure(-1)
 
@@ -636,24 +636,24 @@ Gets all hit paths since maat state was created.
 **Returns**: The number of hit paths is returned on success, and -1 is returned on failure.
 
 
-### maat_state_get_compile_table_ids
+### maat_state_get_rule_table_ids
 
 ```c
-int maat_state_get_compile_table_ids(struct maat_state *state,
-                                     long long *compile_ids,
-                                     size_t n_compile_ids,
-                                     int *compile_table_ids);
+int maat_state_get_rule_table_ids(struct maat_state *state,
+                                     long long *rule_ids,
+                                     size_t n_rule_ids,
+                                     int *rule_table_ids);
 ```
 
-Get the ID of the table that compile_id belongs to.
+Get the ID of the table that rule_id belongs to.
 
 **Parameters**:
 * state - Pointer to the maat state structure.
-* compile_ids - Array of compile_ids.
-* n_compild_ids - The number of compile_ids.
-* compile_table_ids - The array of id of the tables to which each compile id belongs.
+* rule_ids - Array of rule_ids.
+* n_compild_ids - The number of rule_ids.
+* rule_table_ids - The array of id of the tables to which each rule id belongs.
 
-**Returns**: The number of compile table ids is return on success, and -1 is returned on failure.
+**Returns**: The number of rule table ids is return on success, and -1 is returned on failure.
 
 
 ### maat_state_get_scan_count
@@ -780,15 +780,15 @@ int maat_scan_flag(struct maat *instance, int table_id, long long flag,
                    struct maat_state *state);
 ```
 
-Check if the `flag` in the scan input hits the rules in the effective compile table. If there is a hit, put the compile_id of the rules into the results array and put the number of hit compile_ids into n_hit_result.
+Check if the `flag` in the scan input hits the rules in the effective rule table. If there is a hit, put the rule_id of the rules into the results array and put the number of hit rule_ids into n_hit_result.
 
 **Parameters**:
 * instance - Maat instance created by maat_new().
 * table_id - ID of the table to be scanned.
 * flag - Data to be scanned.
-* results - Array to store hit compile_ids.
+* results - Array to store hit rule_ids.
 * n_result - Size of the results array.
-* n_hit_result - The number of hit compile_ids.
+* n_hit_result - The number of hit rule_ids.
 * state - Used to store the intermediate state of the scan.
 
 **Returns**: 
@@ -850,7 +850,7 @@ int maat_scan_group(struct maat *instance, int table_id,
                     size_t *n_hit_result, struct maat_state *state);
 ```
 
-Different from the above interface, the input to this interface is the hit item_id and group_id. Therefore, there is no need to execute the underlying scanning engine. It only needs to calculate the hit compile_id based on the hit group_id.
+Different from the above interface, the input to this interface is the hit item_id and group_id. Therefore, there is no need to execute the underlying scanning engine. It only needs to calculate the hit rule_id based on the hit group_id.
 
 
 ### maat_scan_not_logic
@@ -861,7 +861,7 @@ int maat_scan_not_logic(struct maat *instance, int table_id,
                         size_t *n_hit_result, struct maat_state *state);
 ```
 
-If the compile configuration contains NOT-clauses, this interface needs to be called to activate the calculation of compile_id involving NOT-clauses. This means that other scanning interfaces will not activate NOT-clauses except for calling this interface. When to call this interface is determined by the caller. For example, on a session, four packets were scanned with maat_scan_string and three compile_id were hit. The NOT-clause was expected to be activated, so this interface was called and two new compile_id were hit.
+If the rule configuration contains NOT-clauses, this interface needs to be called to activate the calculation of rule_id involving NOT-clauses. This means that other scanning interfaces will not activate NOT-clauses except for calling this interface. When to call this interface is determined by the caller. For example, on a session, four packets were scanned with maat_scan_string and three rule_id were hit. The NOT-clause was expected to be activated, so this interface was called and two new rule_id were hit.
 
 Since this interface only activates non-clauses and does not call the underlying scanning engine to perform actual scanning tasks, there is no data to be scanned.
 
@@ -894,15 +894,15 @@ int maat_stream_scan(struct maat_stream *stream, const char *data, int data_len,
                      struct maat_state *state);
 ```
 
-This interface is used to perform streaming scanning tasks, for example: in a session, consecutively scanning multiple packets and providing the hit compile_ids.
+This interface is used to perform streaming scanning tasks, for example: in a session, consecutively scanning multiple packets and providing the hit rule_ids.
 
 **Parameters**:
 * stream - Maat_stream handle created by maat_stream_new().
 * data - Data to be scanned.
 * data_len - The length of the data.
-* results - Array to store hit compile_ids.
+* results - Array to store hit rule_ids.
 * n_result - Size of the results array.
-* n_hit_result - The number of hit compile_ids.
+* n_hit_result - The number of hit rule_ids.
 * state - Used to store the intermediate state of the scan.
 
 **Returns**:

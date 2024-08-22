@@ -147,17 +147,17 @@ int write_json_to_redis(const char *json_filename, char *redis_ip, int redis_por
     return 0;
 }
 
-int compile_table_set_line(struct maat *maat_inst, const char *table_name,
-                           enum maat_operation op, long long compile_id,
+int rule_table_set_line(struct maat *maat_inst, const char *table_name,
+                           enum maat_operation op, long long rule_id,
                            const char *user_region, int clause_num,
                            int expire_after)
 {
     char table_line[1024 * 16] = {0};
     sprintf(table_line, "%lld\t0\t0\t0\t0\t0\t%s\t%d\t%d\t0.0", 
-            compile_id, user_region, clause_num, op);
+            rule_id, user_region, clause_num, op);
 
     struct maat_cmd_line line_rule;
-    line_rule.rule_id = compile_id;
+    line_rule.rule_id = rule_id;
     line_rule.table_line = table_line;
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
@@ -168,18 +168,18 @@ int compile_table_set_line(struct maat *maat_inst, const char *table_name,
 #define TO_GROUP2X_KEY(group_id, parent_id, clause_index) \
         (((unsigned long)group_id<<32|parent_id) + clause_index)
 
-int group2compile_table_set_line(struct maat *maat_inst, const char *table_name,
+int group2rule_table_set_line(struct maat *maat_inst, const char *table_name,
                                  enum maat_operation op, long long group_id,
-                                 long long compile_id, int not_flag,
+                                 long long rule_id, int not_flag,
                                  const char *vtable_name, int clause_index,
                                  int expire_after)
 {
     char table_line[128] = {0};
     sprintf(table_line, "%lld\t%lld\t%d\t%s\t%d\t%d", 
-            group_id, compile_id, not_flag, vtable_name, clause_index, op);
+            group_id, rule_id, not_flag, vtable_name, clause_index, op);
 
     struct maat_cmd_line line_rule;
-    line_rule.rule_id = TO_GROUP2X_KEY(group_id, compile_id, clause_index);
+    line_rule.rule_id = TO_GROUP2X_KEY(group_id, rule_id, clause_index);
     line_rule.table_line = table_line;
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;

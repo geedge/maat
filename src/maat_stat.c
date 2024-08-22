@@ -16,7 +16,7 @@
 #include "fieldstat/fieldstat_easy.h"
 #include "alignment.h"
 #include "maat_ip.h"
-#include "maat_compile.h"
+#include "maat_rule.h"
 #include "maat_group.h"
 #include "maat_plugin.h"
 #include "maat_expr.h"
@@ -31,10 +31,10 @@ enum MAAT_FS_STATUS {
 	STATUS_PLUGIN_ACC_NUM,
     STATUS_CLAUSE_REF_NOT_NUM,
     STATUS_GROUP_REF_EXCL_NUM, //group reference exclude group num
-    STATUS_HIT_COMPILE_NUM,
+    STATUS_HIT_RULE_NUM,
 	STATUS_MAAT_STATE_NUM,
     STATUS_MAAT_PER_STATE_MEM,
-    STATUS_COMPILE_STATE_NUM,
+    STATUS_RULE_STATE_NUM,
 	STATUS_GARBAGE_QUEUE_LEN,
 	STATUS_UPDATE_ERR_CNT,
 	STATUS_SCAN_ERR_CNT,
@@ -84,8 +84,8 @@ static void fs_global_metric_register(struct maat_stat *stat)
     stat->g_metric_id[STATUS_GARBAGE_QUEUE_LEN] =
         fieldstat_easy_register_counter(stat->fs_handle, "garbage_queue_len");
 
-    stat->g_metric_id[STATUS_HIT_COMPILE_NUM] =
-        fieldstat_easy_register_counter(stat->fs_handle, "hit_compile_num");
+    stat->g_metric_id[STATUS_HIT_RULE_NUM] =
+        fieldstat_easy_register_counter(stat->fs_handle, "hit_rule_num");
 
     stat->g_metric_id[STATUS_MAAT_STATE_NUM] =
         fieldstat_easy_register_counter(stat->fs_handle, "state_num");
@@ -93,8 +93,8 @@ static void fs_global_metric_register(struct maat_stat *stat)
     stat->g_metric_id[STATUS_MAAT_PER_STATE_MEM] =
         fieldstat_easy_register_counter(stat->fs_handle, "per_state_mem(B)");
 
-    stat->g_metric_id[STATUS_COMPILE_STATE_NUM] =
-        fieldstat_easy_register_counter(stat->fs_handle, "compile_state_num");
+    stat->g_metric_id[STATUS_RULE_STATE_NUM] =
+        fieldstat_easy_register_counter(stat->fs_handle, "rule_state_num");
 
     stat->g_metric_id[STATUS_STREAM_NUM] =
         fieldstat_easy_register_counter(stat->fs_handle, "stream_num");
@@ -153,9 +153,9 @@ struct maat_stat *maat_stat_new(const char *stat_file, size_t max_thread_num,
     stat->logger = logger;
     stat->stream_cnt = alignment_int64_array_alloc(max_thread_num);
     stat->thread_call_cnt = alignment_int64_array_alloc(max_thread_num);
-    stat->hit_compile_cnt = alignment_int64_array_alloc(max_thread_num);
+    stat->hit_rule_cnt = alignment_int64_array_alloc(max_thread_num);
     stat->maat_state_cnt = alignment_int64_array_alloc(max_thread_num);
-    stat->compile_state_cnt = alignment_int64_array_alloc(max_thread_num);
+    stat->rule_state_cnt = alignment_int64_array_alloc(max_thread_num);
     stat->maat_state_free_cnt = alignment_int64_array_alloc(max_thread_num);
     stat->maat_state_free_bytes = alignment_int64_array_alloc(max_thread_num);
 
@@ -178,9 +178,9 @@ void maat_stat_free(struct maat_stat *stat)
         stat->thread_call_cnt = NULL;
     }
 
-    if (stat->hit_compile_cnt != NULL) {
-        alignment_int64_array_free(stat->hit_compile_cnt);
-        stat->hit_compile_cnt = NULL;
+    if (stat->hit_rule_cnt != NULL) {
+        alignment_int64_array_free(stat->hit_rule_cnt);
+        stat->hit_rule_cnt = NULL;
     }
 
     if (stat->maat_state_cnt != NULL) {
@@ -188,9 +188,9 @@ void maat_stat_free(struct maat_stat *stat)
         stat->maat_state_cnt = NULL;
     }
 
-    if (stat->compile_state_cnt != NULL) {
-        alignment_int64_array_free(stat->compile_state_cnt);
-        stat->compile_state_cnt = NULL;
+    if (stat->rule_state_cnt != NULL) {
+        alignment_int64_array_free(stat->rule_state_cnt);
+        stat->rule_state_cnt = NULL;
     }
 
     if (stat->maat_state_free_cnt != NULL) {
@@ -272,8 +272,8 @@ static void fs_table_row_refresh(struct maat_stat *stat, int perf_on)
                 plugin_cache_num += plugin_runtime_cached_row_count(runtime);
                 plugin_rule_num += plugin_runtime_rule_count(runtime);
                 break;
-            case TABLE_TYPE_GROUP2COMPILE:
-                g2c_not_clause_num += group2compile_runtime_not_clause_count(runtime);
+            case TABLE_TYPE_GROUP2RULE:
+                g2c_not_clause_num += group2rule_runtime_not_clause_count(runtime);
                 break;
             case TABLE_TYPE_GROUP2GROUP:
                 g2g_excl_rule_num += group2group_runtime_exclude_rule_count(runtime);
@@ -437,14 +437,14 @@ void maat_stat_refresh(struct maat_stat *stat, struct table_manager *tbl_mgr,
     long long stream_num =
         alignment_int64_array_sum(stat->stream_cnt, stat->nr_worker_thread);
 
-    long long hit_compile_num =
-        alignment_int64_array_sum(stat->hit_compile_cnt, stat->nr_worker_thread);
+    long long hit_rule_num =
+        alignment_int64_array_sum(stat->hit_rule_cnt, stat->nr_worker_thread);
 
     long long maat_state_num =
         alignment_int64_array_sum(stat->maat_state_cnt, stat->nr_worker_thread);
 
-    long long compile_state_num =
-        alignment_int64_array_sum(stat->compile_state_cnt, stat->nr_worker_thread);
+    long long rule_state_num =
+        alignment_int64_array_sum(stat->rule_state_cnt, stat->nr_worker_thread);
 
     long long maat_state_free_num =
         alignment_int64_array_sum(stat->maat_state_free_cnt, stat->nr_worker_thread);
@@ -470,8 +470,8 @@ void maat_stat_refresh(struct maat_stat *stat, struct table_manager *tbl_mgr,
                                stat->g_metric_id[STATUS_TABLE_NUM],
                                NULL, 0, table_num); 
     fieldstat_easy_counter_set(stat->fs_handle, 0,
-                               stat->g_metric_id[STATUS_HIT_COMPILE_NUM],
-                               NULL, 0, hit_compile_num); 
+                               stat->g_metric_id[STATUS_HIT_RULE_NUM],
+                               NULL, 0, hit_rule_num); 
     fieldstat_easy_counter_set(stat->fs_handle, 0,
                                stat->g_metric_id[STATUS_MAAT_STATE_NUM],
                                NULL, 0, maat_state_num); 
@@ -479,8 +479,8 @@ void maat_stat_refresh(struct maat_stat *stat, struct table_manager *tbl_mgr,
                                stat->g_metric_id[STATUS_MAAT_PER_STATE_MEM],
                                NULL, 0, per_state_mem); 
     fieldstat_easy_counter_set(stat->fs_handle, 0,
-                               stat->g_metric_id[STATUS_COMPILE_STATE_NUM],
-                               NULL, 0, compile_state_num); 
+                               stat->g_metric_id[STATUS_RULE_STATE_NUM],
+                               NULL, 0, rule_state_num); 
     fieldstat_easy_counter_set(stat->fs_handle, 0,
                                stat->g_metric_id[STATUS_CMD_LINE_NUM],
                                NULL, 0, stat->line_cmd_acc_num); 

@@ -13,14 +13,14 @@ int write_iris_to_redis(const char *iris_path, char *redis_ip, int redis_port,
 int write_json_to_iris(const char* json_fn, char *iris_path, size_t path_sz,
                        struct log_handle *logger);
 
-int compile_table_set_line(struct maat *maat_inst, const char *table_name,
-                           enum maat_operation op, long long compile_id,
+int rule_table_set_line(struct maat *maat_inst, const char *table_name,
+                           enum maat_operation op, long long rule_id,
                            const char *user_region, int clause_num,
                            int expire_after);
 
-int group2compile_table_set_line(struct maat *maat_inst, const char *table_name,
+int group2rule_table_set_line(struct maat *maat_inst, const char *table_name,
                                  enum maat_operation op, long long group_id,
-                                 long long compile_id, int not_flag,
+                                 long long rule_id, int not_flag,
                                  const char *vtable_name, int clause_index,
                                  int expire_after);
 

@@ -1,10 +1,10 @@
 {
-    "compile_table": "COMPILE_DEFAULT",
-    "group2compile_table": "GROUP2COMPILE_DEFAULT",
+    "rule_table": "RULE_DEFAULT",
+    "group2rule_table": "GROUP2RULE_DEFAULT",
     "group2group_table": "GROUP2GROUP",
     "rules": [
         {
-            "compile_id": 2,
+            "rule_id": 2,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,

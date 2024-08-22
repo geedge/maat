@@ -1,9 +1,9 @@
 {
-    "compile_table": "COMPILE_DEFAULT",
+    "rule_table": "RULE_DEFAULT",
     "group_table": "GROUP",
     "rules": [
         {
-            "compile_id": 1
+            "rule_id": 1,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,

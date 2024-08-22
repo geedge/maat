@@ -1,6 +1,6 @@
 {
-    "compile_table": "COMPILE_DEFAULT",
-    "group2compile_table": "GROUP2COMPILE_DEFAULT",
+    "rule_table": "RULE_DEFAULT",
+    "group2rule_table": "GROUP2RULE_DEFAULT",
     "group2group_table": "GROUP2GROUP",
     "groups": [
         {
@@ -210,7 +210,7 @@
     ],
     "rules": [
         {
-            "compile_id": 123,
+            "rule_id": 123,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -257,7 +257,7 @@
             ]
         },
         {
-            "compile_id": 124,
+            "rule_id": 124,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -286,7 +286,7 @@
             ]
         },
         {
-            "compile_id": 125,
+            "rule_id": 125,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -312,7 +312,7 @@
             ]
         },
         {
-            "compile_id": 126,
+            "rule_id": 126,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -352,7 +352,7 @@
             ]
         },
         {
-            "compile_id": 128,
+            "rule_id": 128,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -379,7 +379,7 @@
             ]
         },
         {
-            "compile_id": 129,
+            "rule_id": 129,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -405,7 +405,7 @@
             ]
         },
         {
-            "compile_id": 130,
+            "rule_id": 130,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -431,7 +431,7 @@
             ]
         },
         {
-            "compile_id": 131,
+            "rule_id": 131,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -457,7 +457,7 @@
             ]
         },
         {
-            "compile_id": 132,
+            "rule_id": 132,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -483,7 +483,7 @@
             ]
         },
         {
-            "compile_id": 133,
+            "rule_id": 133,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -509,7 +509,7 @@
             ]
         },
         {
-            "compile_id": 134,
+            "rule_id": 134,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -535,7 +535,7 @@
             ]
         },
         {
-            "compile_id": 136,
+            "rule_id": 136,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -561,7 +561,7 @@
             ]
         },
         {
-            "compile_id": 137,
+            "rule_id": 137,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -587,7 +587,7 @@
             ]
         },
         {
-            "compile_id": 138,
+            "rule_id": 138,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -615,7 +615,7 @@
             ]
         },
         {
-            "compile_id": 139,
+            "rule_id": 139,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -643,7 +643,7 @@
             ]
         },
         {
-            "compile_id": 140,
+            "rule_id": 140,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -669,17 +669,17 @@
             ]
         },
         {
-            "compile_id": 141,
+            "rule_id": 141,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
             "user_region": "Something:I\\bhave\\ba\\bname,7799",
-            "compile_table_name": "COMPILE_ALIAS",
+            "rule_table_name": "RULE_ALIAS",
             "is_valid": "yes",
             "groups": [
                 {
-                    "g2c_table_name": "GROUP2COMPILE_ALIAS",
+                    "g2c_table_name": "GROUP2RULE_ALIAS",
                     "virtual_table": "HTTP_URL",
                     "group_name": "141_url_group",
                     "group_id": 119,
@@ -697,7 +697,7 @@
             ]
         },
         {
-            "compile_id": 142,
+            "rule_id": 142,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -723,7 +723,7 @@
             ]
         },
         {
-            "compile_id": 143,
+            "rule_id": 143,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -766,7 +766,7 @@
             ]
         },
         {
-            "compile_id": 144,
+            "rule_id": 144,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -809,7 +809,7 @@
             ]
         },
         {
-            "compile_id": 145,
+            "rule_id": 145,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -841,7 +841,7 @@
             ]
         },
         {
-            "compile_id": 146,
+            "rule_id": 146,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -892,7 +892,7 @@
             ]
         },
         {
-            "compile_id": 147,
+            "rule_id": 147,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -911,7 +911,7 @@
                             "table_name": "KEYWORDS_TABLE",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "clause0-in-compile-147",
+                                "keywords": "clause0-in-rule-147",
                                 "expr_type": "and"
                             }
                         }
@@ -928,7 +928,7 @@
                             "table_name": "KEYWORDS_TABLE",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "clause1-in-compile-147",
+                                "keywords": "clause1-in-rule-147",
                                 "expr_type": "and"
                             }
                         }
@@ -945,7 +945,7 @@
                             "table_name": "KEYWORDS_TABLE",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "clause2-in-compile-147",
+                                "keywords": "clause2-in-rule-147",
                                 "expr_type": "and"
                             }
                         }
@@ -962,7 +962,7 @@
                             "table_name": "KEYWORDS_TABLE",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "clause3-in-compile-147",
+                                "keywords": "clause3-in-rule-147",
                                 "expr_type": "and"
                             }
                         }
@@ -979,7 +979,7 @@
                             "table_name": "KEYWORDS_TABLE",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "clause4-in-compile-147",
+                                "keywords": "clause4-in-rule-147",
                                 "expr_type": "and"
                             }
                         }
@@ -996,7 +996,7 @@
                             "table_name": "KEYWORDS_TABLE",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "clause5-in-compile-147",
+                                "keywords": "clause5-in-rule-147",
                                 "expr_type": "and"
                             }
                         }
@@ -1013,7 +1013,7 @@
                             "table_name": "KEYWORDS_TABLE",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "clause6-in-compile-147",
+                                "keywords": "clause6-in-rule-147",
                                 "expr_type": "and"
                             }
                         }
@@ -1030,7 +1030,7 @@
                             "table_name": "KEYWORDS_TABLE",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "clause7-in-compile-147",
+                                "keywords": "clause7-in-rule-147",
                                 "expr_type": "and"
                             }
                         }
@@ -1039,7 +1039,7 @@
             ]
         },
         {
-            "compile_id": 148,
+            "rule_id": 148,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -1065,7 +1065,7 @@
             ]
         },
         {
-            "compile_id": 149,
+            "rule_id": 149,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -1092,7 +1092,7 @@
             ]
         },
         {
-            "compile_id": 150,
+            "rule_id": 150,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -1133,7 +1133,7 @@
             ]
         },
         {
-            "compile_id": 151,
+            "rule_id": 151,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -1159,7 +1159,7 @@
             ]
         },
         {
-            "compile_id": 152,
+            "rule_id": 152,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -1203,7 +1203,7 @@
             ]
         },
         {
-            "compile_id": 153,
+            "rule_id": 153,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -1246,7 +1246,7 @@
             ]
         },
         {
-            "compile_id": 154,
+            "rule_id": 154,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -1272,7 +1272,7 @@
             ]
         },
         {
-            "compile_id": 155,
+            "rule_id": 155,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -1298,7 +1298,7 @@
             ]
         },
         {
-            "compile_id": 156,
+            "rule_id": 156,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -1325,7 +1325,7 @@
             ]
         },
         {
-            "compile_id": 157,
+            "rule_id": 157,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -1351,7 +1351,7 @@
             ]
         },
         {
-            "compile_id": 158,
+            "rule_id": 158,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -1376,7 +1376,7 @@
             ]
         },
         {
-            "compile_id": 159,
+            "rule_id": 159,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -1401,7 +1401,7 @@
             ]
         },
         {
-            "compile_id": 160,
+            "rule_id": 160,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -1433,7 +1433,7 @@
             ]
         },
         {
-            "compile_id": 161,
+            "rule_id": 161,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -1487,7 +1487,7 @@
             ]
         },
         {
-            "compile_id": 162,
+            "rule_id": 162,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -1508,7 +1508,7 @@
             ]
         },
         {
-            "compile_id": 163,
+            "rule_id": 163,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -1529,7 +1529,7 @@
             ]
         },
         {
-            "compile_id": 164,
+            "rule_id": 164,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -1555,7 +1555,7 @@
             ]
         },
         {
-            "compile_id": 165,
+            "rule_id": 165,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -1597,7 +1597,7 @@
             ]
         },
         {
-            "compile_id": 166,
+            "rule_id": 166,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -1624,7 +1624,7 @@
             ]
         },
         {
-            "compile_id": 167,
+            "rule_id": 167,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -1658,7 +1658,7 @@
             ]
         },
         {
-            "compile_id": 168,
+            "rule_id": 168,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -1682,7 +1682,7 @@
             ]
         },
         {
-            "compile_id": 169,
+            "rule_id": 169,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -1709,7 +1709,7 @@
             ]
         },
         {
-            "compile_id": 170,
+            "rule_id": 170,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -1735,7 +1735,7 @@
             ]
         },
         {
-            "compile_id": 171,
+            "rule_id": 171,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -1761,7 +1761,7 @@
             ]
         },
         {
-            "compile_id": 177,
+            "rule_id": 177,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -1784,7 +1784,7 @@
             ]
         },
         {
-            "compile_id": 178,
+            "rule_id": 178,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -1807,7 +1807,7 @@
             ]
         },
         {
-            "compile_id": 179,
+            "rule_id": 179,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -1833,7 +1833,7 @@
             ]
         },
         {
-            "compile_id": 180,
+            "rule_id": 180,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -1862,7 +1862,7 @@
             ]
         },
         {
-            "compile_id": 181,
+            "rule_id": 181,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -1891,7 +1891,7 @@
             ]
         },
         {
-            "compile_id": 182,
+            "rule_id": 182,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -1917,7 +1917,7 @@
             ]
         },
         {
-            "compile_id": 184,
+            "rule_id": 184,
             "user_region": "APP_ID=6006740;Liumengyan-Bugreport-20210515",
             "description": "Hulu",
             "is_valid": "yes",
@@ -1943,7 +1943,7 @@
             ]
         },
         {
-            "compile_id": 185,
+            "rule_id": 185,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -1984,7 +1984,7 @@
             ]
         },
         {
-            "compile_id": 186,
+            "rule_id": 186,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -2026,7 +2026,7 @@
             ]
         },
         {
-            "compile_id": 187,
+            "rule_id": 187,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -2068,7 +2068,7 @@
             ]
         },
         {
-            "compile_id": 188,
+            "rule_id": 188,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -2110,7 +2110,7 @@
             ]
         },
         {
-            "compile_id": 189,
+            "rule_id": 189,
             "is_valid": "yes",
             "do_log": 0,
             "action": 0,
@@ -2137,7 +2137,7 @@
             ]
         },
         {
-            "compile_id": 190,
+            "rule_id": 190,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -2164,7 +2164,7 @@
             ]
         },
         {
-            "compile_id": 191,
+            "rule_id": 191,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -2190,7 +2190,7 @@
             ]
         },
         {
-            "compile_id": 192,
+            "rule_id": 192,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -2216,7 +2216,7 @@
             ]
         },
         {
-            "compile_id": 193,
+            "rule_id": 193,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -2257,7 +2257,7 @@
             ]
         },
         {
-            "compile_id": 194,
+            "rule_id": 194,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -2283,7 +2283,7 @@
             ]
         },
         {
-            "compile_id": 195,
+            "rule_id": 195,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -2325,7 +2325,7 @@
             ]
         },
         {
-            "compile_id": 196,
+            "rule_id": 196,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -2352,7 +2352,7 @@
             ]
         },
         {
-            "compile_id": 197,
+            "rule_id": 197,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -2378,17 +2378,17 @@
             ]
         },
         {
-            "compile_id": 198,
+            "rule_id": 198,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
             "user_region": "Something:I have a name,7799",
-            "compile_table_name": "COMPILE_FIREWALL_DEFAULT",
+            "rule_table_name": "RULE_FIREWALL_DEFAULT",
             "is_valid": "yes",
             "groups": [
                 {
-                    "g2c_table_name": "GROUP2COMPILE_FIREWALL",
+                    "g2c_table_name": "GROUP2RULE_FIREWALL",
                     "virtual_table": "HTTP_URL",
                     "group_name": "198_url_group",
                     "group_id": 187,
@@ -2406,7 +2406,7 @@
             ]
         },
         {
-            "compile_id": 199,
+            "rule_id": 199,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -2456,7 +2456,7 @@
             ]
         },
         {
-            "compile_id": 200,
+            "rule_id": 200,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -2508,7 +2508,7 @@
             ]
         },
         {
-            "compile_id": 202,
+            "rule_id": 202,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -2569,7 +2569,7 @@
             ]
         },
         {
-            "compile_id": 203,
+            "rule_id": 203,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -2649,7 +2649,7 @@
             ]
         },
         {
-            "compile_id": 204,
+            "rule_id": 204,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -2751,7 +2751,7 @@
             ]
         },
         {
-            "compile_id": 205,
+            "rule_id": 205,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -2777,7 +2777,7 @@
             ]
         },
         {
-            "compile_id": 206,
+            "rule_id": 206,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -2803,7 +2803,7 @@
             ]
         },
         {
-            "compile_id": 207,
+            "rule_id": 207,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -2829,7 +2829,7 @@
             ]
         },
         {
-            "compile_id": 208,
+            "rule_id": 208,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -2855,7 +2855,7 @@
             ]
         },
         {
-            "compile_id": 209,
+            "rule_id": 209,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -2881,7 +2881,7 @@
             ]
         },
         {
-            "compile_id": 210,
+            "rule_id": 210,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -2906,7 +2906,7 @@
             ]
         },
         {
-            "compile_id": 211,
+            "rule_id": 211,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -2932,7 +2932,7 @@
             ]
         },
         {
-            "compile_id": 212,
+            "rule_id": 212,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -2957,7 +2957,7 @@
             ]
         },
         {
-            "compile_id": 213,
+            "rule_id": 213,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -2983,7 +2983,7 @@
             ]
         },
         {
-            "compile_id": 214,
+            "rule_id": 214,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -3009,7 +3009,7 @@
             ]
         },
         {
-            "compile_id": 215,
+            "rule_id": 215,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -3035,7 +3035,7 @@
             ]
         },
         {
-            "compile_id": 216,
+            "rule_id": 216,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -3060,7 +3060,7 @@
                             "table_name": "KEYWORDS_TABLE",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "keywords-for-compile-211",
+                                "keywords": "keywords-for-rule-211",
                                 "expr_type": "and"
                             }
                         }
@@ -3069,7 +3069,7 @@
             ]
         },
         {
-            "compile_id": 217,
+            "rule_id": 217,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -3127,7 +3127,7 @@
                             "table_name": "KEYWORDS_TABLE",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "keywords-for-compile-217",
+                                "keywords": "keywords-for-rule-217",
                                 "expr_type": "and"
                             }
                         }
@@ -3136,7 +3136,7 @@
             ]
         },
         {
-            "compile_id": 218,
+            "rule_id": 218,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -3161,7 +3161,7 @@
             ]
         },
         {
-            "compile_id": 219,
+            "rule_id": 219,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -3308,7 +3308,7 @@
             ]
         },
         {
-            "compile_id": 220,
+            "rule_id": 220,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -3370,7 +3370,7 @@
             ]
         },
         {
-            "compile_id": 221,
+            "rule_id": 221,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -3414,7 +3414,7 @@
             ]
         },
         {
-            "compile_id": 222,
+            "rule_id": 222,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -3442,7 +3442,7 @@
             ]
         },
         {
-            "compile_id": 223,
+            "rule_id": 223,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -3461,7 +3461,7 @@
                             "table_name": "KEYWORDS_TABLE",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "not_logic_compile_223_1",
+                                "keywords": "not_logic_rule_223_1",
                                 "expr_type": "and"
                             }
                         }
@@ -3478,7 +3478,7 @@
                             "table_name": "KEYWORDS_TABLE",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "not_logic_compile_223_2",
+                                "keywords": "not_logic_rule_223_2",
                                 "expr_type": "and"
                             }
                         }
@@ -3495,7 +3495,7 @@
                             "table_name": "KEYWORDS_TABLE",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "not_logic_compile_223_3",
+                                "keywords": "not_logic_rule_223_3",
                                 "expr_type": "and"
                             }
                         }
@@ -3504,7 +3504,7 @@
             ]
         },
         {
-            "compile_id": 224,
+            "rule_id": 224,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -3523,7 +3523,7 @@
                             "table_name": "KEYWORDS_TABLE",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "not_logic_compile_224_1",
+                                "keywords": "not_logic_rule_224_1",
                                 "expr_type": "and"
                             }
                         }
@@ -3540,7 +3540,7 @@
                             "table_name": "KEYWORDS_TABLE",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "not_logic_compile_224_2",
+                                "keywords": "not_logic_rule_224_2",
                                 "expr_type": "and"
                             }
                         }
@@ -3549,7 +3549,7 @@
             ]
         },
         {
-            "compile_id": 225,
+            "rule_id": 225,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -3577,7 +3577,7 @@
             ]
         },
         {
-            "compile_id": 226,
+            "rule_id": 226,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -3593,25 +3593,25 @@
             ]
         },
         {
-            "compile_id": 227,
+            "rule_id": 227,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
             "user_region": "maat_scan_group",
-            "compile_table_name": "COMPILE_FIREWALL_DEFAULT",
+            "rule_table_name": "RULE_FIREWALL_DEFAULT",
             "is_valid": "yes",
             "groups": [
                 {
                     "virtual_table": "KEYWORDS_TABLE",
                     "group_name": "227_url_group",
                     "group_id": 248,
-                    "g2c_table_name": "GROUP2COMPILE_FIREWALL"
+                    "g2c_table_name": "GROUP2RULE_FIREWALL"
                 }
             ]
         },
         {
-            "compile_id": 228,
+            "rule_id": 228,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -3655,7 +3655,7 @@
             ]
         },
         {
-            "compile_id": 229,
+            "rule_id": 229,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -3681,7 +3681,7 @@
             ]
         },
         {
-            "compile_id": 230,
+            "rule_id": 230,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -3707,7 +3707,7 @@
             ]
         },
         {
-            "compile_id": 231,
+            "rule_id": 231,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -3733,7 +3733,7 @@
             ]
         },
         {
-            "compile_id": 232,
+            "rule_id": 232,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -3759,7 +3759,7 @@
             ]
         },
         {
-            "compile_id": 233,
+            "rule_id": 233,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -3775,7 +3775,7 @@
             ]
         },
         {
-            "compile_id": 234,
+            "rule_id": 234,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -3803,7 +3803,7 @@
             ]
         },
         {
-            "compile_id": 235,
+            "rule_id": 235,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,
@@ -3831,7 +3831,7 @@
             ]
         },
         {
-            "compile_id": 236,
+            "rule_id": 236,
             "service": 0,
             "action": 0,
             "do_blacklist": 0,

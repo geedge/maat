@@ -7,7 +7,7 @@ Before proceeding, please make sure you are familiar with the [terminology](./te
 As mentioned in the readme, maat has two typical usage patterns:
 
 **Pattern 1**
-* Update rules in the item table, group2compile table, and compile table
+* Update rules in the item table, group2rule table, and rule table
 * Call the maat scanning api to determine if the actual traffic hits the effective rules
 * If a rule is hit, maat can provide detailed information about the hit rule
 
@@ -20,15 +20,15 @@ As mentioned in the readme, maat has two typical usage patterns:
 
 Different types of configurations are stored in different tables. For all configuration types, please refer to the [table schema](./maat_table.md#1-table-schema).
 
-The physical tables are mainly divided into three categories: the item table, group compile relationship table (compile table, group2compile table, group2group table), and xx_plugin table. The first two types of tables are used for maat traffic scanning, while the xx_plugin table is used as a callback table, which can obtain the detailed configuration information for a specific key.
+The physical tables are mainly divided into three categories: the item table, group rule relationship table (rule table, group2rule table, group2group table), and xx_plugin table. The first two types of tables are used for maat traffic scanning, while the xx_plugin table is used as a callback table, which can obtain the detailed configuration information for a specific key.
 
 ### 1.2 Configuration relationship
 
-As shown in the diagram below, maat organizes and abstracts configurations using terms such as item, group, literal, clause, compile, etc., allowing users to flexibly configure various policies. The term "literal" is an internal concept in maat and is not visible to external users.
+As shown in the diagram below, maat organizes and abstracts configurations using terms such as item, group, literal, clause, rule, etc., allowing users to flexibly configure various policies. The term "literal" is an internal concept in maat and is not visible to external users.
 
 In addition, groups support nesting. For more detailed information, please refer to [group hierarchy](./group_hierarchy.md).
 
-If we define literal_id = {virtual_table_id, group_id}, then a literal is composed of one or more literal_ids. The multiple literal_ids that form the same clause have a logical “OR” relationship. The multiple clauses that form the same compile have a logical “AND” relationship, and there can be a maximum of 8 clauses within the same compile. In addition, the clause itself supports logical "NOT".
+If we define literal_id = {virtual_table_id, group_id}, then a literal is composed of one or more literal_ids. The multiple literal_ids that form the same clause have a logical “OR” relationship. The multiple clauses that form the same rule have a logical “AND” relationship, and there can be a maximum of 8 clauses within the same rule. In addition, the clause itself supports logical "NOT".
 
 <img src="./imgs/rule_diagram.png" width="800" height="450" > 
 
@@ -56,7 +56,7 @@ The diagram illustrates the overall architecture of maat, including the control 
 
 * **Data Plane**
 
-   When calling the maat scanning interface, it subsequently calls the table runtime of the corresponding table, then proceeds to the scanning engine. Upon the scanning engine returning a hit group, it further searches for the matching `compile_id` through group2group runtime, group2compile runtime, and compile runtime, which is then returned to the caller. In addition, if the caller is interested in the hit path, they can also retrieve it through the interfaces provided by maat.
+   When calling the maat scanning interface, it subsequently calls the table runtime of the corresponding table, then proceeds to the scanning engine. Upon the scanning engine returning a hit group, it further searches for the matching `rule_id` through group2group runtime, group2rule runtime, and rule runtime, which is then returned to the caller. In addition, if the caller is interested in the hit path, they can also retrieve it through the interfaces provided by maat.
 
    The scanning mentioned above all uses the `effective runtime`. If there are configuration changes, it will trigger the construction of `updating runtime`. Once this construction is completed, it will become effective runtime, and the original effective runtime will be put into the garbage collection queue waiting to be recycled.
 
@@ -117,7 +117,7 @@ All of the benchmarks are run on the same TSG-X device. Here are the details of 
 ```bash
 scan consume: The time consumption of a single scan, calculated as the average of 1,000,000 scans for each of the 5 threads.
 
-In scenarios with different numbers of rules, each rule hits only one item → one compile.
+In scenarios with different numbers of rules, each rule hits only one item → one rule.
 
 Configuration capacity:
 

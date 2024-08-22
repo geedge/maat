@@ -18,7 +18,7 @@
 #include "maat_kv.h"
 #include "maat_expr.h"
 #include "maat_ip.h"
-#include "maat_compile.h"
+#include "maat_rule.h"
 #include "maat_group.h"
 #include "maat_flag.h"
 #include "maat_plugin.h"
@@ -52,7 +52,7 @@ struct table_manager {
     size_t n_accept_tag;
 
     enum expr_engine_type engine_type;
-    int default_compile_table_id;
+    int default_rule_table_id;
     int g2g_table_id;
     struct maat_kv_store *tbl_name2id_map;
     struct maat_kv_store *conj_tbl_name2id_map;
@@ -278,15 +278,15 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .hit_item_num = virtual_runtime_hit_item_num
     },
     {
-        .type = TABLE_TYPE_COMPILE,
-        .new_schema = compile_schema_new,
-        .free_schema = compile_schema_free,
-        .new_runtime = compile_runtime_new,
-        .free_runtime = compile_runtime_free,
-        .update_runtime = compile_runtime_update,
-        .commit_runtime = compile_runtime_commit,
-        .rule_count = compile_runtime_rule_count,
-        .update_err_count = compile_runtime_update_err_count
+        .type = TABLE_TYPE_RULE,
+        .new_schema = rule_schema_new,
+        .free_schema = rule_schema_free,
+        .new_runtime = rule_runtime_new,
+        .free_runtime = rule_runtime_free,
+        .update_runtime = rule_runtime_update,
+        .commit_runtime = rule_runtime_commit,
+        .rule_count = rule_runtime_rule_count,
+        .update_err_count = rule_runtime_update_err_count
     },
     {
         .type = TABLE_TYPE_GROUP2GROUP,
@@ -300,15 +300,15 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .update_err_count = group2group_runtime_update_err_count
     },
     {
-        .type = TABLE_TYPE_GROUP2COMPILE,
-        .new_schema = group2compile_schema_new,
-        .free_schema = group2compile_schema_free,
-        .new_runtime = group2compile_runtime_new,
-        .free_runtime = group2compile_runtime_free,
-        .update_runtime = group2compile_runtime_update,
+        .type = TABLE_TYPE_GROUP2RULE,
+        .new_schema = group2rule_schema_new,
+        .free_schema = group2rule_schema_free,
+        .new_runtime = group2rule_runtime_new,
+        .free_runtime = group2rule_runtime_free,
+        .update_runtime = group2rule_runtime_update,
         .commit_runtime = NULL,
-        .rule_count = group2compile_runtime_rule_count,
-        .update_err_count = group2compile_runtime_update_err_count
+        .rule_count = group2rule_runtime_rule_count,
+        .update_err_count = group2rule_runtime_update_err_count
     }
 };
 
@@ -499,8 +499,8 @@ static void maat_table_schema_free(void *schema, enum table_type table_type)
 
 static void register_reserved_word(struct maat_kv_store *reserved_word_map)
 {
-    maat_kv_register(reserved_word_map, "compile", TABLE_TYPE_COMPILE);
-    maat_kv_register(reserved_word_map, "group2compile", TABLE_TYPE_GROUP2COMPILE);
+    maat_kv_register(reserved_word_map, "rule", TABLE_TYPE_RULE);
+    maat_kv_register(reserved_word_map, "group2rule", TABLE_TYPE_GROUP2RULE);
     maat_kv_register(reserved_word_map, "group2group", TABLE_TYPE_GROUP2GROUP);
     maat_kv_register(reserved_word_map, "flag", TABLE_TYPE_FLAG);
     maat_kv_register(reserved_word_map, "flag_plus", TABLE_TYPE_FLAG_PLUS);
@@ -787,9 +787,9 @@ static int register_tbl_name2id(struct maat_kv_store *tbl_name2id_map, cJSON *ro
     return 0;
 }
 
-int maat_default_compile_table_id(cJSON *json, struct log_handle *logger)
+int maat_default_rule_table_id(cJSON *json, struct log_handle *logger)
 {
-    cJSON *item = cJSON_GetObjectItem(json, "default_compile_table");
+    cJSON *item = cJSON_GetObjectItem(json, "default_rule_table");
     if (NULL == item || item->type != cJSON_Number) {
         return -1;
     }
@@ -867,7 +867,7 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
         return NULL;
     }
 
-    int default_compile_table_id = -1;
+    int default_rule_table_id = -1;
     int g2g_table_id = -1;
     struct maat_kv_store *reserved_word_map = maat_kv_store_new();
     register_reserved_word(reserved_word_map);
@@ -899,9 +899,9 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
                 }
             }
 
-            if (maat_tbl->table_type == TABLE_TYPE_COMPILE) {
-                if (default_compile_table_id < 0) {
-                    default_compile_table_id = maat_default_compile_table_id(json, logger);
+            if (maat_tbl->table_type == TABLE_TYPE_RULE) {
+                if (default_rule_table_id < 0) {
+                    default_rule_table_id = maat_default_rule_table_id(json, logger);
                 } 
             }
 
@@ -926,10 +926,10 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
         }
     }
 
-    tbl_mgr->default_compile_table_id = default_compile_table_id;
+    tbl_mgr->default_rule_table_id = default_rule_table_id;
     tbl_mgr->g2g_table_id = g2g_table_id;
 
-    log_info(logger, MODULE_TABLE, "default compile table id: %d", default_compile_table_id);
+    log_info(logger, MODULE_TABLE, "default rule table id: %d", default_rule_table_id);
     log_info(logger, MODULE_TABLE, "group2group table id: %d", g2g_table_id);
 next:
     FREE(json_buff);
@@ -990,18 +990,18 @@ int table_manager_runtime_create(struct table_manager *tbl_mgr, size_t max_threa
                                                                     garbage_bin, tbl_mgr->logger);
     }
 
-    /* group2compile runtime depends on associated compile runtime,
-       must make sure associated compile runtime already exist */
+    /* group2rule runtime depends on associated rule runtime,
+       must make sure associated rule runtime already exist */
     for (i = 0; i < MAX_TABLE_NUM; i++) {
         table_type = table_manager_get_table_type(tbl_mgr, i);
-        if (table_type != TABLE_TYPE_GROUP2COMPILE) {
+        if (table_type != TABLE_TYPE_GROUP2RULE) {
             continue;
         }
 
         void *schema = table_manager_get_schema(tbl_mgr, i);
         if (NULL == schema) {
             log_fatal(tbl_mgr->logger, MODULE_TABLE, 
-                      "[%s:%d] group2compile table(table_id:%d) schema is null",
+                      "[%s:%d] group2rule table(table_id:%d) schema is null",
                       __FUNCTION__, __LINE__, i);
             continue;
         }
@@ -1011,9 +1011,9 @@ int table_manager_runtime_create(struct table_manager *tbl_mgr, size_t max_threa
             continue;
         }
 
-        int asso_compile_table_id = group2compile_associated_compile_table_id(schema);
-        void *compile_updating_rt = table_manager_get_updating_runtime(tbl_mgr, asso_compile_table_id);
-        group2compile_runtime_init(g2c_updating_rt, compile_updating_rt);
+        int asso_rule_table_id = group2rule_associated_rule_table_id(schema);
+        void *rule_updating_rt = table_manager_get_updating_runtime(tbl_mgr, asso_rule_table_id);
+        group2rule_runtime_init(g2c_updating_rt, rule_updating_rt);
     }
 
     return 0;
@@ -1154,13 +1154,13 @@ enum table_type table_manager_get_table_type(struct table_manager *tbl_mgr, int 
     return tbl_mgr->tbl[table_id]->table_type;
 }
 
-int table_manager_get_default_compile_table_id(struct table_manager *tbl_mgr)
+int table_manager_get_default_rule_table_id(struct table_manager *tbl_mgr)
 {
     if (NULL == tbl_mgr) {
         return -1;
     }
 
-    return tbl_mgr->default_compile_table_id;
+    return tbl_mgr->default_rule_table_id;
 }
 
 int table_manager_get_group2group_table_id(struct table_manager *tbl_mgr)

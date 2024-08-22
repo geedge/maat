@@ -39,9 +39,9 @@ enum table_type {
     TABLE_TYPE_BOOL_PLUGIN,
     //above are physical table
     TABLE_TYPE_VIRTUAL,
-    TABLE_TYPE_COMPILE,
+    TABLE_TYPE_RULE,
     TABLE_TYPE_GROUP2GROUP,
-	TABLE_TYPE_GROUP2COMPILE,
+	TABLE_TYPE_GROUP2RULE,
     TABLE_TYPE_MAX
 };
 
@@ -65,14 +65,14 @@ int table_manager_get_table_id(struct table_manager *tbl_mgr, const char *table_
  * @brief get table_name's all conjunction parents' table_id
  * 
  * for example: "table_id": 1,
- *              "table_name":"COMPILE_CONJ"
- *              "db_tables":["COMPILE_DEFAULT", "COMPILE_ALIAS"]
+ *              "table_name":"RULE_CONJ"
+ *              "db_tables":["RULE_DEFAULT", "RULE_ALIAS"]
  * 
  *              "table_id": 2,
- *              "table_name": "COMPILE_PLUGIN",
- *              "db_tables": ["COMPILE_DEFAULT"]
+ *              "table_name": "RULE_PLUGIN",
+ *              "db_tables": ["RULE_DEFAULT"]
  * 
- *   so COMPILE_DEFAULT has two conjunction parents whose table_id is 1 and 2.
+ *   so RULE_DEFAULT has two conjunction parents whose table_id is 1 and 2.
 */
 int table_manager_get_conj_parent_table_ids(struct table_manager *tbl_mgr, const char *table_name,
                                             long long *table_ids_array, size_t n_table_ids_array);
@@ -84,7 +84,7 @@ const char *table_manager_get_table_schema_tag(struct table_manager *tbl_mgr, in
 
 enum table_type table_manager_get_table_type(struct table_manager *tbl_mgr, int table_id);
 
-int table_manager_get_default_compile_table_id(struct table_manager *tbl_mgr);
+int table_manager_get_default_rule_table_id(struct table_manager *tbl_mgr);
 int table_manager_get_group2group_table_id(struct table_manager *tbl_mgr);
 
 int table_manager_get_valid_column(struct table_manager *tbl_mgr, int table_id);

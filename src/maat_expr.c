@@ -20,7 +20,7 @@
 #include "rcu_hash.h"
 #include "maat.h"
 #include "maat_core.h"
-#include "maat_compile.h"
+#include "maat_rule.h"
 #include "maat_group.h"
 #include "alignment.h"
 #include "maat_garbage_collection.h"
@@ -953,9 +953,9 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
                       const char *data, size_t data_len,
                       int vtable_id, struct maat_state *state)
 {
-    //clear compile_state->last_hit_group
-    if (state != NULL && state->compile_state != NULL) {
-        compile_state_clear_last_hit_group(state->compile_state);
+    //clear rule_state->last_hit_group
+    if (state != NULL && state->rule_state != NULL) {
+        rule_state_clear_last_hit_group(state->rule_state);
     }
 
     if (0 == expr_rt->rule_num) {
@@ -1013,14 +1013,14 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
     }
 
 next:
-    if (NULL == state->compile_state) {
-        state->compile_state = compile_state_new();
-        alignment_int64_array_add(state->maat_inst->stat->compile_state_cnt,
+    if (NULL == state->rule_state) {
+        state->rule_state = rule_state_new();
+        alignment_int64_array_add(state->maat_inst->stat->rule_state_cnt,
                                   state->thread_id, 1);
     }
 
-    return compile_state_update(state->compile_state, state->maat_inst, vtable_id,
-                                state->compile_table_id, state->Nth_scan,
+    return rule_state_update(state->rule_state, state->maat_inst, vtable_id,
+                                state->rule_table_id, state->Nth_scan,
                                 hit_maat_items, real_hit_item_num);
 }
 
@@ -1049,9 +1049,9 @@ int expr_runtime_stream_scan(struct expr_runtime_stream *expr_rt_stream,
 {
     struct expr_runtime *expr_rt = expr_rt_stream->ref_expr_rt;
 
-    //clear compile_state->last_hit_group
-    if (state != NULL && state->compile_state != NULL) {
-        compile_state_clear_last_hit_group(state->compile_state);
+    //clear rule_state->last_hit_group
+    if (state != NULL && state->rule_state != NULL) {
+        rule_state_clear_last_hit_group(state->rule_state);
     }
 
     if (0 == expr_rt->rule_num) {
@@ -1107,14 +1107,14 @@ int expr_runtime_stream_scan(struct expr_runtime_stream *expr_rt_stream,
     }
 
 next:
-    if (NULL == state->compile_state) {
-        state->compile_state = compile_state_new();
-        alignment_int64_array_add(state->maat_inst->stat->compile_state_cnt,
+    if (NULL == state->rule_state) {
+        state->rule_state = rule_state_new();
+        alignment_int64_array_add(state->maat_inst->stat->rule_state_cnt,
                                   state->thread_id, 1);
     }
 
-    return compile_state_update(state->compile_state, state->maat_inst, vtable_id,
-                                state->compile_table_id, state->Nth_scan,
+    return rule_state_update(state->rule_state, state->maat_inst, vtable_id,
+                                state->rule_table_id, state->Nth_scan,
                                 hit_maat_items, real_hit_item_cnt);
 }
 
