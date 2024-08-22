@@ -42,7 +42,7 @@ Before showing how to configure the specific rules, we need some raw materials (
 
 ```bash
 rule(rule) = clause1 & clause2
-              = {vtable1, group1, clause_index1} & {vtable2, group2, clause_index2}
+              = {attribute1, group1, clause_index1} & {attribute2, group2, clause_index2}
               = {2, 211, 1} & {1, 201, 2}
 ```
 
@@ -53,7 +53,7 @@ rule(rule) = clause1 & clause2
 
 ```bash
 rule(rule) = clause1 & clause2
-              = {vtable1, group1, clause_index1} & {vtable2, group2, clause_index2}
+              = {attribute1, group1, clause_index1} & {attribute2, group2, clause_index2}
               = {2, 211, 1} & {3, 221, 2}
 ```
 
@@ -74,7 +74,7 @@ group_name: "152_mail_addr" and group_name: "interval_group_refered" are two cla
 
 ```bash
 rule(rule) = clause1 & clause2
-              = {vtable1, (group1 | group2), clause_index1} & {vtable2, group3, clause_index2}
+              = {attribute1, (group1 | group2), clause_index1} & {attribute2, group3, clause_index2}
               = {2, (211 | 212), 1} & {1, 201, 2}
 ```
 
@@ -86,7 +86,7 @@ rule(rule) = clause1 & clause2
 
 ```bash
 rule(rule) = clause1 & clause2
-              = {vtable1, group1, clause_index1} & {vtable2, (group2 | group3), clause_index2}
+              = {attribute1, group1, clause_index1} & {attribute2, (group2 | group3), clause_index2}
               = {2, 211, 1} & {3, (221 | 222), 2}
 ```
 
@@ -106,7 +106,7 @@ group_name: "152_mail_addr" contains two regions(items) with a logical `OR` rela
 
 ```bash
 rule(rule) = clause1 & !clause2
-              = {vtable1, group1, clause_index1} & !{vtable2, group2, clause_index2}
+              = {attribute1, group1, clause_index1} & !{attribute2, group2, clause_index2}
               = {2, 211, 1} & !{1, 201, 2}
 ```
 
@@ -118,7 +118,7 @@ rule(rule) = clause1 & !clause2
 
 ```bash
 rule(rule) = clause1 & !clause2
-              = {vtable1, group1, clause_index1} & !{vtable2, (group2 | group3), clause_index2}
+              = {attribute1, group1, clause_index1} & !{attribute2, (group2 | group3), clause_index2}
               = {2, 211, 1} & !{3, (221 | 222), 2}
 ```
 
@@ -148,7 +148,7 @@ super_group1 = group1 exclude group2
 And then configure the rule.
 ```bash
 rule(rule) = clause1 & clause2
-              = {vtable1, super_group1, clause_index1} & {vtable2, group2, clause_index2}
+              = {attribute1, super_group1, clause_index1} & {attribute2, group2, clause_index2}
               = {2, (210 exclude 211), 1} & {1, 201, 2}
 ```
 
@@ -167,7 +167,7 @@ super_group2 = group2 exclude group3
 And then configure the rule.
 ```bash
 rule(rule) = clause1 & clause2
-              = {vtable1, group1, clause_index1} & {vtable2, super_group2, clause_index2}
+              = {attribute1, group1, clause_index1} & {attribute2, super_group2, clause_index2}
               = {2, 211, 1} & {1, (202 exclude 201), 2}
 ```
 

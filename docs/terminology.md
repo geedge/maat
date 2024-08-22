@@ -6,7 +6,7 @@
 * [Clause(Condition)](#clause)
 * [Literal](#literal)
 * [Physical table](#physical-table)
-* [Virtual table](#virtual-table)
+* [Attribute](#attribute)
 * [Table schema](#table-schema)
 * [Table runtime](#table-runtime)
 * [Table rule](#table-ruleconfiguration)
@@ -48,7 +48,7 @@ The relationship between group and group is stored in the [group2group table](./
 
 ## Rule(Policy)
 
-A conjunctive normal form(CNF) consisting of multiple groups and virtual tables.
+A conjunctive normal form(CNF) consisting of multiple groups and attributes.
 
 `Note`: A rule can contain up to 8 clauses and multiple clauses in the same rule can be logical 'AND' and logical 'NOT' relationships.
 
@@ -64,19 +64,19 @@ Clauses are divided into two categories based on whether they contain the logica
 
 ## Literal
 
-A Literal consists of `vtable_id(virtual table id)` and `group_id`. During the rules loading process, a unique clause_id  will be generated based on the combination of virtual table_id and group_id in the same clause.
+A Literal consists of `attribute_id(attribute id)` and `group_id`. During the rules loading process, a unique clause_id  will be generated based on the combination of attribute_id and group_id in the same clause.
 
 ## Physical table
 
 Different rules are stored in different tables in the actual database, including [item table](./maat_table.md#11-item-table), [rule table](./maat_table.md#12-rule-table), [group2rule table](./maat_table.md#13-group2rule-table), [group2group table](./maat_table.md#14-group2group-table), and [xx_plugin table](./maat_table.md#15-plugin-table), and so on.
 
-## Virtual table
+## Attribute
 
-A virtual table references a physical table. In practice, network traffic attributes are commonly used as virtual table, such as HTTP_HOST, SSL_SNI, etc. The constraints of virtual tables are as follows:
+A attribute references a physical table. In practice, network traffic attributes are commonly used as attribute, such as HTTP_HOST, SSL_SNI, etc. The constraints of attributes are as follows:
 
-* A virtual table can only reference one physical table. If it need to reference multiple physical tables of the same type, these physical tables can be first joined together into one table and then referenced.
+* A attribute can only reference one physical table. If it need to reference multiple physical tables of the same type, these physical tables can be first joined together into one table and then referenced.
 
-* A physical table can be referenced by different virtual tables. For example, the keyword_table can be referenced by two virtual tables, http_request_body_virt and http_response_body_virt.
+* A physical table can be referenced by different attributes. For example, the keyword_table can be referenced by two attributes, http_request_body_virt and http_response_body_virt.
 
 <img src="./imgs/virt-phy-mapping.png" width="300" height="150" > 
 

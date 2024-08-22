@@ -28,7 +28,7 @@ As shown in the diagram below, maat organizes and abstracts configurations using
 
 In addition, groups support nesting. For more detailed information, please refer to [group hierarchy](./group_hierarchy.md).
 
-If we define literal_id = {virtual_table_id, group_id}, then a literal is composed of one or more literal_ids. The multiple literal_ids that form the same clause have a logical “OR” relationship. The multiple clauses that form the same rule have a logical “AND” relationship, and there can be a maximum of 8 clauses within the same rule. In addition, the clause itself supports logical "NOT".
+If we define literal_id = {attribute_id, group_id}, then a literal is composed of one or more literal_ids. The multiple literal_ids that form the same clause have a logical “OR” relationship. The multiple clauses that form the same rule have a logical “AND” relationship, and there can be a maximum of 8 clauses within the same rule. In addition, the clause itself supports logical "NOT".
 
 <img src="./imgs/rule_diagram.png" width="800" height="450" > 
 

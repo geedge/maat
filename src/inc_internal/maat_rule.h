@@ -93,14 +93,14 @@ void rule_state_free(struct rule_state *rule_state,
                         struct maat *maat_instance, int thread_id);
 
 int rule_state_update(struct rule_state *rule_state, struct maat *maat_inst,
-                         int vtable_id, int custom_rule_tbl_id, int Nth_scan,
+                         int attribute_id, int custom_rule_tbl_id, int Nth_scan,
                          struct maat_item *hit_items, size_t n_hit_item);
 
 void rule_state_clear_last_hit_group(struct rule_state *rule_state);
 
 void rule_state_not_logic_update(struct rule_state *rule_state, 
                                     struct rule_runtime *rule_rt,
-                                    struct maat *maat_inst, int vtable_id,
+                                    struct maat *maat_inst, int attribute_id,
                                     int Nth_scan);
 
 size_t rule_state_get_internal_hit_paths(struct rule_state *rule_state,

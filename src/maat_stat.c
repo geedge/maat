@@ -320,7 +320,7 @@ static void fs_table_row_refresh(struct maat_stat *stat, int perf_on)
         fieldstat_easy_counter_set(stat->fs_handle, 0,
                                    stat->fs_column_id[COLUMN_HIT_ITEM_NUM],
                                    &cell_tag, 1, hit_item_num); 
-        if (table_type != TABLE_TYPE_VIRTUAL) {
+        if (table_type != TABLE_TYPE_ATTRIBUTE) {
             total_regv6_num += regex_rule_num;
             total_regv6_num += ipv6_rule_num;
             total_rule_num += rule_num;

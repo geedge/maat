@@ -29,7 +29,7 @@ struct maat;
 
 struct maat_hit_path {
     int Nth_scan;
-    int vtable_id;    // 0 is not a virtual table.
+    int attribute_id;    // 0 is not a attribute.
     int NOT_flag;     // 1 means NOT clause(condition)
     int clause_index; // 0 ~ 7
     long long item_id;
@@ -41,7 +41,7 @@ struct maat_hit_path {
 struct maat_hit_group {
     long long item_id;
     long long group_id;
-    int vtable_id;
+    int attribute_id;
 };
 
 enum maat_scan_status {

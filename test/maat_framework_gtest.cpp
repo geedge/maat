@@ -3249,8 +3249,8 @@ TEST_F(IPScan, RuleUpdates) {
 
 TEST_F(IPScan, RuleChangeClauseId) {
     //This test is a reproduce of bug OMPUB-1343.
-    const char *src_table_name = "VIRTUAL_IP_PLUS_SOURCE";
-    const char *dst_table_name = "VIRTUAL_IP_PLUS_DESTINATION";
+    const char *src_table_name = "ATTRIBUTE_IP_PLUS_SOURCE";
+    const char *dst_table_name = "ATTRIBUTE_IP_PLUS_DESTINATION";
     const char *phy_ip_table_name = "IP_PLUS_CONFIG";
     struct maat *maat_inst = IPScan::_shared_maat_inst;
     int thread_id = 0;
@@ -3356,7 +3356,7 @@ TEST_F(IPScan, RuleChangeClauseId) {
 
     struct maat_hit_group group;
     group.item_id = 0;
-    group.vtable_id = 0;
+    group.attribute_id = 0;
     group.group_id = group_id3;
 
     ret = maat_scan_group(maat_inst, app_id_table_id, &group, 1, results, ARRAY_SIZE, &n_hit_result, state);
@@ -3566,7 +3566,7 @@ TEST_F(GroupScan, PhysicalTable) {
 
     struct maat_hit_group hit_group;
     hit_group.group_id = 247;
-    hit_group.vtable_id = table_id;
+    hit_group.attribute_id = table_id;
     int ret = maat_scan_group(maat_inst, table_id, &hit_group, 1, results,
                               ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -3578,7 +3578,7 @@ TEST_F(GroupScan, PhysicalTable) {
     sleep(2);
 }
 
-TEST_F(GroupScan, VirtualTable) {
+TEST_F(GroupScan, Attribute) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
@@ -3591,7 +3591,7 @@ TEST_F(GroupScan, VirtualTable) {
 
     struct maat_hit_group hit_group;
     hit_group.group_id = 259;
-    hit_group.vtable_id = table_id;
+    hit_group.attribute_id = table_id;
     int ret = maat_scan_group(maat_inst, table_id, &hit_group, 1, results,
                               ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -3622,7 +3622,7 @@ TEST_F(GroupScan, SetScanRuleTable) {
 
     struct maat_hit_group hit_group;
     hit_group.group_id = 248;
-    hit_group.vtable_id = table_id;
+    hit_group.attribute_id = table_id;
     ret = maat_scan_group(maat_inst, table_id, &hit_group, 1, results,
                           ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -3940,14 +3940,14 @@ TEST_F(NOTLogic, ScanNotIP) {
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *hit_table_name = "HTTP_URL";
-    const char *not_hit_table_name = "VIRTUAL_IP_CONFIG";
+    const char *not_hit_table_name = "ATTRIBUTE_IP_CONFIG";
     struct maat *maat_inst = NOTLogic::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int hit_table_id = maat_get_table_id(maat_inst, hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
-    // scan string_should_hit(HTTP_URL) & hit ip(VIRTUAL_IP_CONFIG) => not hit rule
+    // scan string_should_hit(HTTP_URL) & hit ip(ATTRIBUTE_IP_CONFIG) => not hit rule
     int ret = maat_scan_string(maat_inst, hit_table_id, string_should_hit, 
                                strlen(string_should_hit), results, ARRAY_SIZE, 
                                &n_hit_result, state);
@@ -3975,7 +3975,7 @@ TEST_F(NOTLogic, ScanNotIP) {
 
     maat_state_reset(state);
 
-    // scan string_should_hit(HTTP_URL) & not hit ip(VIRTUAL_IP_CONFIG) => hit rule145
+    // scan string_should_hit(HTTP_URL) & not hit ip(ATTRIBUTE_IP_CONFIG) => hit rule145
     ret = maat_scan_string(maat_inst, hit_table_id, string_should_hit, 
                                strlen(string_should_hit), results, ARRAY_SIZE, 
                                &n_hit_result, state);
@@ -4002,7 +4002,7 @@ TEST_F(NOTLogic, ScanNotWithDistrict) {
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *url_table_name = "HTTP_URL";
-    const char *virtual_table_name = "HTTP_REQUEST_HEADER";
+    const char *attribute_name = "HTTP_REQUEST_HEADER";
     const char *district_str1 = "User-Agent";
     struct maat *maat_inst = NOTLogic::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
@@ -4016,18 +4016,18 @@ TEST_F(NOTLogic, ScanNotWithDistrict) {
                                &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    int virtual_table_id = maat_get_table_id(maat_inst, virtual_table_name);
-    ASSERT_GT(virtual_table_id, 0);
+    int attribute_id = maat_get_table_id(maat_inst, attribute_name);
+    ASSERT_GT(attribute_id, 0);
 
-    ret = maat_state_set_scan_district(state, virtual_table_id, district_str1,
+    ret = maat_state_set_scan_district(state, attribute_id, district_str1,
                                        strlen(district_str1));
     ASSERT_EQ(ret, 0);
 
-    ret = maat_scan_string(maat_inst, virtual_table_id, string2, strlen(string2),
+    ret = maat_scan_string(maat_inst, attribute_id, string2, strlen(string2),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, virtual_table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, attribute_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -4039,15 +4039,15 @@ TEST_F(NOTLogic, ScanNotWithDistrict) {
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_state_set_scan_district(state, virtual_table_id, district_str1,
+    ret = maat_state_set_scan_district(state, attribute_id, district_str1,
                                        strlen(district_str1));
     ASSERT_EQ(ret, 0);
 
-    ret = maat_scan_string(maat_inst, virtual_table_id, string3, strlen(string3),
+    ret = maat_scan_string(maat_inst, attribute_id, string3, strlen(string3),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, virtual_table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, attribute_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -4066,7 +4066,7 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *url_table_name = "HTTP_URL_FILTER";
-    const char *ip_table_name = "VIRTUAL_IP_CONFIG";
+    const char *ip_table_name = "ATTRIBUTE_IP_CONFIG";
     const char *http_table_name = "HTTP_RESPONSE_KEYWORDS";
     struct maat *maat_inst = NOTLogic::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
@@ -4074,7 +4074,7 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
     int url_table_id = maat_get_table_id(maat_inst, url_table_name);
     ASSERT_GT(url_table_id, 0);
 
-    //scan string_should_half_hit(HTTP_URL_FILTER) & hit ip(VIRTUAL_IP_CONFIG) => not hit rule
+    //scan string_should_half_hit(HTTP_URL_FILTER) & hit ip(ATTRIBUTE_IP_CONFIG) => not hit rule
     int ret = maat_scan_string(maat_inst, url_table_id, string_should_half_hit, 
                                strlen(string_should_half_hit), results, ARRAY_SIZE, 
                                &n_hit_result, state);
@@ -4100,7 +4100,7 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
 
     maat_state_reset(state);
 
-    // scan string_should_half_hit(HTTP_RESPONSE_KEYWORDS) & not hit ip(VIRTUAL_IP_CONFIG) => not hit rule
+    // scan string_should_half_hit(HTTP_RESPONSE_KEYWORDS) & not hit ip(ATTRIBUTE_IP_CONFIG) => not hit rule
     int http_table_id = maat_get_table_id(maat_inst, http_table_name);
     ASSERT_GT(http_table_id, 0);
 
@@ -4124,7 +4124,7 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
 
     maat_state_reset(state);
 
-    // scan scan string_should_half_hit(HTTP_URL_FILTER) & not hit ip(VIRTUAL_IP_CONFIG) => hit rule146
+    // scan scan string_should_half_hit(HTTP_URL_FILTER) & not hit ip(ATTRIBUTE_IP_CONFIG) => hit rule146
     ret = maat_scan_string(maat_inst, url_table_id, string_should_half_hit, 
                                strlen(string_should_half_hit), results, ARRAY_SIZE, 
                                &n_hit_result, state);
@@ -4162,15 +4162,15 @@ TEST_F(NOTLogic, NotPhysicalTable) {
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *phy_table_name = "KEYWORDS_TABLE";
-    const char *vtable_name = "HTTP_RESPONSE_KEYWORDS";
+    const char *attribute_name = "HTTP_RESPONSE_KEYWORDS";
     struct maat *maat_inst = NOTLogic::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int phy_table_id = maat_get_table_id(maat_inst, phy_table_name);
     ASSERT_GT(phy_table_id, 0);
 
-    int vtable_id = maat_get_table_id(maat_inst, vtable_name);
-    ASSERT_GT(vtable_id, 0);
+    int attribute_id = maat_get_table_id(maat_inst, attribute_name);
+    ASSERT_GT(attribute_id, 0);
 
     // scan hit string1(KEYWORDS_TABLE) & hit string2(HTTP_RESPONSE_KEYWORDS) => not hit rule
     int ret = maat_scan_string(maat_inst, phy_table_id, string1, 
@@ -4182,7 +4182,7 @@ TEST_F(NOTLogic, NotPhysicalTable) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_string(maat_inst, vtable_id, string2, strlen(string2),
+    ret = maat_scan_string(maat_inst, attribute_id, string2, strlen(string2),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -4197,7 +4197,7 @@ TEST_F(NOTLogic, NotPhysicalTable) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_string(maat_inst, vtable_id, string2, strlen(string2),
+    ret = maat_scan_string(maat_inst, attribute_id, string2, strlen(string2),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT); 
     EXPECT_EQ(n_hit_result, 1);
@@ -4762,7 +4762,7 @@ TEST_F(NOTLogic, MultiLiteralsInOneNotClause) {
     state = NULL;
 }
 
-TEST_F(NOTLogic, SameVtableInMultiClause) {
+TEST_F(NOTLogic, SameAttributeInMultiClause) {
     const char *src_asn1 = "AS1234";
     const char *src_asn2 = "AS9002";
     const char *src_asn3 = "AS9003";
@@ -5062,13 +5062,13 @@ TEST_F(ExcludeLogic, ScanIrrelavantAtLast) {
     state = NULL;
 }
 
-TEST_F(ExcludeLogic, ScanVirtualTable) {
+TEST_F(ExcludeLogic, ScanAttribute) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = ExcludeLogic::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-    const char *table_name = "VIRTUAL_IP_PLUS_TABLE";
+    const char *table_name = "ATTRIBUTE_IP_PLUS_TABLE";
 
     int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
@@ -5130,7 +5130,7 @@ TEST_F(ExcludeLogic, ScanWithMultiClause) {
     int thread_id = 0;
     struct maat *maat_inst = ExcludeLogic::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-    const char *ip_table_name = "VIRTUAL_IP_PLUS_TABLE";
+    const char *ip_table_name = "ATTRIBUTE_IP_PLUS_TABLE";
 
     int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(ip_table_id, 0);
@@ -5191,7 +5191,7 @@ TEST_F(ExcludeLogic, ExcludeInDifferentLevel) {
     int thread_id = 0;
     struct maat *maat_inst = ExcludeLogic::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-    const char *ip_table_name = "VIRTUAL_IP_PLUS_TABLE";
+    const char *ip_table_name = "ATTRIBUTE_IP_PLUS_TABLE";
 
     int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(ip_table_id, 0);
@@ -6082,7 +6082,7 @@ TEST_F(BoolPluginTable, EX_DATA) {
 	EXPECT_EQ(result[0]->id, 305);
 }
 
-class VirtualTable : public testing::Test
+class Attribute : public testing::Test
 {
 protected:
     static void SetUpTestCase() {
@@ -6111,7 +6111,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
             log_fatal(logger, MODULE_FRAMEWORK_GTEST,
-                      "[%s:%d] create maat instance in VirtualTable failed.",
+                      "[%s:%d] create maat instance in Attribute failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -6125,15 +6125,15 @@ protected:
     static struct maat *_shared_maat_inst;
 };
 
-struct maat *VirtualTable::_shared_maat_inst;
-struct log_handle *VirtualTable::logger;
+struct maat *Attribute::_shared_maat_inst;
+struct log_handle *Attribute::logger;
 
-TEST_F(VirtualTable, basic) {
+TEST_F(Attribute, basic) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *table_name = "HTTP_RESPONSE_KEYWORDS";
-    struct maat *maat_inst = VirtualTable::_shared_maat_inst;
+    struct maat *maat_inst = Attribute::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -6271,33 +6271,33 @@ TEST_F(TableSchemaTag, RuleTable) {
     EXPECT_EQ(ret, 0);
 
     //HTTP_RESPONSE_KEYWORDS
-    const char *vtable_name = "HTTP_RESPONSE_KEYWORDS";
-    int vtable_id = maat_get_table_id(maat_inst, vtable_name);
-    EXPECT_EQ(vtable_id, 25);
+    const char *attribute_name = "HTTP_RESPONSE_KEYWORDS";
+    int attribute_id = maat_get_table_id(maat_inst, attribute_name);
+    EXPECT_EQ(attribute_id, 25);
 
-    const char *tag7 = maat_get_table_schema_tag(maat_inst, vtable_id);
+    const char *tag7 = maat_get_table_schema_tag(maat_inst, attribute_id);
     EXPECT_TRUE(tag7 != NULL);
 
-    ret = strcmp(tag7, "{\"http_response_keywords\": \"virtual\"}");
+    ret = strcmp(tag7, "{\"http_response_keywords\": \"attribute\"}");
     EXPECT_EQ(ret, 0);
 
-    //VIRTUAL_IP_PLUS_TABLE
-    const char *vtable1_name = "VIRTUAL_IP_PLUS_TABLE";
-    int vtable1_id = maat_get_table_id(maat_inst, vtable1_name);
-    EXPECT_EQ(vtable1_id, 28);
+    //ATTRIBUTE_IP_PLUS_TABLE
+    const char *attribute1_name = "ATTRIBUTE_IP_PLUS_TABLE";
+    int attribute1_id = maat_get_table_id(maat_inst, attribute1_name);
+    EXPECT_EQ(attribute1_id, 28);
 
-    const char *vtable2_name = "VIRTUAL_IP_PLUS_SOURCE";
-    int vtable2_id = maat_get_table_id(maat_inst, vtable2_name);
-    EXPECT_EQ(vtable2_id, 28);
+    const char *attribute2_name = "ATTRIBUTE_IP_PLUS_SOURCE";
+    int attribute2_id = maat_get_table_id(maat_inst, attribute2_name);
+    EXPECT_EQ(attribute2_id, 28);
 
-    const char *vtable3_name = "VIRTUAL_IP_PLUS_DESTINATION";
-    int vtable3_id = maat_get_table_id(maat_inst, vtable3_name);
-    EXPECT_EQ(vtable3_id, 28);
+    const char *attribute3_name = "ATTRIBUTE_IP_PLUS_DESTINATION";
+    int attribute3_id = maat_get_table_id(maat_inst, attribute3_name);
+    EXPECT_EQ(attribute3_id, 28);
 
-    const char *tag8 = maat_get_table_schema_tag(maat_inst, vtable1_id);
+    const char *tag8 = maat_get_table_schema_tag(maat_inst, attribute1_id);
     EXPECT_TRUE(tag8 != NULL);
 
-    ret = strcmp(tag8, "{\"virtual_ip_plus_table\": \"virtual\"}");
+    ret = strcmp(tag8, "{\"attribute_ip_plus_table\": \"attribute\"}");
     EXPECT_EQ(ret, 0);
 }
 
@@ -6745,37 +6745,37 @@ TEST_F(Policy, EvaluationOrder) {
     size_t n_hit_path = maat_state_get_hit_paths(state, hit_path, 128);
     EXPECT_EQ(n_hit_path, 6);
 
-    EXPECT_EQ(hit_path[0].vtable_id, table_id);
+    EXPECT_EQ(hit_path[0].attribute_id, table_id);
     EXPECT_EQ(hit_path[0].sub_group_id, 158);
     EXPECT_EQ(hit_path[0].top_group_id, 158);
     EXPECT_EQ(hit_path[0].clause_index, 2);
     EXPECT_EQ(hit_path[0].rule_id, 168);
 
-    EXPECT_EQ(hit_path[1].vtable_id, table_id);
+    EXPECT_EQ(hit_path[1].attribute_id, table_id);
     EXPECT_EQ(hit_path[1].sub_group_id, 157);
     EXPECT_EQ(hit_path[1].top_group_id, 157);
     EXPECT_EQ(hit_path[1].clause_index, 0);
     EXPECT_EQ(hit_path[1].rule_id, 166);
 
-    EXPECT_EQ(hit_path[2].vtable_id, table_id);
+    EXPECT_EQ(hit_path[2].attribute_id, table_id);
     EXPECT_EQ(hit_path[2].sub_group_id, 155);
     EXPECT_EQ(hit_path[2].top_group_id, -1);
     EXPECT_EQ(hit_path[2].clause_index, -1);
     EXPECT_EQ(hit_path[2].rule_id, -1);
 
-    EXPECT_EQ(hit_path[3].vtable_id, table_id);
+    EXPECT_EQ(hit_path[3].attribute_id, table_id);
     EXPECT_EQ(hit_path[3].sub_group_id, 158);
     EXPECT_EQ(hit_path[3].top_group_id, 158);
     EXPECT_EQ(hit_path[3].clause_index, 6);
     EXPECT_EQ(hit_path[3].rule_id, 168);
 
-    EXPECT_EQ(hit_path[4].vtable_id, table_id);
+    EXPECT_EQ(hit_path[4].attribute_id, table_id);
     EXPECT_EQ(hit_path[4].sub_group_id, 158);
     EXPECT_EQ(hit_path[4].top_group_id, 158);
     EXPECT_EQ(hit_path[4].clause_index, 1);
     EXPECT_EQ(hit_path[4].rule_id, 167);
 
-    EXPECT_EQ(hit_path[5].vtable_id, table_id);
+    EXPECT_EQ(hit_path[5].attribute_id, table_id);
     EXPECT_EQ(hit_path[5].sub_group_id, 158);
     EXPECT_EQ(hit_path[5].top_group_id, 158);
     EXPECT_EQ(hit_path[5].clause_index, 3);
@@ -6807,7 +6807,7 @@ TEST_F(Policy, EvaluationOrder) {
 
 TEST_F(Policy, NotClauseHitPath) {
     const char *url_table_name = "HTTP_URL";
-    const char *ip_table_name = "VIRTUAL_IP_CONFIG";
+    const char *ip_table_name = "ATTRIBUTE_IP_CONFIG";
     const char *url = "www.youtube.com";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -6844,7 +6844,7 @@ TEST_F(Policy, NotClauseHitPath) {
     EXPECT_EQ(n_hit_path, 4);
 
     EXPECT_EQ(hit_path[0].Nth_scan, 1);
-    EXPECT_EQ(hit_path[0].vtable_id, url_table_id);
+    EXPECT_EQ(hit_path[0].attribute_id, url_table_id);
     EXPECT_EQ(hit_path[0].NOT_flag, 0);
     EXPECT_EQ(hit_path[0].clause_index, 1);
     EXPECT_EQ(hit_path[0].sub_group_id, 249);
@@ -6852,7 +6852,7 @@ TEST_F(Policy, NotClauseHitPath) {
     EXPECT_EQ(hit_path[0].rule_id, 228);
 
     EXPECT_EQ(hit_path[1].Nth_scan, 2);
-    EXPECT_EQ(hit_path[1].vtable_id, ip_table_id);
+    EXPECT_EQ(hit_path[1].attribute_id, ip_table_id);
     EXPECT_EQ(hit_path[1].NOT_flag, 1);
     EXPECT_EQ(hit_path[1].clause_index, -1);
     EXPECT_EQ(hit_path[1].sub_group_id, 100);
@@ -6860,7 +6860,7 @@ TEST_F(Policy, NotClauseHitPath) {
     EXPECT_EQ(hit_path[1].rule_id, -1);
 
     EXPECT_EQ(hit_path[2].Nth_scan, 2);
-    EXPECT_EQ(hit_path[2].vtable_id, ip_table_id);
+    EXPECT_EQ(hit_path[2].attribute_id, ip_table_id);
     EXPECT_EQ(hit_path[2].NOT_flag, 1);
     EXPECT_EQ(hit_path[2].clause_index, -1);
     EXPECT_EQ(hit_path[2].sub_group_id, 100);
@@ -6868,7 +6868,7 @@ TEST_F(Policy, NotClauseHitPath) {
     EXPECT_EQ(hit_path[2].rule_id, -1);
 
     EXPECT_EQ(hit_path[3].Nth_scan, 2);
-    EXPECT_EQ(hit_path[3].vtable_id, ip_table_id);
+    EXPECT_EQ(hit_path[3].attribute_id, ip_table_id);
     EXPECT_EQ(hit_path[3].NOT_flag, 1);
     EXPECT_EQ(hit_path[3].clause_index, 2);
     EXPECT_EQ(hit_path[3].sub_group_id, 250);
@@ -7114,7 +7114,7 @@ protected:
 struct maat *GroupHierarchy::_shared_maat_inst;
 struct log_handle *GroupHierarchy::logger;
 
-TEST_F(GroupHierarchy, VirtualOfOnePhysical)
+TEST_F(GroupHierarchy, AttributeOfOnePhysical)
 {
     const char *http_content = "Batman\\:Take me Home.Superman/:Fine,stay with me.";
 	const char *http_url = "https://blog.csdn.net/littlefang/article/details/8213058";
@@ -7167,7 +7167,7 @@ TEST_F(GroupHierarchy, VirtualOfOnePhysical)
     state = NULL;
 }
 
-TEST_F(GroupHierarchy, VirtualWithVirtual) {
+TEST_F(GroupHierarchy, AttributeWithAttribute) {
     const char *http_req_hdr_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                                   "AppleWebKit/537.36 (KHTML, like Gecko) "
                                   "Chrome/78.0.3904.108 Safari/537.36";
@@ -7220,7 +7220,7 @@ TEST_F(GroupHierarchy, VirtualWithVirtual) {
     state = NULL;
 }
 
-TEST_F(GroupHierarchy, OneGroupInTwoVirtual) {
+TEST_F(GroupHierarchy, OneGroupInTwoAttribute) {
     const char *http_resp_hdr_cookie = "sessionid=888888;BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; sugstore=1;";
     const char *req_table_name = "HTTP_REQUEST_HEADER";
     const char *res_table_name = "HTTP_RESPONSE_HEADER";
@@ -7708,7 +7708,7 @@ TEST_F(MaatCmd, GroupScan) {
 
     struct maat_hit_group hit_group;
     hit_group.group_id = group_id;
-    hit_group.vtable_id = table_id;
+    hit_group.attribute_id = table_id;
     ret = maat_scan_group(maat_inst, table_id, &hit_group, 1, results, ARRAY_SIZE,
                           &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -7720,11 +7720,11 @@ TEST_F(MaatCmd, GroupScan) {
 }
 
 /** 
- *  Filter such as URL: http://filtermenot.com  => {vtable_id, group_id}
+ *  Filter such as URL: http://filtermenot.com  => {attribute_id, group_id}
     One rule reference this filter twice, the rule should be hit. 
  */
 TEST_F(MaatCmd, SameFilterRefByOneRule) {
-    const char *vtable_name = "HTTP_URL_FILTER";
+    const char *attribute_name = "HTTP_URL_FILTER";
     const char *scan_data = "http://filtermenot.com";
     const char *keywords = "menot.com";
     const char *rule_table_name = "RULE_DEFAULT";
@@ -7735,7 +7735,7 @@ TEST_F(MaatCmd, SameFilterRefByOneRule) {
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_inst, vtable_name);
+    int table_id = maat_get_table_id(maat_inst, attribute_name);
     ASSERT_GT(table_id, 0);
 
     long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
@@ -7743,14 +7743,14 @@ TEST_F(MaatCmd, SameFilterRefByOneRule) {
                                      rule_id, "null", 2, 0); // rule has two clause
     EXPECT_EQ(ret, 1);
 
-    //clause1 & clause2 has same filter => {vtable_id, group_id}
+    //clause1 & clause2 has same filter => {attribute_id, group_id}
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
-                                       group_id, rule_id, 0, vtable_name, 1, 0);
+                                       group_id, rule_id, 0, attribute_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group_id, rule_id, 0, vtable_name, 2, 0);
+                                       group_id, rule_id, 0, attribute_name, 2, 0);
     EXPECT_EQ(ret, 1);
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -8138,7 +8138,7 @@ TEST_F(MaatCmd, RefGroup) {
     state = NULL;
 }
 
-TEST_F(MaatCmd, VirtualTable) {
+TEST_F(MaatCmd, Attribute) {
     const char* rule_table_name = "RULE_DEFAULT";
     const char* g2c_table_name = "GROUP2RULE_DEFAULT";
 	const char* table_name="HTTP_SIGNATURE";
@@ -9187,7 +9187,7 @@ TEST_F(MaatCmd, HitGroup) {
     EXPECT_EQ(n_hit_group, 1);
     EXPECT_EQ(hit_groups[0].item_id, item1_id);
     EXPECT_EQ(hit_groups[0].group_id, group1_id);
-    EXPECT_EQ(hit_groups[0].vtable_id, http_req_table_id);
+    EXPECT_EQ(hit_groups[0].attribute_id, http_req_table_id);
 
     memset(hit_groups, 0, sizeof(hit_groups));
     n_hit_group = maat_state_get_indirect_hit_group_cnt(state);
@@ -9195,7 +9195,7 @@ TEST_F(MaatCmd, HitGroup) {
     EXPECT_EQ(n_hit_group, 1);
     EXPECT_EQ(hit_groups[0].item_id, 0);
     EXPECT_EQ(hit_groups[0].group_id, group11_id);
-    EXPECT_EQ(hit_groups[0].vtable_id, http_req_table_id);
+    EXPECT_EQ(hit_groups[0].attribute_id, http_req_table_id);
 
     size_t n_last_hit_group = maat_state_get_last_hit_group_cnt(state);
     struct maat_hit_group last_hit_groups[128] = {0};
@@ -9204,11 +9204,11 @@ TEST_F(MaatCmd, HitGroup) {
 
     EXPECT_EQ(last_hit_groups[0].item_id, item1_id);
     EXPECT_EQ(last_hit_groups[0].group_id, group1_id);
-    EXPECT_EQ(last_hit_groups[0].vtable_id, http_req_table_id);
+    EXPECT_EQ(last_hit_groups[0].attribute_id, http_req_table_id);
 
     EXPECT_EQ(last_hit_groups[1].item_id, 0);
     EXPECT_EQ(last_hit_groups[1].group_id, group11_id);
-    EXPECT_EQ(last_hit_groups[1].vtable_id, http_req_table_id);
+    EXPECT_EQ(last_hit_groups[1].attribute_id, http_req_table_id);
 
     int http_res_table_id = maat_get_table_id(maat_inst, "HTTP_RESPONSE_HEADER");
     ASSERT_GT(http_res_table_id, 0);
@@ -9235,7 +9235,7 @@ TEST_F(MaatCmd, HitGroup) {
 
     EXPECT_EQ(hit_groups[0].item_id, item2_id);
     EXPECT_EQ(hit_groups[0].group_id, group2_id);
-    EXPECT_EQ(hit_groups[0].vtable_id, http_res_table_id);
+    EXPECT_EQ(hit_groups[0].attribute_id, http_res_table_id);
 
     memset(hit_groups, 0, sizeof(hit_groups));
     n_hit_group = maat_state_get_indirect_hit_group_cnt(state);
@@ -9243,7 +9243,7 @@ TEST_F(MaatCmd, HitGroup) {
     EXPECT_EQ(n_hit_group, 1);
     EXPECT_EQ(hit_groups[0].item_id, 0);
     EXPECT_EQ(hit_groups[0].group_id, group21_id);
-    EXPECT_EQ(hit_groups[0].vtable_id, http_res_table_id);
+    EXPECT_EQ(hit_groups[0].attribute_id, http_res_table_id);
     
     n_last_hit_group = maat_state_get_last_hit_group_cnt(state);
     maat_state_get_last_hit_groups(state, last_hit_groups, 128);
@@ -9251,11 +9251,11 @@ TEST_F(MaatCmd, HitGroup) {
 
     EXPECT_EQ(last_hit_groups[0].item_id, item2_id);
     EXPECT_EQ(last_hit_groups[0].group_id, group2_id);
-    EXPECT_EQ(last_hit_groups[0].vtable_id, http_res_table_id);
+    EXPECT_EQ(last_hit_groups[0].attribute_id, http_res_table_id);
 
     EXPECT_EQ(last_hit_groups[1].item_id, 0);
     EXPECT_EQ(last_hit_groups[1].group_id, group21_id);
-    EXPECT_EQ(last_hit_groups[1].vtable_id, http_res_table_id);
+    EXPECT_EQ(last_hit_groups[1].attribute_id, http_res_table_id);
 
     const char* keywords1="In graph theory, hit group item forth";
     const char *keywords2="To test one group hit group item fifth";
@@ -9289,11 +9289,11 @@ TEST_F(MaatCmd, HitGroup) {
 
     EXPECT_EQ(hit_groups[0].item_id, item4_id);
     EXPECT_EQ(hit_groups[0].group_id, group4_id);
-    EXPECT_EQ(hit_groups[0].vtable_id, keywords_table_id); //physical table(keywords_table) vtable_id is 0
+    EXPECT_EQ(hit_groups[0].attribute_id, keywords_table_id); //physical table(keywords_table) attribute_id is 0
  
     EXPECT_EQ(hit_groups[1].item_id, item3_id);
     EXPECT_EQ(hit_groups[1].group_id, group3_id);
-    EXPECT_EQ(hit_groups[1].vtable_id, ip_table_id);
+    EXPECT_EQ(hit_groups[1].attribute_id, ip_table_id);
 
     ret = maat_stream_scan(stream, keywords2, strlen(keywords2), results,
                             ARRAY_SIZE, &n_hit_result, state);
@@ -9309,11 +9309,11 @@ TEST_F(MaatCmd, HitGroup) {
 
     EXPECT_EQ(hit_groups[0].item_id, item5_id);
     EXPECT_EQ(hit_groups[0].group_id, group1_id);
-    EXPECT_EQ(hit_groups[0].vtable_id, keywords_table_id); //physical table(keywords_table) vtable_id is 0
+    EXPECT_EQ(hit_groups[0].attribute_id, keywords_table_id); //physical table(keywords_table) attribute_id is 0
 
     EXPECT_EQ(hit_groups[1].item_id, item4_id);
     EXPECT_EQ(hit_groups[1].group_id, group4_id);
-    EXPECT_EQ(hit_groups[1].vtable_id, keywords_table_id); //physical table(keywords_table) vtable_id is 0
+    EXPECT_EQ(hit_groups[1].attribute_id, keywords_table_id); //physical table(keywords_table) attribute_id is 0
 
     n_last_hit_group = maat_state_get_last_hit_group_cnt(state);
     maat_state_get_last_hit_groups(state, last_hit_groups, 128);
@@ -9321,15 +9321,15 @@ TEST_F(MaatCmd, HitGroup) {
 
     EXPECT_EQ(last_hit_groups[0].item_id, item5_id);
     EXPECT_EQ(last_hit_groups[0].group_id, group1_id);
-    EXPECT_EQ(last_hit_groups[0].vtable_id, keywords_table_id);
+    EXPECT_EQ(last_hit_groups[0].attribute_id, keywords_table_id);
 
     EXPECT_EQ(last_hit_groups[1].item_id, item4_id);
     EXPECT_EQ(last_hit_groups[1].group_id, group4_id);
-    EXPECT_EQ(last_hit_groups[1].vtable_id, keywords_table_id);
+    EXPECT_EQ(last_hit_groups[1].attribute_id, keywords_table_id);
 
     EXPECT_EQ(last_hit_groups[2].item_id, 0);
     EXPECT_EQ(last_hit_groups[2].group_id, group11_id);
-    EXPECT_EQ(last_hit_groups[2].vtable_id, keywords_table_id);
+    EXPECT_EQ(last_hit_groups[2].attribute_id, keywords_table_id);
 
     maat_stream_free(stream);
     maat_state_free(state);
@@ -9462,7 +9462,7 @@ TEST_F(MaatCmd, HitPathBasic) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group11_id);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, http_req_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, http_req_table_id);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     path_idx++;
@@ -9470,7 +9470,7 @@ TEST_F(MaatCmd, HitPathBasic) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, http_req_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, http_req_table_id);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     int http_res_table_id = maat_get_table_id(maat_inst, "HTTP_RESPONSE_HEADER");
@@ -9519,7 +9519,7 @@ TEST_F(MaatCmd, HitPathBasic) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, http_res_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, http_res_table_id);
 	EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
     path_idx++;
@@ -9528,7 +9528,7 @@ TEST_F(MaatCmd, HitPathBasic) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, http_res_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, http_res_table_id);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
     const char* keywords1="In graph theory, a path in a graph is a finite or infinite \
 sequence of edges which joins a sequence of vertices which, by most definitions,\
@@ -9562,7 +9562,7 @@ that the edges be all directed in the same direction.";
 	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
@@ -9592,7 +9592,7 @@ that the edges be all directed in the same direction.";
 	EXPECT_EQ(hit_path[path_idx].item_id, item3_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group3_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, ip_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, ip_table_id);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     Nth_scan++;   
@@ -9616,7 +9616,7 @@ that the edges be all directed in the same direction.";
 	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
     maat_stream_free(stream);
     maat_state_free(state);
@@ -9803,7 +9803,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, -1);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
@@ -9822,7 +9822,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 1);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
@@ -9832,7 +9832,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 2);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
@@ -9842,7 +9842,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, -1);
     EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
@@ -9867,7 +9867,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 1);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
@@ -9877,7 +9877,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 3);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule2_id);
 
@@ -9887,7 +9887,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, -1);
     EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
@@ -9897,7 +9897,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item3_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group3_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group3_id);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, ip_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, ip_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 4);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule2_id);
 
@@ -9907,7 +9907,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 2);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
@@ -9928,7 +9928,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 1);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
@@ -9938,7 +9938,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 3);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule2_id);
 
@@ -9948,7 +9948,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, -1);
     EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
@@ -9958,7 +9958,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item3_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group3_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group3_id);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, ip_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, ip_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 5);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule3_id);
 
@@ -9968,7 +9968,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group4_id);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 6);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule3_id);
 
@@ -9978,7 +9978,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item3_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group3_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group3_id);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, ip_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, ip_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 4);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule2_id);
 
@@ -9988,7 +9988,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].clause_index, 2);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
@@ -10121,7 +10121,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].item_id, -1);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group11_id);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, http_req_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, http_req_table_id);
     EXPECT_EQ(hit_path[path_idx].NOT_flag, 1);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
@@ -10130,7 +10130,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].item_id, -1);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, http_req_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, http_req_table_id);
     EXPECT_EQ(hit_path[path_idx].NOT_flag, 1);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
@@ -10182,7 +10182,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, http_res_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, http_res_table_id);
     EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
 	EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
@@ -10192,7 +10192,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, http_res_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, http_res_table_id);
     EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
    
@@ -10224,7 +10224,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
     EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
@@ -10254,7 +10254,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item3_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group3_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, ip_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, ip_table_id);
     EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
@@ -10279,7 +10279,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
+	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
     EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 

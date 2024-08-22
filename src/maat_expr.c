@@ -951,7 +951,7 @@ long long expr_runtime_get_version(void *expr_runtime)
 
 int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
                       const char *data, size_t data_len,
-                      int vtable_id, struct maat_state *state)
+                      int attribute_id, struct maat_state *state)
 {
     //clear rule_state->last_hit_group
     if (state != NULL && state->rule_state != NULL) {
@@ -1019,7 +1019,7 @@ next:
                                   state->thread_id, 1);
     }
 
-    return rule_state_update(state->rule_state, state->maat_inst, vtable_id,
+    return rule_state_update(state->rule_state, state->maat_inst, attribute_id,
                                 state->rule_table_id, state->Nth_scan,
                                 hit_maat_items, real_hit_item_num);
 }
@@ -1045,7 +1045,7 @@ expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id)
 
 int expr_runtime_stream_scan(struct expr_runtime_stream *expr_rt_stream,
                              const char *data, size_t data_len,
-                             int vtable_id, struct maat_state *state)
+                             int attribute_id, struct maat_state *state)
 {
     struct expr_runtime *expr_rt = expr_rt_stream->ref_expr_rt;
 
@@ -1113,7 +1113,7 @@ next:
                                   state->thread_id, 1);
     }
 
-    return rule_state_update(state->rule_state, state->maat_inst, vtable_id,
+    return rule_state_update(state->rule_state, state->maat_inst, attribute_id,
                                 state->rule_table_id, state->Nth_scan,
                                 hit_maat_items, real_hit_item_cnt);
 }

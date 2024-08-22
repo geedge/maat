@@ -27,7 +27,7 @@
 #include "maat_bool_plugin.h"
 #include "maat_fqdn_plugin.h"
 #include "maat_interval.h"
-#include "maat_virtual.h"
+#include "maat_attribute.h"
 #include "expr_matcher/expr_matcher.h"
 
 #define MODULE_TABLE  module_name_str("maat.table")
@@ -264,18 +264,18 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .update_err_count = bool_plugin_runtime_update_err_count
     },
     {
-        .type = TABLE_TYPE_VIRTUAL,
-        .new_schema = virtual_schema_new,
-        .free_schema = virtual_schema_free,
-        .new_runtime = virtual_runtime_new,
-        .free_runtime = virtual_runtime_free,
+        .type = TABLE_TYPE_ATTRIBUTE,
+        .new_schema = attribute_schema_new,
+        .free_schema = attribute_schema_free,
+        .new_runtime = attribute_runtime_new,
+        .free_runtime = attribute_runtime_free,
         .update_runtime = NULL,
         .commit_runtime = NULL,
-        .scan_times = virtual_runtime_scan_times,
-        .scan_bytes = virtual_runtime_scan_bytes,
-        .scan_cpu_time = virtual_runtime_scan_cpu_time,
-        .hit_times = virtual_runtime_hit_times,
-        .hit_item_num = virtual_runtime_hit_item_num
+        .scan_times = attribute_runtime_scan_times,
+        .scan_bytes = attribute_runtime_scan_bytes,
+        .scan_cpu_time = attribute_runtime_scan_cpu_time,
+        .hit_times = attribute_runtime_hit_times,
+        .hit_item_num = attribute_runtime_hit_item_num
     },
     {
         .type = TABLE_TYPE_RULE,
@@ -514,7 +514,7 @@ static void register_reserved_word(struct maat_kv_store *reserved_word_map)
     maat_kv_register(reserved_word_map, "ipport_plugin", TABLE_TYPE_IPPORT_PLUGIN);
     maat_kv_register(reserved_word_map, "bool_plugin", TABLE_TYPE_BOOL_PLUGIN);
     maat_kv_register(reserved_word_map, "fqdn_plugin", TABLE_TYPE_FQDN_PLUGIN);
-    maat_kv_register(reserved_word_map, "virtual", TABLE_TYPE_VIRTUAL);
+    maat_kv_register(reserved_word_map, "attribute", TABLE_TYPE_ATTRIBUTE);
 }
 
 static struct maat_table *
@@ -598,7 +598,7 @@ maat_table_new(cJSON *json, struct maat_kv_store *reserved_word_map,
 
     item = cJSON_GetObjectItem(json, "valid_column");
     if (NULL == item || item->type != cJSON_Number) {
-        if (ptable->table_type != TABLE_TYPE_VIRTUAL) {
+        if (ptable->table_type != TABLE_TYPE_ATTRIBUTE) {
             log_fatal(logger, MODULE_TABLE, 
                       "[%s:%d] table:%s has no valid column", 
                       __FUNCTION__, __LINE__, ptable->table_name);
@@ -912,10 +912,10 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
             tbl_mgr->tbl[maat_tbl->table_id] = maat_tbl;
             tbl_mgr->n_table++;
 
-            if (maat_tbl->table_type == TABLE_TYPE_VIRTUAL) {
-                int phy_table_id = vtable_get_physical_table_id(tbl_mgr, maat_tbl->table_id);
+            if (maat_tbl->table_type == TABLE_TYPE_ATTRIBUTE) {
+                int phy_table_id = attribute_get_physical_table_id(tbl_mgr, maat_tbl->table_id);
                 log_info(logger, MODULE_TABLE,
-                         "successfully register virtual table[%s]->vtable_id:%d,"
+                         "successfully register attribute[%s]->attribute_id:%d,"
                          " physical_table_id:%d", maat_tbl->table_name, maat_tbl->table_id,
                          phy_table_id);
             } else {

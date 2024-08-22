@@ -8,7 +8,7 @@
 | v3.1.20| 2021-4-28 | Add explanation for loading gzip-compressed JSON files | Zheng Chao  |
 | v3.1.5 | 2021-3-12 | Add matching examples for callback class FQDN table | Zheng Chao  |
 | v3.1.4 | 2020-11-04| When content foreign key is "null," it represents an empty file   | Zheng Chao  |
-| v3.1.1 | 2020-9-27 | Add explanation for creating virtual tables on multiple different types of physical tables | Zheng Chao  |
+| v3.1.1 | 2020-9-27 | Add explanation for creating attributes on multiple different types of physical tables | Zheng Chao  |
 | v3.1.0 | 2020-9-18 | Add FQDN callback table | Zheng Chao  |
 | v3.0.4 | 2020-8-17 | Add extended numerical domain configuration interval_plus  | Zheng Chao  |
 | v3.0   | 2020-6-29 | Maat 3.0, support clauses, original grouping table split into grouping relationship table and grouping compilation table | Zheng Chao  |
@@ -16,7 +16,7 @@
 | v2.8   | 2020-2-11 | Support Hit Path  | Zheng Chao  |
 | v2.8   | 2020-2-4  | Support sorting strategies by Evaluation Order  | Zheng Chao  |
 | v2.8   | 2020-1-22 | Maat JSON file encryption support, see 17.3   | Zheng Chao  |
-| v2.8   | 2019-7-28 | 1. No longer compatible with no grouping tables  2. Support virtual tables | Zheng Chao  |
+| v2.8   | 2019-7-28 | 1. No longer compatible with no grouping tables  2. Support attributes | Zheng Chao  |
 | v2.7.2 | 2019-7-10 | Expand IP configuration table to support CIDR format | Zheng Chao  |
 | v2.7.1 | 2019-5-23 | Rename rich IP class configuration table to extended IP configuration table  | Zheng Chao  |
 | v2.7.0 | 2019-5-12 | 1. Add explanation for subgroup relationships  2. Add explanation for rich IP class configuration | Zheng Chao  |

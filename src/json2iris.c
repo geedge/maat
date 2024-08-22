@@ -644,7 +644,7 @@ write_region_rule(cJSON *region_json, int rule_id, int group_id,
 static int
 write_group2rule_line(int *group_ids, size_t n_group_id,
 						 int rule_id, int group_not_flag,
-                         int clause_index, const char *vtable, 
+                         int clause_index, const char *attribute, 
                          struct iris_description *p_iris,
                          struct iris_table *g2c_table)
 {
@@ -670,10 +670,10 @@ write_group2rule_line(int *group_ids, size_t n_group_id,
 		}
 		group_id_str[strlen(group_id_str) - 1] = '\0';
 		snprintf(buff, sizeof(buff), "%s\t%d\t%d\t%s\t%d\t1\n", group_id_str,
-				 rule_id, group_not_flag, vtable, clause_index);
+				 rule_id, group_not_flag, attribute, clause_index);
 	} else {
 		snprintf(buff, sizeof(buff), "%d\t%d\t%d\t%s\t%d\t1\n", group_ids[0],
-				 rule_id, group_not_flag, vtable, clause_index);
+				 rule_id, group_not_flag, attribute, clause_index);
 	}
 	
 	table->write_pos += memcat(&(table->buff), table->write_pos,
@@ -759,7 +759,7 @@ write_group_rule(cJSON *group_json, int parent_id,
 	char group_name_array[32][MAX_NAME_STR_LEN];
 	size_t group_name_cnt = 0;
 	long long group_id = -1;
-    const char *virtual_table = NULL;
+    const char *attribute = NULL;
     struct iris_table *g2c_table = NULL;
 
 	cJSON *item = cJSON_GetObjectItem(group_json, "group_name");
@@ -790,11 +790,11 @@ write_group_rule(cJSON *group_json, int parent_id,
 	}
 
 	if (parent_type == PARENT_TYPE_RULE) {
-		item = cJSON_GetObjectItem(group_json, "virtual_table");
+		item = cJSON_GetObjectItem(group_json, "attribute");
 		if (NULL == item || item->type != cJSON_String) {
-			virtual_table = "null";
+			attribute = "null";
 		} else {
-			virtual_table = item->valuestring;
+			attribute = item->valuestring;
 		}
 
         item = cJSON_GetObjectItem(group_json, "not_flag");
@@ -834,7 +834,7 @@ write_group_rule(cJSON *group_json, int parent_id,
 		assert(parent_type == PARENT_TYPE_RULE);
 		ret = write_group2rule_line(group_ids, group_name_cnt, parent_id,
                                        group_not_flag, clause_index,
-                                       virtual_table, p_iris, g2c_table);
+                                       attribute, p_iris, g2c_table);
 
     } else {
         struct group_info *group_info =
@@ -895,7 +895,7 @@ write_group_rule(cJSON *group_json, int parent_id,
         if (parent_type == PARENT_TYPE_RULE) {
             ret = write_group2rule_line(&(group_info->group_id), 1, parent_id,
                                            group_not_flag, clause_index,
-                                           virtual_table, p_iris, g2c_table);
+                                           attribute, p_iris, g2c_table);
 			if (ret < 0) {
 				log_fatal(logger, MODULE_JSON2IRIS, 
                   		  "[%s:%d] rule:%d write group error", 

@@ -553,7 +553,7 @@ long long flag_runtime_rule_count(void *flag_runtime)
 }
 
 int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id, 
-                      long long flag, int vtable_id, struct maat_state *state)
+                      long long flag, int attribute_id, struct maat_state *state)
 {
     //clear rule_state->last_hit_group
     if (state != NULL && state->rule_state != NULL) {
@@ -615,7 +615,7 @@ next:
                                   state->thread_id, 1);
     }
 
-    return rule_state_update(state->rule_state, state->maat_inst, vtable_id,
+    return rule_state_update(state->rule_state, state->maat_inst, attribute_id,
                                 state->rule_table_id, state->Nth_scan,
                                 hit_maat_items, real_hit_item_cnt);
 }

@@ -48,7 +48,7 @@ struct group2rule_schema {
     int group_id_column;
     int rule_id_column;
     int not_flag_column;
-    int vtable_name_column;
+    int attribute_name_column;
     int clause_index_column;
     int asso_rule_table_id; //asso is abbreviation for associated
     int table_id;
@@ -66,13 +66,13 @@ struct group2rule_item {
     UT_array *group_ids;
     long long rule_id;
     int not_flag;
-    int vtable_id;
+    int attribute_id;
     int clause_index;
 };
 
 struct clause_query_key {
 	long long group_id;
-    int vtable_id;
+    int attribute_id;
     int not_flag;
 };
 
@@ -83,7 +83,7 @@ struct clause_id_kv {
 };
 
 struct table_clause {
-    int vtable_id;
+    int attribute_id;
     int actual_clause_num;
     UT_array *clause_ids;
     UT_array *group_ids;
@@ -91,7 +91,7 @@ struct table_clause {
 };
 
 struct table_group {
-    int vtable_id;
+    int attribute_id;
     UT_array *group_ids;
     UT_hash_handle hh;
 };
@@ -117,13 +117,13 @@ struct group2rule_runtime {
     long long rule_num;
     long long update_err_cnt;
     struct rule_runtime *ref_rule_rt;
-    struct table_clause *tbl_not_clause_hash; //each virtual table's not clause number <= MAX_NOT_CLAUSE_NUM
+    struct table_clause *tbl_not_clause_hash; //each attribute's not clause number <= MAX_NOT_CLAUSE_NUM
 };
 
 struct clause_literal {
     long long group_ids[MAX_GROUP_CNT];
     int group_cnt;
-    int vtable_id;
+    int attribute_id;
 };
 
 struct rule_clause {
@@ -154,7 +154,7 @@ struct internal_hit_path {
     long long item_id;
 	long long group_id;
 	int Nth_scan;
-	int vtable_id;
+	int attribute_id;
     int NOT_flag; // 1 means NOT clause
 };
 
@@ -479,12 +479,12 @@ void *group2rule_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "virtual_table_name");
+    custom_item = cJSON_GetObjectItem(item, "attribute_name");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        g2c_schema->vtable_name_column = custom_item->valueint;
+        g2c_schema->attribute_name_column = custom_item->valueint;
     } else {
          log_fatal(logger, MODULE_RULE, 
-                  "[%s:%d] table: <%s> schema has no virtual_table_name column", 
+                  "[%s:%d] table: <%s> schema has no attribute_name column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -691,7 +691,7 @@ group2rule_item_new(const char *line, struct group2rule_schema *g2c_schema,
 {
     size_t column_offset = 0;
     size_t column_len = 0;
-    char vtable_name[MAX_NAME_STR_LEN + 1] = {0};
+    char attribute_name[MAX_NAME_STR_LEN + 1] = {0};
     struct group2rule_item *g2c_item = ALLOC(struct group2rule_item, 1);
     utarray_new(g2c_item->group_ids, &ut_rule_group_id_icd);
 
@@ -750,33 +750,33 @@ group2rule_item_new(const char *line, struct group2rule_schema *g2c_schema,
 		goto error;
     }
 
-    ret = get_column_pos(line, g2c_schema->vtable_name_column, &column_offset,
+    ret = get_column_pos(line, g2c_schema->attribute_name_column, &column_offset,
                          &column_len);
     if (ret < 0) {
         log_fatal(logger, MODULE_RULE,
-				  "[%s:%d] g2c table:<%s> has no virtual_table_name in line:%s",
+				  "[%s:%d] g2c table:<%s> has no attribute_name in line:%s",
 				  __FUNCTION__, __LINE__, table_name, line);
 		goto error;
     }
 
     if (column_len > MAX_NAME_STR_LEN) {
         log_fatal(logger, MODULE_RULE, 
-                  "[%s:%d] g2c table:<%s> virtual_table_name length exceed "
+                  "[%s:%d] g2c table:<%s> attribute_name length exceed "
                   "maxium:%d in line:%s", __FUNCTION__, __LINE__, table_name,
                   MAX_NAME_STR_LEN, line);
         goto error;
     }
     
-    memset(vtable_name, 0, sizeof(vtable_name));
-    memcpy(vtable_name, (line + column_offset), column_len);
+    memset(attribute_name, 0, sizeof(attribute_name));
+    memcpy(attribute_name, (line + column_offset), column_len);
     
-    if (is_valid_table_name(vtable_name)) {
-        g2c_item->vtable_id = table_manager_get_table_id(g2c_schema->ref_tbl_mgr,
-                                                         vtable_name);
-        if (g2c_item->vtable_id < 0) {
+    if (is_valid_table_name(attribute_name)) {
+        g2c_item->attribute_id = table_manager_get_table_id(g2c_schema->ref_tbl_mgr,
+                                                         attribute_name);
+        if (g2c_item->attribute_id < 0) {
             log_fatal(logger, MODULE_RULE,
-                      "[%s:%d] g2c table:<%s> has unknown virtual table:%s in line:%s",
-                      __FUNCTION__, __LINE__, table_name, vtable_name, line);
+                      "[%s:%d] g2c table:<%s> has unknown attribute:%s in line:%s",
+                      __FUNCTION__, __LINE__, table_name, attribute_name, line);
             goto error;
         }
     }
@@ -823,7 +823,7 @@ static void rule_clause_add_literal(struct rule_clause *clause,
                                        struct group2rule_item *g2c_item)
 {
     struct clause_literal tmp_literal;
-    tmp_literal.vtable_id = g2c_item->vtable_id;
+    tmp_literal.attribute_id = g2c_item->attribute_id;
     tmp_literal.group_cnt = utarray_len(g2c_item->group_ids);
     utarray_sort(g2c_item->group_ids, compare_group_id);
 
@@ -840,7 +840,7 @@ void rule_clause_remove_literal(struct rule_clause *clause,
 
     for (size_t i = 0; i < utarray_len(clause->literals); i++) {
         tmp_literal = (struct clause_literal *)utarray_eltptr(clause->literals, i);
-        if (tmp_literal->vtable_id == g2c_item->vtable_id) {
+        if (tmp_literal->attribute_id == g2c_item->attribute_id) {
             size_t remove_idx = utarray_eltidx(clause->literals, tmp_literal);
             utarray_erase(clause->literals, remove_idx, 1);
             break; 
@@ -857,7 +857,7 @@ static int maat_rule_clause_find_literal(struct maat_rule *rule,
 
     for (size_t i = 0; i < utarray_len(clause->literals); i++) {
         tmp_literal = (struct clause_literal *)utarray_eltptr(clause->literals, i);
-        if (tmp_literal->vtable_id == g2c_item->vtable_id) {
+        if (tmp_literal->attribute_id == g2c_item->attribute_id) {
             found = 1;
         }
     }
@@ -944,7 +944,7 @@ maat_rule_bool_matcher_new(struct rule_runtime *rule_rt,
                     for (size_t it = 0; it < tmp_cl->group_cnt; it++) {
                         printf("<before bool_matcher_new> rule_rt:%p rule_id:%lld, clause_id:%llu, clause_query_key{%lld: %d, %d}\n", 
 							rule_rt, iter_rule->rule_id, iter_rule->clauses[i].clause_id, tmp_cl->group_ids[it],
-                            tmp_cl->vtable_id, iter_rule->clauses[i].not_flag);
+                            tmp_cl->attribute_id, iter_rule->clauses[i].not_flag);
                     }
   				}
 #endif
@@ -1011,7 +1011,7 @@ static inline int compare_hit_group(const void *pa, const void *pb)
 	if (0 == ret) {
 		ret = la->group_id - lb->group_id;
         if (0 == ret) {
-            ret = la->vtable_id - lb->vtable_id;
+            ret = la->attribute_id - lb->attribute_id;
         }
 	}
 
@@ -1076,7 +1076,7 @@ build_clause_id_kv_hash(struct rule_runtime *rule_rt, int not_flag)
 
                 for (size_t k = 0; k < tmp_cl->group_cnt; k++) {
                     struct clause_query_key key =
-                        {tmp_cl->group_ids[k], tmp_cl->vtable_id, clause->not_flag};
+                        {tmp_cl->group_ids[k], tmp_cl->attribute_id, clause->not_flag};
                     struct clause_id_kv *clause_id_kv = NULL;
                     
                     HASH_FIND(hh, clause_id_kv_hash, &key, sizeof(struct clause_query_key),
@@ -1283,9 +1283,9 @@ static int maat_add_group_to_rule(struct rcu_hash_table *hash_tbl,
             ret = maat_rule_clause_find_literal(rule, g2c_item);
             if (ret > 0) {
                 log_fatal(logger, MODULE_RULE,
-                          "[%s:%d]rule:%lld clause(index:%d) already has vtable_id:%d's "
+                          "[%s:%d]rule:%lld clause(index:%d) already has attribute_id:%d's "
                           "literal, can't add again", __FUNCTION__, __LINE__, rule->rule_id,
-                          g2c_item->clause_index, g2c_item->vtable_id);
+                          g2c_item->clause_index, g2c_item->attribute_id);
                 return -1;
             }
             /* rule found in updating hash(added by rule runtime), it can
@@ -1314,9 +1314,9 @@ static int maat_add_group_to_rule(struct rcu_hash_table *hash_tbl,
             ret = maat_rule_clause_find_literal(rule, g2c_item);
             if (ret > 0) {
                 log_fatal(logger, MODULE_RULE,
-                          "[%s:%d]rule:%lld clause(index:%d) already has vtable_id:%d's "
+                          "[%s:%d]rule:%lld clause(index:%d) already has attribute_id:%d's "
                           "literal, can't add again", __FUNCTION__, __LINE__, rule->rule_id,
-                          g2c_item->clause_index, g2c_item->vtable_id);
+                          g2c_item->clause_index, g2c_item->attribute_id);
                 return -1;
             }
 
@@ -1362,9 +1362,9 @@ static int maat_remove_group_from_rule(struct rcu_hash_table *hash_tbl,
             ret = maat_rule_clause_find_literal(rule, g2c_item);
             if (0 == ret) {
                 log_fatal(logger, MODULE_RULE,
-                          "[%s:%d]rule:%lld clause(index:%d) has no vtable_id:%d's "
+                          "[%s:%d]rule:%lld clause(index:%d) has no attribute_id:%d's "
                           "literal, can't be removed", __FUNCTION__, __LINE__,
-                          rule->rule_id, g2c_item->clause_index, g2c_item->vtable_id);
+                          rule->rule_id, g2c_item->clause_index, g2c_item->attribute_id);
                 return -1;
             }
 
@@ -1381,9 +1381,9 @@ static int maat_remove_group_from_rule(struct rcu_hash_table *hash_tbl,
             ret = maat_rule_clause_find_literal(rule, g2c_item);
             if (0 == ret) {
                 log_fatal(logger, MODULE_RULE,
-                          "[%s:%d]rule:%lld clause(index:%d) has no vtable_id:%d's "
+                          "[%s:%d]rule:%lld clause(index:%d) has no attribute_id:%d's "
                           "literal, can't be removed", __FUNCTION__, __LINE__,
-                          rule->rule_id, g2c_item->clause_index, g2c_item->vtable_id);
+                          rule->rule_id, g2c_item->clause_index, g2c_item->attribute_id);
                 return -1;
             }
 
@@ -1570,7 +1570,7 @@ void rule_state_free(struct rule_state *rule_state,
 static void
 rule_state_add_internal_hit_path(struct rule_state *rule_state,
                                     long long item_id, long long group_id,
-                                    int vtable_id, int NOT_flag, int Nth_scan)
+                                    int attribute_id, int NOT_flag, int Nth_scan)
 {
     if (NULL == rule_state) {
         return;
@@ -1580,7 +1580,7 @@ rule_state_add_internal_hit_path(struct rule_state *rule_state,
 	new_path.item_id = item_id;
 	new_path.Nth_scan = Nth_scan;
 	new_path.group_id = group_id;
-	new_path.vtable_id = vtable_id;
+	new_path.attribute_id = attribute_id;
     new_path.NOT_flag = NOT_flag;
 
 	utarray_push_back(rule_state->internal_hit_paths, &new_path);
@@ -1598,7 +1598,7 @@ static int maat_rule_has_clause_query_key(struct maat_rule *rule,
         struct clause_literal *tmp_cl = NULL;
         for (size_t j = 0; j < utarray_len(clause->literals); j++) {
             tmp_cl = (struct clause_literal *)utarray_eltptr(clause->literals, j);
-            if (tmp_cl->vtable_id != key->vtable_id) {
+            if (tmp_cl->attribute_id != key->attribute_id) {
                 continue;
             }
 
@@ -1620,7 +1620,7 @@ static int maat_rule_has_clause_query_key(struct maat_rule *rule,
 
 static size_t
 maat_rule_get_hit_clause_index(struct maat_rule *rule, 
-                                  int vtable_id, long long hit_group_id,
+                                  int attribute_id, long long hit_group_id,
                                   int *clause_idx_array, size_t array_size)
 {
     size_t hit_clause_cnt = 0;
@@ -1635,7 +1635,7 @@ maat_rule_get_hit_clause_index(struct maat_rule *rule,
         struct clause_literal *tmp_cl = NULL;
         for (size_t j = 0; j < utarray_len(tmp_clause->literals); j++) {
             tmp_cl = (struct clause_literal *)utarray_eltptr(tmp_clause->literals, j);
-            if (tmp_cl->vtable_id != vtable_id) {
+            if (tmp_cl->attribute_id != attribute_id) {
                 continue;
             }
 
@@ -1685,7 +1685,7 @@ void populate_hit_path_with_rule(struct maat_hit_path *hit_path_array,
         hit_path_array[idx].rule_id = rule->rule_id;
         // find out which clause in rule hit
         n_clause_index =
-            maat_rule_get_hit_clause_index(rule, hit_path_array[idx].vtable_id,
+            maat_rule_get_hit_clause_index(rule, hit_path_array[idx].attribute_id,
                                               hit_path_array[idx].top_group_id,
                                               clause_index_array,
                                               MAX_ITEMS_PER_BOOL_EXPR);
@@ -1706,7 +1706,7 @@ void populate_hit_path_with_rule(struct maat_hit_path *hit_path_array,
             hit_path_array[n_hit_path + new_hit_path_cnt] = tmp_path;
             new_hit_path_cnt++;
             n_clause_index =
-                maat_rule_get_hit_clause_index(rule, tmp_path.vtable_id, tmp_path.top_group_id,
+                maat_rule_get_hit_clause_index(rule, tmp_path.attribute_id, tmp_path.top_group_id,
                                                   clause_index_array, MAX_ITEMS_PER_BOOL_EXPR);
             hit_path_array[n_hit_path + new_hit_path_cnt - 1].clause_index = clause_index_array[0];
             if (n_clause_index > 1) {
@@ -1760,7 +1760,7 @@ size_t rule_runtime_get_hit_paths(struct rule_runtime *rule_rt, int thread_id,
                 key.group_id = hit_path_array[j].top_group_id;
             }
 
-			key.vtable_id = hit_path_array[j].vtable_id;
+			key.attribute_id = hit_path_array[j].attribute_id;
             key.not_flag = hit_path_array[j].NOT_flag;
 			if (maat_rule_has_clause_query_key(rule, &key)) {
                 populate_hit_path_with_rule(hit_path_array, j, n_hit_path,
@@ -1775,7 +1775,7 @@ size_t rule_runtime_get_hit_paths(struct rule_runtime *rule_rt, int thread_id,
 static void
 rule_state_add_direct_hit_groups(struct rule_state *rule_state,
                                     struct maat_item *hit_items,
-                                    size_t n_hit_items, int vtable_id)
+                                    size_t n_hit_items, int attribute_id)
 {
     if (NULL == rule_state || NULL == hit_items) {
         return;
@@ -1785,7 +1785,7 @@ rule_state_add_direct_hit_groups(struct rule_state *rule_state,
     for (size_t i = 0; i < n_hit_items; i++) {
         hit_group.item_id = hit_items[i].item_id;
         hit_group.group_id = hit_items[i].group_id;
-        hit_group.vtable_id = vtable_id;
+        hit_group.attribute_id = attribute_id;
         utarray_push_back(rule_state->direct_hit_groups, &hit_group);
     }
 }
@@ -1793,7 +1793,7 @@ rule_state_add_direct_hit_groups(struct rule_state *rule_state,
 static void
 rule_state_add_indirect_hit_groups(struct rule_state *rule_state,
                                       long long *group_ids,
-                                      size_t n_group_ids, int vtable_id)
+                                      size_t n_group_ids, int attribute_id)
 {
     if (NULL == rule_state || NULL == group_ids) {
         return;
@@ -1803,7 +1803,7 @@ rule_state_add_indirect_hit_groups(struct rule_state *rule_state,
     for (size_t i = 0; i < n_group_ids; i++) {
         hit_group.item_id = 0;
         hit_group.group_id = group_ids[i];
-        hit_group.vtable_id = vtable_id;
+        hit_group.attribute_id = attribute_id;
         utarray_push_back(rule_state->indirect_hit_groups, &hit_group);
     }
 }
@@ -1887,13 +1887,13 @@ rule_state_add_hit_not_clauses(struct rule_state *rule_state,
 static void
 rule_state_update_hit_clauses(struct rule_state *rule_state,
                                  struct rule_runtime *rule_rt,
-                                 long long group_id, int vtable_id)
+                                 long long group_id, int attribute_id)
 {
     if (NULL == rule_state || NULL == rule_rt) {
         return;
     }
 
-    struct clause_query_key key = {group_id, vtable_id, 0};
+    struct clause_query_key key = {group_id, attribute_id, 0};
     struct clause_id_kv *clause_id_kv = NULL;
 
     HASH_FIND(hh, rule_rt->clause_id_kv_hash, &key, sizeof(key), clause_id_kv);
@@ -1912,7 +1912,7 @@ static void
 rule_state_cache_hit_not_groups(struct rule_state *rule_state,
                                    struct rule_runtime *rule_rt,
                                    long long *hit_group_ids,
-                                   size_t n_hit_group_id, int vtable_id)
+                                   size_t n_hit_group_id, int attribute_id)
 {
     if (NULL == rule_state || NULL == rule_rt) {
         return;
@@ -1923,7 +1923,7 @@ rule_state_cache_hit_not_groups(struct rule_state *rule_state,
     }
 
     struct table_group *tbl_group = NULL;
-    HASH_FIND(hh, rule_state->hit_not_tbl_groups, &vtable_id, sizeof(int), tbl_group);
+    HASH_FIND(hh, rule_state->hit_not_tbl_groups, &attribute_id, sizeof(int), tbl_group);
     if (tbl_group != NULL) {
         for (size_t i = 0; i < n_hit_group_id; i++) {
             long long *group_id = (long long *)utarray_find(tbl_group->group_ids,
@@ -1939,7 +1939,7 @@ rule_state_cache_hit_not_groups(struct rule_state *rule_state,
 
     struct clause_id_kv *clause_id_kv = NULL, *tmp_clause_id_kv = NULL;
     HASH_ITER(hh, rule_rt->not_clause_id_kv_hash, clause_id_kv, tmp_clause_id_kv) {
-        if (clause_id_kv->key.vtable_id != vtable_id) {
+        if (clause_id_kv->key.attribute_id != attribute_id) {
             continue;
         }
 
@@ -1952,9 +1952,9 @@ rule_state_cache_hit_not_groups(struct rule_state *rule_state,
 
         if (NULL == tbl_group) {
             tbl_group = ALLOC(struct table_group, 1);
-            tbl_group->vtable_id = vtable_id;
+            tbl_group->attribute_id = attribute_id;
             utarray_new(tbl_group->group_ids, &ut_rule_group_id_icd);
-            HASH_ADD_INT(rule_state->hit_not_tbl_groups, vtable_id, tbl_group);
+            HASH_ADD_INT(rule_state->hit_not_tbl_groups, attribute_id, tbl_group);
         }
 
         if (!utarray_find(tbl_group->group_ids, &(clause_id_kv->key.group_id),
@@ -2189,9 +2189,9 @@ static int validate_table_not_clause(struct group2rule_runtime *g2c_rt,
         //add
         if (NULL == not_clause) {
             not_clause = ALLOC(struct table_clause, 1);
-            not_clause->vtable_id = table_id;
+            not_clause->attribute_id = table_id;
             not_clause->actual_clause_num++;
-            HASH_ADD_INT(g2c_rt->tbl_not_clause_hash, vtable_id, not_clause);
+            HASH_ADD_INT(g2c_rt->tbl_not_clause_hash, attribute_id, not_clause);
         } else {
             if (not_clause->actual_clause_num >= MAX_NOT_CLAUSE_NUM) {
                 const char *table_name = table_manager_get_table_name(tbl_mgr, table_id);
@@ -2239,7 +2239,7 @@ int group2rule_runtime_update(void *g2c_runtime, void *g2c_schema,
 
     if (1 == g2c_item->not_flag) {
         ret = validate_table_not_clause(g2c_rt, schema->ref_tbl_mgr,
-                                        g2c_item->vtable_id, is_valid,
+                                        g2c_item->attribute_id, is_valid,
                                         rule_rt->logger);
         if (ret < 0) {
             log_fatal(rule_rt->logger, MODULE_RULE,
@@ -2478,7 +2478,7 @@ int rule_runtime_match(struct rule_runtime *rule_rt, long long *rule_ids,
 }
 
 int rule_state_update(struct rule_state *rule_state, struct maat *maat_inst,
-                         int vtable_id, int custom_rule_tbl_id, int Nth_scan,
+                         int attribute_id, int custom_rule_tbl_id, int Nth_scan,
                          struct maat_item *hit_items, size_t n_hit_item)
 {
     size_t i = 0, j = 0;
@@ -2495,7 +2495,7 @@ int rule_state_update(struct rule_state *rule_state, struct maat *maat_inst,
 
         hit_group.item_id = hit_items[i].item_id;
         hit_group.group_id = hit_items[i].group_id;
-        hit_group.vtable_id = vtable_id;
+        hit_group.attribute_id = attribute_id;
         utarray_push_back(rule_state->last_hit_groups, &hit_group);
     }
 
@@ -2509,21 +2509,21 @@ int rule_state_update(struct rule_state *rule_state, struct maat *maat_inst,
     for (i = 0; i < super_group_cnt; i++) {
         hit_group.item_id = 0;
         hit_group.group_id = super_group_ids[i];
-        hit_group.vtable_id = vtable_id;
+        hit_group.attribute_id = attribute_id;
         utarray_push_back(rule_state->last_hit_groups, &hit_group);
     }
 
     if (1 == maat_inst->opts.hit_path_on && hit_cnt > 0) {
         for (i = 0; i < hit_cnt; i++) {
             rule_state_add_internal_hit_path(rule_state, hit_items[i].item_id,
-                                                hit_items[i].group_id, vtable_id, 0, Nth_scan);
+                                                hit_items[i].group_id, attribute_id, 0, Nth_scan);
         }
     }
 
     if (1 == maat_inst->opts.hit_group_on) {
-        rule_state_add_direct_hit_groups(rule_state, hit_items, hit_cnt, vtable_id);
+        rule_state_add_direct_hit_groups(rule_state, hit_items, hit_cnt, attribute_id);
         rule_state_add_indirect_hit_groups(rule_state, super_group_ids,
-                                              super_group_cnt, vtable_id);
+                                              super_group_cnt, attribute_id);
     }
 
     /* update hit clause */
@@ -2544,11 +2544,11 @@ int rule_state_update(struct rule_state *rule_state, struct maat *maat_inst,
 
     for (i = 0; i < hit_cnt; i++) {
         rule_state_update_hit_clauses(rule_state, rule_rt,
-                                         hit_group_ids[i], vtable_id);
+                                         hit_group_ids[i], attribute_id);
     }
 
     rule_state_cache_hit_not_groups(rule_state, rule_rt, hit_group_ids,
-                                       hit_cnt, vtable_id); 
+                                       hit_cnt, attribute_id); 
     return hit_cnt;
 }
 
@@ -2563,7 +2563,7 @@ void rule_state_clear_last_hit_group(struct rule_state *rule_state)
 
 void rule_state_not_logic_update(struct rule_state *rule_state,
                                     struct rule_runtime *rule_rt,
-                                    struct maat *maat_inst, int vtable_id,
+                                    struct maat *maat_inst, int attribute_id,
                                     int Nth_scan)
 {
     if (NULL == rule_state || NULL == maat_inst) {
@@ -2575,7 +2575,7 @@ void rule_state_not_logic_update(struct rule_state *rule_state,
     utarray_clear(rule_state->this_scan_hit_not_clauses);
 
     struct table_group *tbl_group = NULL;
-    HASH_FIND(hh, rule_state->hit_not_tbl_groups, &vtable_id, sizeof(int), tbl_group);
+    HASH_FIND(hh, rule_state->hit_not_tbl_groups, &attribute_id, sizeof(int), tbl_group);
     if (NULL == tbl_group) {
         return;
     }
@@ -2583,7 +2583,7 @@ void rule_state_not_logic_update(struct rule_state *rule_state,
     struct clause_id_kv *clause_id_kv = NULL;
     for (size_t i = 0; i < utarray_len(tbl_group->group_ids); i++) {
         long long *group_id = utarray_eltptr(tbl_group->group_ids, i);
-        struct clause_query_key key = {*group_id, vtable_id, 1};
+        struct clause_query_key key = {*group_id, attribute_id, 1};
         
         HASH_FIND(hh, rule_rt->not_clause_id_kv_hash, &key, sizeof(key), clause_id_kv);
         if (NULL == clause_id_kv) {
@@ -2593,7 +2593,7 @@ void rule_state_not_logic_update(struct rule_state *rule_state,
         rule_state_add_hit_not_clauses(rule_state, clause_id_kv->clause_ids);
         if (1 == maat_inst->opts.hit_path_on) {
             rule_state_add_internal_hit_path(rule_state, -1, *group_id,
-                                                vtable_id, 1, Nth_scan);
+                                                attribute_id, 1, Nth_scan);
         }
     }
 }
@@ -2609,7 +2609,7 @@ size_t rule_state_get_indirect_hit_groups(struct rule_state *rule_state,
             (struct maat_hit_group *)utarray_eltptr(rule_state->indirect_hit_groups, i);
         group_array[i].item_id = hit_group->item_id;
         group_array[i].group_id = hit_group->group_id;
-        group_array[i].vtable_id = hit_group->vtable_id;
+        group_array[i].attribute_id = hit_group->attribute_id;
     }
 
     utarray_clear(rule_state->indirect_hit_groups);
@@ -2653,7 +2653,7 @@ size_t rule_state_get_direct_hit_groups(struct rule_state *rule_state,
         group = (struct maat_hit_group *)utarray_eltptr(direct_hit_group, i);
         group_array[i].item_id = group->item_id;
         group_array[i].group_id = group->group_id;
-        group_array[i].vtable_id = group->vtable_id;
+        group_array[i].attribute_id = group->attribute_id;
     }
    
     utarray_clear(rule_state->direct_hit_groups);
@@ -2712,7 +2712,7 @@ size_t rule_state_get_internal_hit_paths(struct rule_state *rule_state,
             tmp_path.item_id = internal_path->item_id;
             tmp_path.sub_group_id = internal_path->group_id;
             tmp_path.top_group_id = *p;
-            tmp_path.vtable_id = internal_path->vtable_id;
+            tmp_path.attribute_id = internal_path->attribute_id;
             tmp_path.NOT_flag = internal_path->NOT_flag;
             tmp_path.clause_index = -1;
             tmp_path.rule_id = -1;

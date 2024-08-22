@@ -7,7 +7,7 @@ The maat table consists of two parts: `schema` and `runtime`, which is the core 
 
 ## 1. Table schema
 
-Maat tables are divided into two categories: physical tables that actually exist in the database and virtual tables that reference physical tables.
+Maat tables are divided into two categories: physical tables that actually exist in the database and attributes that reference physical tables.
 
 The types of physical tables are as follows:
 - [item table](#11-item-table)
@@ -22,7 +22,7 @@ The types of physical tables are as follows:
 
 Different physical tables can be combined into one table, see [conjunction table](#110-conjunction-table)
 
-A virtual table can only reference one physical table or conjuntion table, see [virtual table](#111-virtual-table)
+A attribute can only reference one physical table or conjuntion table, see [attribute](#111-attribute)
 
 ### 1.1 <a name='Itemtable'></a> Item table
 
@@ -257,7 +257,7 @@ Describe the relationship between group and rule.
 | **rule_id**    | LONG LONG     | rule id |
 | **is_valid**      | INT           | 0(invalid), 1(valid) |
 | **not_flag**      | INT           | logical 'NOT', identify a NOT clause, 0(no) 1(yes) |
-| **virtual_table** | VARCHAR2(256) | virtual table name, NOT NULL |
+| **attribute** | VARCHAR2(256) | attribute name, NOT NULL |
 | **Nth_clause**    | INT           | the clause seq in (conjunctive normal form)CNF, from 0 to 7. groups with the same clause ID are logical 'OR' |
 
 NOTE: If group_id is invalid in xx_item table, it must be marked as invalid in this table.
@@ -370,11 +370,11 @@ For example: HTTP_REGION is the conjunction of HTTP_URL and HTTP_HOST.
 
 `Note`: Only physical tables support conjunction.
 
-### 1.11 <a name='VirtualTable'></a> virtual table
+### 1.11 <a name='Attribute'></a> attribute
 
-A physical table refers to a table that physically exists in the database. In contrast, there are no virtual tables in the database. Virtual tables are merely references to physical tables, where one virtual table can only reference one physical table. If you want to reference multiple physical tables of the same type, you need to first combine these physical tables into a conjunction table, and then have the virtual table reference it. A physical table can be referenced by multiple virtual tables.
+A physical table refers to a table that physically exists in the database. In contrast, there are no attributes in the database. Attributes are merely references to physical tables, where one attribute can only reference one physical table. If you want to reference multiple physical tables of the same type, you need to first combine these physical tables into a conjunction table, and then have the attribute reference it. A physical table can be referenced by multiple attributes.
 
-Virtual tables are often used for different traffic attributes, where different virtual tables represent different traffic attributes, such as HTTP_HOST, HTTP_URL, and so on.
+Attributes are often used for different traffic attributes, where different attributes represent different traffic attributes, such as HTTP_HOST, HTTP_URL, and so on.
 
 ### 1.12 <a name='ForeignFiles'></a>Foreign Files
 
@@ -445,21 +445,21 @@ In addition to the rule table, there is also the group2rule table in the table s
 
 1. For expressions without NOT-clauses, returning the matched rule_id:
 
-    * rule1 = clause1 & clause2 = {vtable1, g1} & {vtable2, g2}
+    * rule1 = clause1 & clause2 = {attribute1, g1} & {attribute2, g2}
 
-    * rule2 = clause1 & clause2 = {vtable1, g2} & {vtable2, g3}
+    * rule2 = clause1 & clause2 = {attribute1, g2} & {attribute2, g3}
 
-    Given the matched vtable_id and group_id, all matching rule_ids can be provided. For example, if scanning vtable1 matches g2 and vtable2 matches g3, rule_runtime will return the matched rule_id 2.
+    Given the matched attribute_id and group_id, all matching rule_ids can be provided. For example, if scanning attribute1 matches g2 and attribute2 matches g3, rule_runtime will return the matched rule_id 2.
 
 2. For expressions with NOT-clauses, returning the matched rule_id:
 
-    * rule3 = clause1 & !clause2 = {vtable1, g1} & !{vtable2, g2}
+    * rule3 = clause1 & !clause2 = {attribute1, g1} & !{attribute2, g2}
 
-    * rule4 = !clause1 & clause2 = !{vtable1, g2} & {vtable2, g3}
+    * rule4 = !clause1 & clause2 = !{attribute1, g2} & {attribute2, g3}
 
-    If scanning vtable1 matches g1 and vtable2 matches g3, rule_runtime will return the matched rule_id 4.
+    If scanning attribute1 matches g1 and attribute2 matches g3, rule_runtime will return the matched rule_id 4.
 
-3. If a rule_id is matched, the full hit path can be obtained: **item_id -> group_id ->** {super_group_id} -> clause{**vtable_id, not_flag, clause_index} -> rule_id**. If the matched group is not referenced by a rule, a half hit path can be obtained: **item_id -> group_id** -> {super_group_id}.
+3. If a rule_id is matched, the full hit path can be obtained: **item_id -> group_id ->** {super_group_id} -> clause{**attribute_id, not_flag, clause_index} -> rule_id**. If the matched group is not referenced by a rule, a half hit path can be obtained: **item_id -> group_id** -> {super_group_id}.
 
 4. Getting the matched group_ids and the count of hit groups.
 
@@ -473,9 +473,9 @@ Rule runtime loads the rule table and group2rule table configurations into memor
 
 1. All clause_ids under the same rule are used to construct AND expressions, and all rule AND expressions are used to build a bool_matcher.
 
-2. For not_flag=0 (clauses), a `clause_id hash` is built, key:{group_id, vtable_id, not_flag}, value:clause_id.
+2. For not_flag=0 (clauses), a `clause_id hash` is built, key:{group_id, attribute_id, not_flag}, value:clause_id.
 
-3. For not_flag=1 (NOT-clauses), a `NOT_clause_id hash` is built, key:{group_id, vtable_id, not_flag}, value:clause_id.
+3. For not_flag=1 (NOT-clauses), a `NOT_clause_id hash` is built, key:{group_id, attribute_id, not_flag}, value:clause_id.
 
 * **Data Plane**
 
@@ -485,17 +485,17 @@ On the data plane, services are provided externally through the maat API, primar
 
 * The hit item_id and group_id form a half-hit path.
 
-* The group_id that is hit and the scanned `vtable_id` form the key {group_id, vtable_id, 0}. This key is used to find the `hit clause_ids` in the clause_id hash.
+* The group_id that is hit and the scanned `attribute_id` form the key {group_id, attribute_id, 0}. This key is used to find the `hit clause_ids` in the clause_id hash.
 
-* Use the key {group_id, vtable_id, 1} to search for NOT_clause_ids in the NOT_clause_id hash and cache them as `exclude clause_ids`. These clause_ids need to be removed from all clause_ids that are eventually hit. This is because the scan hit {group_id, vtable_id, 0} => clause_id, leading to the deduction that {group_id, vtable_id, 1} => NOT_clause_id does not hit.
+* Use the key {group_id, attribute_id, 1} to search for NOT_clause_ids in the NOT_clause_id hash and cache them as `exclude clause_ids`. These clause_ids need to be removed from all clause_ids that are eventually hit. This is because the scan hit {group_id, attribute_id, 0} => clause_id, leading to the deduction that {group_id, attribute_id, 1} => NOT_clause_id does not hit.
 
-* Identify the group_ids in vtable_id table that appear in the NOT_clause and add them to the `NOT_clause_group` set. Ensure that this set does not contain any group_id that was hit during scanning. If any such group_id is present, remove it from the set to form the final `NOT_clause_group` for the vtable_id table.
+* Identify the group_ids in attribute_id table that appear in the NOT_clause and add them to the `NOT_clause_group` set. Ensure that this set does not contain any group_id that was hit during scanning. If any such group_id is present, remove it from the set to form the final `NOT_clause_group` for the attribute_id table.
 
 * Use the hit clause_ids to determine if there are any hit rule_ids. If there are, populate the half-hit path which will become full-hit path.
 
 2. **maat_scan_not_logic**: This interface is used to activate NOT-clause logic.
 
-* Traverse the `NOT_clause_group` of `vtable_id`. For each `group_id`, form a key `{group_id, vtable_id, 1}` to obtain the `NOT_clause_id`. If it is in the `exclude clause_ids` set, ignore it; otherwise, add it to the `all hit clause_ids` set as a hit `NOT_clause_id`, and record the half-hit path of the NOT-clause.
+* Traverse the `NOT_clause_group` of `attribute_id`. For each `group_id`, form a key `{group_id, attribute_id, 1}` to obtain the `NOT_clause_id`. If it is in the `exclude clause_ids` set, ignore it; otherwise, add it to the `all hit clause_ids` set as a hit `NOT_clause_id`, and record the half-hit path of the NOT-clause.
 
 * Use the `all hit clause_ids` to calculate if there are any newly hit rule_ids. If there are, populate the half-hit path of the NOT-clause which will become full-hit path.
 

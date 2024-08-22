@@ -61,7 +61,7 @@ Table schema is stored in a json file(such as table_info.conf), which is loaded 
             "group_id":1,
             "rule_id":2,
             "not_flag":4,
-            "virtual_table_name":5,
+            "attribute_name":5,
             "clause_index":6
         }
     },
