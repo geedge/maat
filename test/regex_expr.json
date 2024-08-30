@@ -1,0 +1,111 @@
+{
+    "expr_rules": [
+         {
+            "rule_id": 301,
+            "pattern_num": 1,
+            "patterns": [
+                {
+                    "pattern_type": "regex",
+                    "match_method": "sub",
+                    "case_sensitive": "yes",
+                    "is_hexbin": "no",
+                    "pattern": "[W|w]orld dream"
+                }
+            ]
+        },
+        {
+            "rule_id": 302,
+            "pattern_num": 2,
+            "patterns": [
+                {
+                    "pattern_type": "regex",
+                    "match_method": "sub",
+                    "case_sensitive": "yes",
+                    "is_hexbin": "no",
+                    "pattern": "[0-9]today"
+                },
+                {
+                    "pattern_type": "regex",
+                    "match_method": "sub",
+                    "case_sensitive": "yes",
+                    "is_hexbin": "no",
+                    "pattern": "[0-9]Lunch"
+                }
+            ]
+        },
+        {
+            "rule_id": 303,
+            "pattern_num": 2,
+            "patterns": [
+                {
+                    "pattern_type": "regex",
+                    "match_method": "sub",
+                    "case_sensitive": "yes",
+                    "is_hexbin": "no",
+                    "pattern": "Cookie:\\s"
+                },
+                {
+                    "pattern_type": "regex",
+                    "match_method": "sub",
+                    "case_sensitive": "yes",
+                    "is_hexbin": "no",
+                    "pattern": "head"
+                }
+            ]
+        },
+        {
+            "rule_id": 304,
+            "pattern_num": 2,
+            "patterns": [
+                {
+                    "pattern_type": "regex",
+                    "match_method": "sub",
+                    "case_sensitive": "no",
+                    "is_hexbin": "no",
+                    "pattern": "123^abc"
+                },
+                {
+                    "pattern_type": "regex",
+                    "match_method": "sub",
+                    "case_sensitive": "no",
+                    "is_hexbin": "no",
+                    "pattern": "^123"
+                }
+            ]
+        },
+        {
+            "rule_id": 305,
+            "pattern_num": 2,
+            "patterns": [
+                {
+                    "pattern_type": "regex",
+                    "match_method": "sub",
+                    "case_sensitive": "no",
+                    "is_hexbin": "no",
+                    "pattern": "^123"
+                },
+                {
+                    "pattern_type": "regex",
+                    "match_method": "sub",
+                    "case_sensitive": "no",
+                    "is_hexbin": "no",
+                    "pattern": "123^abc"
+                }
+            ]
+        },
+        {
+
+            "rule_id": 306,
+            "pattern_num": 1,
+            "patterns": [
+                {
+                    "pattern_type": "regex",
+                    "match_method": "sub",
+                    "case_sensitive": "no",
+                    "is_hexbin": "no",
+                    "pattern": "^[1-9]\\d{5}(18|19|([23]\\d))\\d{2}((0[1-9])|(10|11|12))(([0-2][1-9])|10|20|30|31)\\d{3}[0-9Xx]$"
+                }
+            ]
+        }
+    ]
+}

@@ -14,7 +14,7 @@
 #define ARRAY_SIZE 10
 #define PERF_scan_times 1000 * 1000
 
-const char *g_table_info_path = "./ipport_plugin_table_info.conf";
+const char *g_table_info_path = "./ipport_plugin_table_info.json";
 const char *log_file = "./ipport_plugin_gtest.log";
 const char *g_ip_str = "116.71.169.140";
 

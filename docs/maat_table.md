@@ -59,7 +59,7 @@ Describe matching rules for strings.
 | **is_hexbin**    | INT            | 0(not HEX & case insensitive, this is default value)  1(HEX & case sensitive)  2(not HEX & case sensitive) |
 | **is_valid**     | INT            | 0(invalid), 1(valid) |
 
-The table schema is stored in table_info.conf.
+The table schema is stored in table_info.json.
 ```c
 {
     "table_id":3,  //[0 ~ 1023], don't allow duplicate

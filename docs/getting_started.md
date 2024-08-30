@@ -35,7 +35,7 @@ In the scanning scenario, it is necessary to configure the schema of multiple ta
 
 **(1) table schema**
 
-Table schema is stored in a json file(such as table_info.conf), which is loaded when maat instance is created.
+Table schema is stored in a json file(such as table_info.json), which is loaded when maat instance is created.
 
 ```json
  [
@@ -142,7 +142,7 @@ Configurations are stored in a json file(such as maat_json.json), which is loade
 #define ARRAY_SIZE 16
 
 const char *json_filename = "./maat_json.json";
-const char *table_info_path = "./table_info.conf";
+const char *table_info_path = "./table_info.json";
 
 int main()
 {
@@ -151,14 +151,14 @@ int main()
     maat_options_set_json_file(opts, json_filename);
     maat_options_set_logger(opts, "./sample_test.log", LOG_LEVEL_INFO);
 
-    /* create maat instance, rules in table_info.conf will be loaded. */
+    /* create maat instance, rules in table_info.json will be loaded. */
     struct maat *maat_instance = maat_new(opts, table_info_path);
     assert(maat_instance != NULL);
     maat_options_free(opts);
 
     const char *table_name = "HTTP_URL"; /* maat_json.json has HTTP_URL rule */
     int table_id = maat_get_table_id(maat_instance, table_name);
-    assert(table_id == 3); /* defined in table_info.conf */
+    assert(table_id == 3); /* defined in table_info.json */
 
     int thread_id = 0;
     long long results[ARRAY_SIZE] = {0};
@@ -171,7 +171,7 @@ int main()
     const char *scan_data = "Hello Maat, nice to meet you";
 
     /**
-     * Becase maat instance has loaded rule in table_info.conf which keywords is "Hello Maat",
+     * Becase maat instance has loaded rule in table_info.json which keywords is "Hello Maat",
        so maat_scan_string should return hit flag and rule's rule_id stored in results array.
     */
     int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
@@ -241,7 +241,7 @@ In the callback scenario, only the schema of the corresponding table needs to be
 #define ARRAY_SIZE 16
 
 const char *json_filename = "./maat_json.json";
-const char *table_info_path = "./table_info.conf";
+const char *table_info_path = "./table_info.json";
 
 struct ip_plugin_ud {
 	long long rule_id;
@@ -298,14 +298,14 @@ int main()
     maat_options_set_json_file(opts, json_filename);
     maat_options_set_logger(opts, "./sample_test.log", LOG_LEVEL_INFO);
 
-    /* create maat instance, rules in table_info.conf will be loaded. */
+    /* create maat instance, rules in table_info.json will be loaded. */
     struct maat *maat_instance = maat_new(opts, table_info_path);
     assert(maat_instance != NULL);
     maat_options_free(opts);
 
     const char *table_name = "TEST_IP_PLUGIN_WITH_EXDATA"; /* maat_json.json has TEST_IP_PLUGIN_WITH_EXDATA rule */
     int table_id = maat_get_table_id(maat_instance, table_name);
-    assert(table_id == 1); /* defined in table_info.conf */
+    assert(table_id == 1); /* defined in table_info.json */
 
     int ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
                                                    ip_plugin_ex_new_cb,

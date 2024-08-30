@@ -1,5 +1,6 @@
 # Vscode
 .vscode/*
+.cache/*
 
 # build
 build/*

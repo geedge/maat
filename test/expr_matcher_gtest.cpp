@@ -294,7 +294,7 @@ TEST(hs_expr_matcher_match, literal_sub_has_normal_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
 
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -351,7 +351,7 @@ TEST(rs_expr_matcher_match, literal_sub_has_normal_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
 
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -408,7 +408,7 @@ TEST(hs_expr_matcher_match, literal_sub_has_left_unlimit_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
 
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -466,7 +466,7 @@ TEST(rs_expr_matcher_match, literal_sub_has_left_unlimit_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
 
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -524,7 +524,7 @@ TEST(hs_expr_matcher_match, literal_sub_has_right_unlimit_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
 
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -591,7 +591,7 @@ TEST(rs_expr_matcher_match, literal_sub_has_right_unlimit_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
 
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -658,7 +658,7 @@ TEST(hs_expr_matcher_match, literal_sub_with_no_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -716,7 +716,7 @@ TEST(rs_expr_matcher_match, literal_sub_with_no_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -774,7 +774,7 @@ TEST(hs_expr_matcher_match, literal_exactly)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -822,7 +822,7 @@ TEST(rs_expr_matcher_match, literal_exactly)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -871,7 +871,7 @@ TEST(hs_expr_matcher_match, literal_prefix)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -931,7 +931,7 @@ TEST(rs_expr_matcher_match, literal_prefix)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -991,7 +991,7 @@ TEST(hs_expr_matcher_match, literal_suffix)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -1051,7 +1051,7 @@ TEST(rs_expr_matcher_match, literal_suffix)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -1111,7 +1111,7 @@ TEST(hs_expr_matcher_match, literal_sub_with_hex)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -1150,7 +1150,7 @@ TEST(rs_expr_matcher_match, literal_sub_with_hex)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -1189,7 +1189,7 @@ TEST(hs_expr_matcher_match, literal_with_chinese)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -1218,7 +1218,7 @@ TEST(rs_expr_matcher_match, literal_with_chinese)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -1247,7 +1247,7 @@ TEST(hs_expr_matcher_match, same_pattern_different_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -1276,7 +1276,7 @@ TEST(rs_expr_matcher_match, same_pattern_different_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -1305,7 +1305,7 @@ TEST(hs_expr_matcher_match, long_scan_data)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -1336,7 +1336,7 @@ TEST(rs_expr_matcher_match, long_scan_data)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -1367,7 +1367,7 @@ TEST(expr_matcher_match, regex_expression_check)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./regex_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./regex_expr.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     for (size_t i = 0; i < n_rule; i++) {
@@ -1384,7 +1384,7 @@ TEST(hs_expr_matcher_stream, basic)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -1428,7 +1428,7 @@ TEST(rs_expr_matcher_stream, basic)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -1471,7 +1471,7 @@ TEST(hs_expr_matcher, regex_basic)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     ret = expr_matcher_verify_regex_expression("[0-9]rain", g_logger);
@@ -1504,7 +1504,7 @@ TEST(rs_expr_matcher, regex_basic)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     ret = expr_matcher_verify_regex_expression("[0-9]rain", g_logger);
@@ -1538,7 +1538,7 @@ TEST(hs_expr_matcher, regex_unicode)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -1566,7 +1566,7 @@ TEST(rs_expr_matcher, regex_unicode)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =
@@ -1594,7 +1594,7 @@ TEST(hs_expr_matcher, hit_pattern_num)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.json", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher =

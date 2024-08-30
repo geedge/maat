@@ -19,7 +19,7 @@
 #define HIT_PATH_SIZE           128
 #define	WAIT_FOR_EFFECTIVE_S	2
 
-const char *g_table_info_path = "./table_info.conf";
+const char *g_table_info_path = "./table_info.json";
 const char *g_json_filename = "maat_json.json";
 
 size_t g_thread_num = 4;
@@ -6978,7 +6978,7 @@ class FileTest : public testing::Test
 protected:
     static void SetUpTestCase() {
         const char *rule_folder = "./ntcrule/full/index";
-        const char *table_info = "./file_test_tableinfo.conf";
+        const char *table_info = "./file_test_tableinfo.json";
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_caller_thread_number(opts, g_thread_num);

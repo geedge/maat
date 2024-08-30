@@ -9,7 +9,7 @@
 #include <gtest/gtest.h>
 #include <limits.h>
 
-const char *g_table_info_path = "./table_info.conf";
+const char *g_table_info_path = "./table_info.json";
 const char *g_json_filename = "maat_json.json";
 struct log_handle *g_logger = NULL;
 struct maat *g_maat_inst = NULL;

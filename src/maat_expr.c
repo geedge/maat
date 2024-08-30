@@ -954,8 +954,8 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
                       int attribute_id, struct maat_state *state)
 {
     //clear rule_state->last_hit_object
-    if (state != NULL && state->rule_state != NULL) {
-        rule_state_clear_last_hit_object(state->rule_state);
+    if (state != NULL && state->rule_compile_state != NULL) {
+        rule_compile_state_clear_last_hit_object(state->rule_compile_state);
     }
 
     if (0 == expr_rt->rule_num) {
@@ -1013,13 +1013,13 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
     }
 
 next:
-    if (NULL == state->rule_state) {
-        state->rule_state = rule_state_new();
+    if (NULL == state->rule_compile_state) {
+        state->rule_compile_state = rule_compile_state_new();
         alignment_int64_array_add(state->maat_inst->stat->rule_state_cnt,
                                   state->thread_id, 1);
     }
 
-    return rule_state_update(state->rule_state, state->maat_inst, attribute_id,
+    return rule_compile_state_update(state->rule_compile_state, state->maat_inst, attribute_id,
                                 state->rule_table_id, state->Nth_scan,
                                 hit_maat_items, real_hit_item_num);
 }
@@ -1050,8 +1050,8 @@ int expr_runtime_stream_scan(struct expr_runtime_stream *expr_rt_stream,
     struct expr_runtime *expr_rt = expr_rt_stream->ref_expr_rt;
 
     //clear rule_state->last_hit_object
-    if (state != NULL && state->rule_state != NULL) {
-        rule_state_clear_last_hit_object(state->rule_state);
+    if (state != NULL && state->rule_compile_state != NULL) {
+        rule_compile_state_clear_last_hit_object(state->rule_compile_state);
     }
 
     if (0 == expr_rt->rule_num) {
@@ -1107,13 +1107,13 @@ int expr_runtime_stream_scan(struct expr_runtime_stream *expr_rt_stream,
     }
 
 next:
-    if (NULL == state->rule_state) {
-        state->rule_state = rule_state_new();
+    if (NULL == state->rule_compile_state) {
+        state->rule_compile_state = rule_compile_state_new();
         alignment_int64_array_add(state->maat_inst->stat->rule_state_cnt,
                                   state->thread_id, 1);
     }
 
-    return rule_state_update(state->rule_state, state->maat_inst, attribute_id,
+    return rule_compile_state_update(state->rule_compile_state, state->maat_inst, attribute_id,
                                 state->rule_table_id, state->Nth_scan,
                                 hit_maat_items, real_hit_item_cnt);
 }

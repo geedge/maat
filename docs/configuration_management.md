@@ -153,7 +153,7 @@ To add a new table to the configuration, the following files need to be modified
 
 * Add the new table path and entry count to the table file index.
 
-* Add the table information to the table description file (table_info.conf).
+* Add the table information to the table description file (table_info.json).
 
 * Modify the configuration summary table to apply the new configuration. Ensure that the total number of configurations in the first row matches the actual number of configuration lines.
 

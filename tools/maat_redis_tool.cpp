@@ -22,7 +22,7 @@
 #define WORK_MODE_TEST_TRANS 2
 
 const char *redis_dump_dir = "./redis_dump";
-const char *default_table_info = "./table_info.conf";
+const char *default_table_info = "./table_info.json";
 
 static void maat_tool_print_usage(void)
 {

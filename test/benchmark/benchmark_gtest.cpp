@@ -28,7 +28,7 @@
 #define PERF_THREAD_NUM 5
 #define MAX_SCAN_TIMES 1000000
 
-const char *g_table_info_path = "./benchmark_table_info.conf";
+const char *g_table_info_path = "./benchmark_table_info.json";
 struct log_handle *g_logger = NULL;
 
 struct thread_param {

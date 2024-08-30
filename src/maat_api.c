@@ -1766,12 +1766,12 @@ static void maat_state_add_hit_object(struct maat_state *state, int table_id,
     struct maat *maat_inst = state->maat_inst;
 
     //clear rule_state->last_hit_object
-    if (state != NULL && state->rule_state != NULL) {
-        rule_state_clear_last_hit_object(state->rule_state);
+    if (state != NULL && state->rule_compile_state != NULL) {
+        rule_compile_state_clear_last_hit_object(state->rule_compile_state);
     }
 
-    if (NULL == state->rule_state) {
-        state->rule_state = rule_state_new();
+    if (NULL == state->rule_compile_state) {
+        state->rule_compile_state = rule_compile_state_new();
         alignment_int64_array_add(maat_inst->stat->rule_state_cnt,
                                   state->thread_id, 1); 
     }
@@ -1787,7 +1787,7 @@ static void maat_state_add_hit_object(struct maat_state *state, int table_id,
         hit_items[i].object_id = objects[i].object_id;
     }
 
-    rule_state_update(state->rule_state, maat_inst, table_id,
+    rule_compile_state_update(state->rule_compile_state, maat_inst, table_id,
                          state->rule_table_id, state->Nth_scan,
                          hit_items, n_hit_item);
 }
@@ -1813,11 +1813,11 @@ maat_state_activate_hit_not_object(struct maat_state *state, int table_id)
     }
 
     //clear rule_state->last_hit_object
-    if (state != NULL && state->rule_state != NULL) {
-        rule_state_clear_last_hit_object(state->rule_state);
+    if (state != NULL && state->rule_compile_state != NULL) {
+        rule_compile_state_clear_last_hit_object(state->rule_compile_state);
     }
 
-    rule_state_not_logic_update(state->rule_state, rule_rt, maat_inst,
+    rule_compile_state_not_logic_update(state->rule_compile_state, rule_rt, maat_inst,
                                    table_id, state->Nth_scan);
 }
 
@@ -1883,7 +1883,7 @@ int maat_scan_not_logic(struct maat *maat_inst, int table_id,
         return -1;
     }
 
-    if (NULL == state->rule_state) {
+    if (NULL == state->rule_compile_state) {
         return 0;
     }
 
@@ -2149,8 +2149,8 @@ void maat_state_reset(struct maat_state *state)
     state->district_id = DISTRICT_ANY;
     state->Nth_scan = 0;
 
-    if (state->rule_state != NULL) {
-        rule_state_reset(state->rule_state);
+    if (state->rule_compile_state != NULL) {
+        rule_compile_state_reset(state->rule_compile_state);
     }
 }
 
@@ -2165,9 +2165,9 @@ void maat_state_free(struct maat_state *state)
     struct maat *maat_inst = state->maat_inst;
     long long thread_id = state->thread_id;
 
-    if (state->rule_state != NULL) {
-        rule_state_free(state->rule_state, maat_inst, thread_id);
-        state->rule_state = NULL;
+    if (state->rule_compile_state != NULL) {
+        rule_compile_state_free(state->rule_compile_state, maat_inst, thread_id);
+        state->rule_compile_state = NULL;
         alignment_int64_array_add(maat_inst->stat->rule_state_cnt,
                                   thread_id, -1);
     }
@@ -2272,7 +2272,7 @@ int maat_state_get_rule_table_ids(struct maat_state *state, long long *rule_ids,
     }
 
     for (size_t i = 0; i < n_rule_ids; i++) {
-        rule_table_ids[i] = rule_state_get_rule_table_id(state->rule_state,
+        rule_table_ids[i] = rule_compile_state_get_rule_table_id(state->rule_compile_state,
                                                                   rule_ids[i]);
     }
     
@@ -2293,7 +2293,7 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
         return -1;
     }
 
-    if (NULL == state->rule_state) {
+    if (NULL == state->rule_compile_state) {
         return 0;
     }
 
@@ -2313,13 +2313,13 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
     void *g2g_runtime = table_manager_get_runtime(maat_inst->tbl_mgr, g2g_table_id);
 
     size_t hit_path_cnt =
-        rule_state_get_internal_hit_paths(state->rule_state,
+        rule_compile_state_get_internal_hit_paths(state->rule_compile_state,
                                             (struct rule_runtime *)rule_rt,
                                             (struct object2object_runtime *)g2g_runtime,
                                              path_array, array_size);
 
     return rule_runtime_get_hit_paths((struct rule_runtime *)rule_rt,
-                                         state->thread_id, state->rule_state,
+                                         state->thread_id, state->rule_compile_state,
                                          path_array, array_size, hit_path_cnt);
 }
 
@@ -2340,21 +2340,21 @@ int maat_state_get_direct_hit_objects(struct maat_state *state,
         return -1;
     }
 
-    if (NULL == state->rule_state) {
+    if (NULL == state->rule_compile_state) {
         return 0;
     }
     
-    return rule_state_get_direct_hit_objects(state->rule_state,
+    return rule_compile_state_get_direct_hit_objects(state->rule_compile_state,
                                                object_array, array_size);
 }
 
 size_t maat_state_get_direct_hit_object_cnt(struct maat_state *state)
 {
-    if (NULL == state || NULL == state->rule_state) {
+    if (NULL == state || NULL == state->rule_compile_state) {
         return 0;
     }
 
-    return rule_state_get_direct_hit_object_cnt(state->rule_state);
+    return rule_compile_state_get_direct_hit_object_cnt(state->rule_compile_state);
 }
 
 int maat_state_get_indirect_hit_objects(struct maat_state *state,
@@ -2365,40 +2365,40 @@ int maat_state_get_indirect_hit_objects(struct maat_state *state,
         return -1;
     }
 
-    if (NULL == state->rule_state) {
+    if (NULL == state->rule_compile_state) {
         return 0;
     }
 
-    return rule_state_get_indirect_hit_objects(state->rule_state,
+    return rule_compile_state_get_indirect_hit_objects(state->rule_compile_state,
                                                  object_array, array_size);
 }
 
 size_t maat_state_get_indirect_hit_object_cnt(struct maat_state *state)
 {
-    if (NULL == state || NULL == state->rule_state) {
+    if (NULL == state || NULL == state->rule_compile_state) {
         return 0;
     }
 
-    return rule_state_get_indirect_hit_object_cnt(state->rule_state);
+    return rule_compile_state_get_indirect_hit_object_cnt(state->rule_compile_state);
 }
 
 int maat_state_get_last_hit_objects(struct maat_state *state,
                                    struct maat_hit_object *object_array,
                                    size_t array_size)
 {
-    if (NULL == state || NULL == state->rule_state) {
+    if (NULL == state || NULL == state->rule_compile_state) {
         return 0;
     }
 
-    return rule_state_get_last_hit_objects(state->rule_state,
+    return rule_compile_state_get_last_hit_objects(state->rule_compile_state,
                                              object_array, array_size);
 }
 
 size_t maat_state_get_last_hit_object_cnt(struct maat_state *state)
 {
-    if (NULL == state || NULL == state->rule_state) {
+    if (NULL == state || NULL == state->rule_compile_state) {
         return 0;
     }
 
-    return rule_state_get_last_hit_object_cnt(state->rule_state);
+    return rule_compile_state_get_last_hit_object_cnt(state->rule_compile_state);
 }

@@ -18,7 +18,7 @@
 #define PERF_THREAD_NUM         5
 #define PERF_SCAN_TIMES        1000 * 1000
 
-const char *g_table_info_path = "./table_info.conf";
+const char *g_table_info_path = "./table_info.json";
 const char *g_json_filename = "maat_json.json";
 
 struct thread_param {
@@ -1495,7 +1495,7 @@ protected:
     static void SetUpTestCase() {
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
         const char *rule_folder = "./tsgrule/index";
-        const char *table_info = "./tsg_table_info.conf";
+        const char *table_info = "./tsg_table_info.json";
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_stat_file(opts, "./stat.log");

@@ -186,8 +186,9 @@ int maat_helper_verify_regex_expression(const char *expression);
 
 /* maat table API */
 int maat_get_table_id(struct maat *instance, const char *table_name);
+int maat_get_attribute_id(struct maat *instance, const char *attribute_name);//TODO: new API
 
-const char *maat_get_table_schema_tag(struct maat *instance, int table_id);
+const char *maat_get_table_schema_tag(struct maat *instance, int table_id);//TODO: delete
 
 /* return 0 if success, otherwise return -1 */
 int maat_table_callback_register(struct maat *instance, int table_id,
@@ -213,7 +214,7 @@ int maat_plugin_table_ex_schema_register(struct maat *instance, const char *tabl
 
 /** 
  *  NOTE: only plugin table support three key type(integer, pointer, ip_addr) 
- *        specified in table_info.conf. If use ip_addr key type, then key should be 
+ *        specified in table_info.json. If use ip_addr key type, then key should be 
  *        ip address in network order.
 */
 void *maat_plugin_table_get_ex_data(struct maat *instance, int table_id,

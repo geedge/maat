@@ -207,6 +207,7 @@
         "table_name":"IMAGE_FP",
         "table_type":"expr",
         "valid_column":5,
+        "supported_attributes":["HTTP_URL", "HTTP_REQ_BODY"],
         "custom": {
             "item_id":1,
             "object_id":2,

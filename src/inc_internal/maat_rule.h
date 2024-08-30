@@ -60,7 +60,7 @@ int rule_runtime_match(struct rule_runtime *rule_rt, long long *rule_ids,
                           size_t rule_ids_size, struct maat_state *state);
 
 size_t rule_runtime_get_hit_paths(struct rule_runtime *rule_rt, int thread_id,
-									 struct rule_state *rule_state, 
+									 struct rule_compile_state *rule_compile_state, 
                                   	 struct maat_hit_path *hit_path_array, 
                                      size_t array_size, size_t n_hit_path);
 
@@ -84,50 +84,50 @@ long long object2rule_runtime_rule_count(void *g2c_runtime);
 long long object2rule_runtime_update_err_count(void *g2c_runtime);
 
 /* maat rule state API */
-struct rule_state;
-struct rule_state *rule_state_new(void);
+struct rule_compile_state;
+struct rule_compile_state *rule_compile_state_new(void);
 
-void rule_state_reset(struct rule_state *rule_state);
+void rule_compile_state_reset(struct rule_compile_state *rule_compile_state);
 
-void rule_state_free(struct rule_state *rule_state,
+void rule_compile_state_free(struct rule_compile_state *rule_compile_state,
                         struct maat *maat_instance, int thread_id);
 
-int rule_state_update(struct rule_state *rule_state, struct maat *maat_inst,
+int rule_compile_state_update(struct rule_compile_state *rule_compile_state, struct maat *maat_inst,
                          int attribute_id, int custom_rule_tbl_id, int Nth_scan,
                          struct maat_item *hit_items, size_t n_hit_item);
 
-void rule_state_clear_last_hit_object(struct rule_state *rule_state);
+void rule_compile_state_clear_last_hit_object(struct rule_compile_state *rule_state);
 
-void rule_state_not_logic_update(struct rule_state *rule_state, 
+void rule_compile_state_not_logic_update(struct rule_compile_state *rule_compile_state, 
                                     struct rule_runtime *rule_rt,
                                     struct maat *maat_inst, int attribute_id,
                                     int Nth_scan);
 
-size_t rule_state_get_internal_hit_paths(struct rule_state *rule_state,
+size_t rule_compile_state_get_internal_hit_paths(struct rule_compile_state *rule_compile_state,
                                             struct rule_runtime *rule_rt,
                                             struct object2object_runtime *g2g_rt,
                                             struct maat_hit_path *hit_path_array, 
                                             size_t array_size);
 
-size_t rule_state_get_direct_hit_objects(struct rule_state *rule_state,
+size_t rule_compile_state_get_direct_hit_objects(struct rule_compile_state *rule_compile_state,
                                            struct maat_hit_object *object_array,
                                            size_t array_size);
 
-size_t rule_state_get_direct_hit_object_cnt(struct rule_state *rule_state);
+size_t rule_compile_state_get_direct_hit_object_cnt(struct rule_compile_state *rule_compile_state);
 
-size_t rule_state_get_indirect_hit_objects(struct rule_state *rule_state,
+size_t rule_compile_state_get_indirect_hit_objects(struct rule_compile_state *rule_compile_state,
                                              struct maat_hit_object *object_array,
                                              size_t array_size);
 
-size_t rule_state_get_indirect_hit_object_cnt(struct rule_state *rule_state);
+size_t rule_compile_state_get_indirect_hit_object_cnt(struct rule_compile_state *rule_compile_state);
 
-size_t rule_state_get_last_hit_objects(struct rule_state *rule_state,
+size_t rule_compile_state_get_last_hit_objects(struct rule_compile_state *rule_compile_state,
                                          struct maat_hit_object *object_arary,
                                          size_t array_size);
 
-size_t rule_state_get_last_hit_object_cnt(struct rule_state *rule_state);
+size_t rule_compile_state_get_last_hit_object_cnt(struct rule_compile_state *rule_compile_state);
 
-int rule_state_get_rule_table_id(struct rule_state *rule_state,
+int rule_compile_state_get_rule_table_id(struct rule_compile_state *rule_compile_state,
                                        long long rule_id);
 
 #ifdef __cplusplus

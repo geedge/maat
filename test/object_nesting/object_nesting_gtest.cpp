@@ -15,7 +15,7 @@
 #define WAIT_FOR_EFFECTIVE_S 2
 #define MAX_G2G_SCAN_TIMES (1000 * 1000)
 
-const char *g_table_info_path = "./object_exclude_table_info.conf";
+const char *g_table_info_path = "./object_exclude_table_info.json";
 const char *log_file = "./object_exclude_gtest.log";
 
 struct object_item {

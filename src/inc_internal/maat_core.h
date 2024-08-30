@@ -189,7 +189,7 @@ struct maat {
 
 struct maat_state {
 	struct maat *maat_inst;
-    struct rule_state *rule_state;
+    struct rule_compile_state *rule_compile_state;
     int Nth_scan;
     int district_id; //-1: Any District; -2: Unkonwn District;
 	uint16_t thread_id;
