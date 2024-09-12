@@ -26,7 +26,6 @@ extern "C"
 #include "uthash/uthash.h"
 
 struct foreign_key {
-	int column;
 	char *key;
     size_t key_len;
 	char *filename;
@@ -88,7 +87,7 @@ int maat_get_rm_key_list(redisContext *c, long long instance_version,
 
 void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 							void (*start_fn)(long long, int, void *),
-							int (*update_fn)(const char *, const char *, void *),
+							int (*update_fn)(const char *, const char *, void *, enum maat_operation),
 							void (*finish_fn)(void *), void *u_param);
 
 #ifdef __cplusplus

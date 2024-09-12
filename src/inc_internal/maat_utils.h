@@ -21,6 +21,7 @@ extern "C"
 #include <arpa/inet.h>
 
 #include "uthash/utarray.h"
+#include "cJSON/cJSON.h"
 
 #define	TRUE	1
 #define	FALSE	0

@@ -34,11 +34,6 @@
 #define ENGINE_TYPE_SWITCH_THRESHOLD 50000
 
 struct expr_schema {
-	int item_id_column;
-    int object_id_column;
-	int district_column;
-	int keywords_column;
-    int expr_type_column;
     int table_id;
     enum maat_expr_engine engine_type;
     struct table_manager *ref_tbl_mgr;
@@ -157,64 +152,59 @@ int expr_runtime_set_scan_district(struct expr_runtime *expr_rt, const char *dis
 
 static struct expr_item *
 expr_item_new(struct expr_schema *expr_schema, const char *table_name,
-              const char *line, struct expr_runtime *expr_rt)
+              const cJSON *json, struct expr_runtime *expr_rt, long long item_id)
 {
-    size_t column_offset = 0;
-    size_t column_len = 0;
     int expr_type = -1;
     enum table_type table_type = TABLE_TYPE_INVALID;
     struct expr_item *expr_item = ALLOC(struct expr_item, 1);
+    cJSON *tmp_obj = NULL;
+    size_t len = 0;
+    int ret;
 
-    int ret = get_column_pos(line, expr_schema->item_id_column, &column_offset,
-                             &column_len);
-    if (ret < 0) {
-        log_fatal(expr_rt->logger, MODULE_EXPR, 
-                  "[%s:%d] expr table:<%s> has no item_id in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-    expr_item->item_id = atoll(line + column_offset);
+    expr_item->item_id = item_id;
 
-    ret = get_column_pos(line, expr_schema->object_id_column, &column_offset,
-                         &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "object_id");
+    if (tmp_obj != NULL && tmp_obj->type == cJSON_String) {
+        expr_item->object_id = tmp_obj->valueint;
+    } else {
         log_fatal(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> has no object_id in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
+                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
-    expr_item->object_id = atoll(line + column_offset);
+    expr_item->object_id = atoll(tmp_obj->valuestring);
 
-    ret = get_column_pos(line, expr_schema->keywords_column, &column_offset, &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "keywords");
+    if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
         log_fatal(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> has no keywords in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
+                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
+    len = strlen(tmp_obj->valuestring);
 
-    if (column_len > MAX_KEYWORDS_STR_LEN) {
+    if (len > MAX_KEYWORDS_STR_LEN) {
         log_fatal(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> keywords length too long in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
+                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
-    memcpy(expr_item->keywords, (line + column_offset), column_len);
+    memcpy(expr_item->keywords, tmp_obj->valuestring, len);
 
-    ret = get_column_pos(line, expr_schema->expr_type_column, &column_offset, &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "expr_type");
+    if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
         log_fatal(expr_rt->logger, MODULE_EXPR,
                   "[%s:%d] expr table:<%s> has no expr_type in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
+                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
 
-    expr_type = atoi(line + column_offset);
+    expr_type = atoi(tmp_obj->valuestring);
     expr_item->expr_type = int_to_expr_type(expr_type);
     if (expr_item->expr_type == EXPR_TYPE_INVALID) {
         log_fatal(expr_rt->logger, MODULE_EXPR,
                   "[%s:%d] expr table:<%s> has invalid expr_type in line:%s",
-                 __FUNCTION__, __LINE__, table_name, line);
+                 __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     } else if (expr_item->expr_type == EXPR_TYPE_REGEX) {
         ret = expr_matcher_verify_regex_expression(expr_item->keywords, expr_rt->logger);
@@ -229,21 +219,25 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
    
     table_type = table_manager_get_table_type(expr_schema->ref_tbl_mgr, expr_schema->table_id);
     if (table_type == TABLE_TYPE_EXPR_PLUS) {
-        ret = get_column_pos(line, expr_schema->district_column, &column_offset, &column_len);
-        if (ret < 0) {
+        tmp_obj = cJSON_GetObjectItem(json, "district");
+        if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
+            log_fatal(expr_rt->logger, MODULE_EXPR, 
+                      "[%s:%d] expr table:<%s> has no district in line:%s",
+                      __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
             goto error;
         }
 
-        if (column_len > MAX_DISTRICT_STR_LEN) {
+        len = strlen(tmp_obj->valuestring);
+        if (len > MAX_DISTRICT_STR_LEN) {
             log_fatal(expr_rt->logger, MODULE_EXPR, 
                       "[%s:%d] expr table:<%s> district length exceed maximum:%d"
                       " in line:%s", __FUNCTION__, __LINE__, table_name,
-                      MAX_DISTRICT_STR_LEN, line);
+                      MAX_DISTRICT_STR_LEN, cJSON_Print(json));
             goto error;
         }
 
         char district[MAX_DISTRICT_STR_LEN + 1] = {0};
-        memcpy(district, (line + column_offset), column_len);
+        memcpy(district, tmp_obj->valuestring, len);
         assert(strlen(district) > 0);
         str_unescape(district);
         expr_item->district_id = expr_runtime_get_district_id(expr_rt, district);
@@ -264,7 +258,6 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 	struct expr_schema *expr_schema = ALLOC(struct expr_schema, 1);
     expr_schema->engine_type = MAAT_EXPR_ENGINE_AUTO;
 
-    cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
     if (item != NULL && item->type == cJSON_Number) {
         expr_schema->table_id = item->valueint;
@@ -291,67 +284,6 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
                   __FUNCTION__, __LINE__, table_name);
             goto error; 
         }
-    }
-
-    item = cJSON_GetObjectItem(json, "custom");
-    if (item == NULL || item->type != cJSON_Object) {
-        log_fatal(logger, MODULE_EXPR, 
-                  "[%s:%d] expr table:<%s> schema has no custom column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-	custom_item = cJSON_GetObjectItem(item, "item_id");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        expr_schema->item_id_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_EXPR, 
-                  "[%s:%d] expr table:<%s> schema has no item_id column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-	custom_item = cJSON_GetObjectItem(item, "object_id");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        expr_schema->object_id_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_EXPR, 
-                  "[%s:%d] expr table:<%s> schema has no object_id column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "keywords");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        expr_schema->keywords_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_EXPR, 
-                  "[%s:%d] expr table:<%s> schema has no keywords column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    /* expr_plus has district */
-    if (strcmp(table_type, "expr_plus") == 0) {
-        custom_item = cJSON_GetObjectItem(item, "district");
-        if (custom_item != NULL && custom_item->type == cJSON_Number) {
-            expr_schema->district_column = custom_item->valueint;
-        } else {
-            log_fatal(logger, MODULE_EXPR, 
-                  "[%s:%d] expr_plus table:<%s> schema has no district column", 
-                  __FUNCTION__, __LINE__, table_name);
-            goto error;
-        }
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "expr_type");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        expr_schema->expr_type_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_EXPR,
-                  "[%s:%d] expr table:<%s> schema has no expr_type column",
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
     }
 
     expr_schema->ref_tbl_mgr = tbl_mgr;
@@ -489,11 +421,11 @@ void expr_runtime_free(void *expr_runtime)
 
 static int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key,
                                    size_t key_len, struct expr_item *item,
-                                   int is_valid)
+                                   enum maat_operation op)
 {
     int ret = -1;
 
-    if (0 == is_valid) {
+    if (MAAT_OP_DEL == op) {
         //delete
         rcu_hash_del(expr_rt->item_hash, key, key_len);
     } else {
@@ -729,7 +661,7 @@ static int expr_item_to_expr_rule(struct expr_item *expr_item,
 
 int expr_runtime_update(void *expr_runtime, void *expr_schema, 
                         const char *table_name, const char *line, 
-                        int valid_column)
+                        enum maat_operation op)
 {
     if (NULL == expr_runtime || NULL == expr_schema ||
         NULL == line) {
@@ -738,34 +670,43 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
 
     struct expr_schema *schema = (struct expr_schema *)expr_schema;
     struct expr_runtime *expr_rt = (struct expr_runtime *)expr_runtime;
-
-    long long item_id = get_column_value(line, schema->item_id_column);
-    if (item_id < 0) {
+    cJSON *tmp_obj = NULL;
+    cJSON *json = cJSON_Parse(line);
+    
+    if (NULL == json) {
         log_fatal(expr_rt->logger, MODULE_EXPR,
-                  "[%s:%d] expr table:<%s> has no item_id(column seq:%d)"
-                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
-                  schema->item_id_column, line);
+                  "[%s:%d] expr table:<%s> line:%s is not a valid json",
+                  __FUNCTION__, __LINE__, table_name, line);
         expr_rt->update_err_cnt++;
         return -1;
     }
 
-    int is_valid = get_column_value(line, valid_column);
-    if (is_valid < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "item_id");
+    if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
         log_fatal(expr_rt->logger, MODULE_EXPR,
-                  "[%s:%d] expr table:<%s> has no is_valid(column seq:%d)"
-                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
-                  valid_column, line);
+                  "[%s:%d] expr table:<%s> has no item_id in line:%s",
+                  __FUNCTION__, __LINE__, table_name, line);
         expr_rt->update_err_cnt++;
-        return -1;
+        goto ERROR;
+    }
+
+    long long item_id = atoll(tmp_obj->valuestring);
+    if (item_id < 0) {
+        log_fatal(expr_rt->logger, MODULE_EXPR,
+                  "[%s:%d] expr table:<%s> item_id wrong"
+                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
+                  cJSON_Print(json));
+        expr_rt->update_err_cnt++;
+        goto ERROR;
     }
     
     struct expr_item *expr_item = NULL;
-    if (1 == is_valid) {
+    if (MAAT_OP_ADD == op) {
         //add
-        expr_item = expr_item_new(schema, table_name, line, expr_rt);
+        expr_item = expr_item_new(schema, table_name, json, expr_rt, item_id);
         if (NULL == expr_item) {
             expr_rt->update_err_cnt++;
-            return -1;
+            goto ERROR;
         }
 
         int *item_district_id = ALLOC(int, 1);
@@ -775,7 +716,7 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
     }
 
     int ret = expr_runtime_update_row(expr_rt, (char *)&item_id, sizeof(long long),
-                                      expr_item, is_valid);
+                                      expr_item, op);
     if (ret < 0) {
         if (expr_item != NULL) {
             expr_item_free(expr_item);
@@ -783,7 +724,13 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
         //don't return failed, ignore the case of adding duplicate keys
     }
 
+    cJSON_Delete(json);
     return 0;
+ERROR:
+    if (json != NULL) {
+        cJSON_Delete(json);
+    }
+    return -1;
 }
 
 static void garbage_expr_matcher_free(void *expr_matcher, void *arg)

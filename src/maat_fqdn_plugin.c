@@ -20,11 +20,9 @@
 #define MODULE_FQDN_PLUGIN	 module_name_str("maat.bool_plugin")
 
 struct fqdn_plugin_schema {
-    int item_id_column;
-    int fqdn_column;
-    int rule_tag_column;
     int gc_timeout_s;
     int table_id;
+    char key_name[MAX_NAME_STR_LEN];
     struct ex_container_schema container_schema;
     struct table_manager *ref_tbl_mgr;
     struct log_handle *logger;
@@ -67,31 +65,14 @@ void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "item_id");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->item_id_column = custom_item->valueint;
+    custom_item = cJSON_GetObjectItem(item, "key_name");
+    if (custom_item != NULL && custom_item->type == cJSON_String) {
+        strncpy(schema->key_name, custom_item->valuestring, sizeof(schema->key_name) - 1);
     } else {
         log_fatal(logger, MODULE_FQDN_PLUGIN, 
                   "[%s:%d] fqdn_plugin table:<%s> schema has no item_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
-    }
-
-    // rule_tag is optional
-    custom_item = cJSON_GetObjectItem(item, "fqdn");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->fqdn_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_FQDN_PLUGIN, 
-                  "[%s:%d] fqdn_plugin table:<%s> schema has no fqdn column",
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    // rule_tag is optional
-    custom_item = cJSON_GetObjectItem(item, "rule_tag");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->rule_tag_column = custom_item->valueint;
     }
 
     //gc_timeout_s is optional
@@ -223,34 +204,30 @@ void fqdn_plugin_runtime_free(void *fqdn_plugin_runtime)
 
 static int
 fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema,
-                             const char *table_name, const char *line,
+                             const char *table_name, const cJSON *json,
                              struct log_handle *logger)
 {
-    size_t column_offset = 0;
-    size_t column_len = 0;
     size_t n_tag = table_manager_accept_tags_count(schema->ref_tbl_mgr);
+    cJSON *tmp_obj = NULL;
 
-    if (schema->rule_tag_column > 0 && n_tag > 0) {
-        int ret = get_column_pos(line, schema->rule_tag_column, 
-                                 &column_offset, &column_len);
-        if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "tag");
+    if (tmp_obj != NULL && n_tag > 0) {
+        if (tmp_obj->type != cJSON_String) {
             log_fatal(logger, MODULE_FQDN_PLUGIN,
-                      "[%s:%d] fqdn_plugin table:<%s> has no rule_tag"
+                      "[%s:%d] fqdn_plugin table:<%s> has invalid tag format"
                       " in line:%s", __FUNCTION__, __LINE__, table_name,
-                      line);
+                      cJSON_Print(json));
             return TAG_MATCH_ERR;
         }
 
-        if (column_len > 2) {
-            char *tag_str = ALLOC(char, column_len + 1);
-            memcpy(tag_str, (line + column_offset), column_len);
-            ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
-            FREE(tag_str);
+        const char *tag = tmp_obj->valuestring;
+        if (strlen(tag) > 2) {
+            int ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag);
             if (TAG_MATCH_ERR == ret) {
                 log_fatal(logger, MODULE_FQDN_PLUGIN,
-                          "[%s:%d] fqdn_plugin table:<%s> has invalid "
-                          "tag format in line:%s", __FUNCTION__, __LINE__,
-                          table_name, line);
+                          "[%s:%d] fqdn_plugin table:<%s> has invalid tag"
+                          " format in line:%s", __FUNCTION__, __LINE__,
+                          table_name, cJSON_Print(json));
                 return TAG_MATCH_ERR;
             }
 
@@ -258,7 +235,7 @@ fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema,
                 log_fatal(logger, MODULE_FQDN_PLUGIN,
                           "[%s:%d] fqdn_plugin table:<%s> has unmatched tag"
                           " in line:%s", __FUNCTION__, __LINE__, table_name,
-                          line);
+                          cJSON_Print(json));
                 return TAG_MATCH_UNMATCHED;
             }
         }
@@ -268,41 +245,38 @@ fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema,
 }
 
 static struct FQDN_rule *
-fqdn_plugin_rule_new(const char *line, struct fqdn_plugin_schema *schema,
+fqdn_plugin_rule_new(const cJSON *json, struct fqdn_plugin_schema *schema,
                      const char *table_name, struct log_handle *logger)
 {
-     int ret = fqdn_plugin_accept_tag_match(schema, table_name, line, logger);
+     int ret = fqdn_plugin_accept_tag_match(schema, table_name, json, logger);
     if (ret == TAG_MATCH_UNMATCHED) {
         return NULL;
     }
 
-    size_t column_offset = 0;
-    size_t column_len = 0;
     const char *fqdn = NULL;
     size_t fqdn_len = 0;
     struct FQDN_rule *fqdn_plugin_rule = ALLOC(struct FQDN_rule, 1);
+    cJSON *tmp_obj = NULL;
 
-    ret = get_column_pos(line, schema->item_id_column,
-                         &column_offset, &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, schema->key_name);
+    if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
         log_fatal(logger, MODULE_FQDN_PLUGIN, 
-                  "[%s:%d] fqdn_plugin table:<%s> has no item_id in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
+                  "[%s:%d] fqdn_plugin table:<%s> has no key_name or invalid format in line:%s",
+                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
-    fqdn_plugin_rule->id = atoi(line + column_offset);
+    fqdn_plugin_rule->id = atoi(tmp_obj->valuestring);
 
-    ret = get_column_pos(line, schema->fqdn_column,
-                         &column_offset, &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "fqdn");
+    if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
         log_fatal(logger, MODULE_FQDN_PLUGIN, 
                   "[%s:%d] fqdn_plugin table:<%s> has no fqdn in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
+                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
 
-    fqdn = line + column_offset;
-    fqdn_len = column_len;
+    fqdn = tmp_obj->valuestring;
+    fqdn_len = strlen(fqdn);
 
     if (fqdn[0] == '*') {
         fqdn_plugin_rule->is_suffix_match = 1;
@@ -334,12 +308,12 @@ fqdn_plugin_runtime_update_row(struct fqdn_plugin_runtime *fqdn_plugin_rt,
                                const char *table_name, const char *row, 
                                const char *key, size_t key_len, 
                                struct FQDN_rule *fqdn_plugin_rule,
-                               int is_valid)
+                               enum maat_operation op)
 {
     int ret = -1;
     struct ex_data_runtime *ex_data_rt = fqdn_plugin_rt->ex_data_rt;
 
-    if (0 == is_valid) {
+    if (MAAT_OP_DEL == op) {
         // delete
         ret = ex_data_runtime_del_ex_container(ex_data_rt, key, key_len);
         if (ret < 0) {
@@ -370,7 +344,7 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime,
                                void *fqdn_plugin_schema,
                                const char *table_name,
                                const char *line,
-                               int valid_column)
+                               enum maat_operation op)
 {
     if (NULL == fqdn_plugin_runtime || NULL == fqdn_plugin_schema || 
         NULL == line) {
@@ -384,64 +358,72 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime,
     struct fqdn_plugin_runtime *fqdn_plugin_rt =
         (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
 
-    size_t item_id_offset = 0, item_id_len = 0;
+    int ret = 0;
+    cJSON *tmp_obj = NULL;
+    cJSON *json = cJSON_Parse(line);
 
-    int is_valid = get_column_value(line, valid_column);
-    if (is_valid < 0) {
+    if (NULL == json) {
         log_fatal(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
-                  "[%s:%d] fqdn_plugin table:<%s> has no is_valid(column seq:%d)"
-                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
-                  valid_column, line);
+                  "[%s:%d] fqdn_plugin table:<%s> line is not a json format, line: %s",
+                  __FUNCTION__, __LINE__, table_name, line);
         fqdn_plugin_rt->update_err_cnt++;
-        return -1;
+        goto ERROR;
     }
 
-    int ret = get_column_pos(line, schema->item_id_column,
-                             &item_id_offset, &item_id_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, schema->key_name);
+    if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
         log_fatal(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
-                  "[%s:%d] fqdn_plugin table:<%s> has no item_id(column seq:%d)"
-                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
-                  schema->item_id_column, line);
+                  "[%s:%d] fqdn_plugin table:<%s> has no key_name or invalid format in line:%s",
+                  __FUNCTION__, __LINE__, table_name, line);
         fqdn_plugin_rt->update_err_cnt++;
-        return -1;
+        goto ERROR;
     }
 
     if (1 == schema->container_schema.set_flag) {
-        if (1 == is_valid) {
+        if (MAAT_OP_ADD == op) {
             // add
-            fqdn_plugin_rule = fqdn_plugin_rule_new(line, schema, table_name,
+            fqdn_plugin_rule = fqdn_plugin_rule_new(json, schema, table_name,
                                                     fqdn_plugin_rt->logger);
             if (NULL == fqdn_plugin_rule) {
                 fqdn_plugin_rt->update_err_cnt++;
-                return -1;
+                goto ERROR;
             }
         }
 
-        const char *key = line + item_id_offset;
-        size_t key_len = item_id_len;
+        const char *key = tmp_obj->valuestring;
+        size_t key_len = strlen(key);
         ret = fqdn_plugin_runtime_update_row(fqdn_plugin_rt, table_name, line,
                                              key, key_len, fqdn_plugin_rule,
-                                             is_valid);
+                                             op);
         if (ret < 0) {
             log_fatal(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
                       "[%s:%d]fqdn_plugin table:<%s> update one line failed, "
                       "line:%s", __FUNCTION__, __LINE__, table_name, line);
             fqdn_plugin_rt->update_err_cnt++;
-            return -1;
+            goto ERROR;
         }
 
         log_debug(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
                   "fqdn_plugin table:<%s> update one line, key:%s, key_len:%zu,"
-                  "is_valid:%d", table_name, key, key_len, is_valid);
+                  "maat_op:%d", table_name, key, key_len, op);
     } else {
         //ex_schema not set
-        ex_data_runtime_cache_row_put(fqdn_plugin_rt->ex_data_rt, line);
+        ex_data_runtime_cache_row_put(fqdn_plugin_rt->ex_data_rt, line, op);
         fqdn_plugin_rt->rule_num =
             ex_data_runtime_cached_row_count(fqdn_plugin_rt->ex_data_rt);
     }
 
     return 0;
+
+ERROR:
+    if (fqdn_plugin_rule != NULL) {
+        fqdn_rule_free(fqdn_plugin_rule);
+    }
+    if (json != NULL) {
+        cJSON_Delete(json);
+    }
+
+    return -1;
 }
 
 static void garbage_fqdn_engine_free(void *fqdn_engine, void *arg)

@@ -33,7 +33,7 @@ void *expr_runtime_new(void *expr_schema, size_t max_thread_num,
 void expr_runtime_free(void *expr_runtime);
 
 int expr_runtime_update(void *expr_runtime, void *expr_schema, const char *table_name, 
-                        const char *line, int valid_column);
+                        const char *line, enum maat_operation op);
 
 int expr_runtime_commit(void *expr_runtime, const char *table_name, long long maat_rt_version);
 

@@ -7,12 +7,6 @@
 int write_json_to_redis(const char *json_filename, char *redis_ip, int redis_port,
                         int redis_db, struct log_handle *logger);
 
-int write_iris_to_redis(const char *iris_path, char *redis_ip, int redis_port,
-                        int redis_db, struct log_handle *logger);
-
-int write_json_to_iris(const char* json_fn, char *iris_path, size_t path_sz,
-                       struct log_handle *logger);
-
 int rule_table_set_line(struct maat *maat_inst, const char *table_name,
                            enum maat_operation op, long long rule_id,
                            const char *user_region, int condition_num,

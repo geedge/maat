@@ -20,10 +20,8 @@
 #define MODULE_BOOL_PLUGIN	 module_name_str("maat.bool_plugin")
 
 struct bool_plugin_schema {
-    int item_id_column;
-    int bool_expr_column;
-    int rule_tag_column;
     int gc_timeout_s;
+    char key_name[MAX_NAME_STR_LEN];
     struct ex_container_schema container_schema;
     int table_id;
     struct table_manager *ref_tbl_mgr;
@@ -68,30 +66,14 @@ void *bool_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "item_id");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->item_id_column = custom_item->valueint;
+    custom_item = cJSON_GetObjectItem(item, "key_name");
+    if (custom_item != NULL && custom_item->type == cJSON_String) {
+        strncpy(schema->key_name, custom_item->valuestring, sizeof(schema->key_name) - 1);
     } else {
         log_fatal(logger, MODULE_BOOL_PLUGIN, 
-                  "[%s:%d] bool_plugin table:<%s> schema has no item_id column", 
+                  "[%s:%d] bool_plugin table:<%s> schema has no key_name column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "bool_expr");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->bool_expr_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_BOOL_PLUGIN, 
-                  "[%s:%d] bool_plugin table:<%s> schema has no bool_expr column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    // rule_tag is optional
-    custom_item = cJSON_GetObjectItem(item, "rule_tag");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->rule_tag_column = custom_item->valueint;
     }
 
     //gc_timeout_s is optional
@@ -240,12 +222,12 @@ static int
 bool_plugin_runtime_update_row(struct bool_plugin_runtime *bool_plugin_rt,
                                const char *table_name, const char *row, 
                                const char *key, size_t key_len, 
-                               struct bool_expr *expr, int is_valid)
+                               struct bool_expr *expr, enum maat_operation op)
 {
     int ret = -1;
     struct ex_data_runtime *ex_data_rt = bool_plugin_rt->ex_data_rt;
 
-    if (0 == is_valid) {
+    if (MAAT_OP_DEL == op) {
         // delete
         ret = ex_data_runtime_del_ex_container(ex_data_rt, key, key_len);
         if (ret < 0) {
@@ -271,44 +253,37 @@ bool_plugin_runtime_update_row(struct bool_plugin_runtime *bool_plugin_rt,
 
 static int
 bool_plugin_accept_tag_match(struct bool_plugin_schema *schema,
-                             const char *table_name, const char *line,
+                             const char *table_name, const cJSON *json,
                              struct log_handle *logger)
 {
-    size_t column_offset = 0;
-    size_t column_len = 0;
     size_t n_tag = table_manager_accept_tags_count(schema->ref_tbl_mgr);
+    cJSON *tmp_obj = NULL;
 
-    if (schema->rule_tag_column > 0 && n_tag > 0) {
-        int ret = get_column_pos(line, schema->rule_tag_column, 
-                                 &column_offset, &column_len);
-        if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "tag");
+    if (tmp_obj && n_tag > 0) {
+        if (tmp_obj->type != cJSON_String) {
             log_fatal(logger, MODULE_BOOL_PLUGIN,
-                      "[%s:%d] bool_plugin table:<%s> has no rule_tag"
+                      "[%s:%d] bool_plugin table:<%s> has invalid tag format"
                       " in line:%s", __FUNCTION__, __LINE__, table_name,
-                      line);
+                      cJSON_Print(json));
             return TAG_MATCH_ERR;
         }
 
-        if (column_len > 2) {
-            char *tag_str = ALLOC(char, column_len + 1);
-            memcpy(tag_str, (line + column_offset), column_len);
-            ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
-            FREE(tag_str);
-            if (TAG_MATCH_ERR == ret) {
-                log_fatal(logger, MODULE_BOOL_PLUGIN,
-                          "[%s:%d] bool_plugin table:<%s> has invalid "
-                          "tag format in line:%s", __FUNCTION__, __LINE__,
-                          table_name, line);
-                return TAG_MATCH_ERR;
-            }
+        int ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tmp_obj->valuestring);
+        if (TAG_MATCH_ERR == ret) {
+            log_fatal(logger, MODULE_BOOL_PLUGIN,
+                      "[%s:%d] bool_plugin table:<%s> has invalid tag"
+                      " in line:%s", __FUNCTION__, __LINE__, table_name,
+                      cJSON_Print(json));
+            return TAG_MATCH_ERR;
+        }
 
-            if (TAG_MATCH_UNMATCHED == ret) {
-                log_fatal(logger, MODULE_BOOL_PLUGIN,
-                          "[%s:%d] bool_plugin table:<%s> has unmatched tag"
-                          " in line:%s", __FUNCTION__, __LINE__, table_name,
-                          line);
-                return TAG_MATCH_UNMATCHED;
-            }
+        if (TAG_MATCH_UNMATCHED == ret) {
+            log_fatal(logger, MODULE_BOOL_PLUGIN,
+                      "[%s:%d] bool_plugin table:<%s> has unmatched tag"
+                      " in line:%s", __FUNCTION__, __LINE__, table_name,
+                      cJSON_Print(json));
+            return TAG_MATCH_UNMATCHED;
         }
     }
 
@@ -317,44 +292,41 @@ bool_plugin_accept_tag_match(struct bool_plugin_schema *schema,
 
 static struct bool_expr *
 bool_plugin_expr_new(struct bool_plugin_schema *schema, const char *table_name,
-                     const char *line, struct log_handle *logger)
+                     const cJSON *json, struct log_handle *logger)
 {
-    int ret = bool_plugin_accept_tag_match(schema, table_name, line, logger);
+    int ret = bool_plugin_accept_tag_match(schema, table_name, json, logger);
     if (ret == TAG_MATCH_UNMATCHED) {
         return NULL;
     }
 
-    size_t column_offset = 0;
-    size_t column_len = 0;
     size_t n_item = 0;
     char expr_buffer[BUFSIZ + 1] = {0};
     unsigned long long items[MAX_ITEMS_PER_BOOL_EXPR] = {0};
     char *token = NULL, *sub_token = NULL, *saveptr;
     struct bool_expr *bool_expr = ALLOC(struct bool_expr, 1);
+    cJSON *tmp_obj = NULL;
 
-    ret = get_column_pos(line, schema->item_id_column,
-                         &column_offset, &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, schema->key_name);
+    if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
         log_fatal(logger, MODULE_BOOL_PLUGIN, 
                   "[%s:%d] bool_plugin table:<%s> has "
-                  "no item_id in line:%s", __FUNCTION__,
-                  __LINE__, table_name, line);
+                  "no key_name %s or invalid format in line:%s", __FUNCTION__,
+                  __LINE__, table_name, schema->key_name, cJSON_Print(json));
         goto error;
     }
-    bool_expr->expr_id = atoll(line + column_offset);
+    bool_expr->expr_id = atoll(tmp_obj->valuestring);
 
-    ret = get_column_pos(line, schema->bool_expr_column,
-                         &column_offset, &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "bool_expr");
+    if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
         log_fatal(logger, MODULE_BOOL_PLUGIN, 
                   "[%s:%d] bool_plugin table:<%s> has "
-                  "no bool_expr in line:%s", __FUNCTION__,
-                  __LINE__, table_name, line);
+                  "no bool_expr or invalid format in line:%s", __FUNCTION__,
+                  __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
 
     memset(expr_buffer, 0, sizeof(expr_buffer));
-    memcpy(expr_buffer, line + column_offset, column_len);
+    memcpy(expr_buffer, tmp_obj->valuestring, strlen(tmp_obj->valuestring));
     for (token = expr_buffer; ; token = NULL) {
         sub_token = strtok_r(token, "&", &saveptr);
         if (NULL == sub_token) {
@@ -367,7 +339,7 @@ bool_plugin_expr_new(struct bool_plugin_schema *schema, const char *table_name,
             log_fatal(logger, MODULE_BOOL_PLUGIN, 
                       "[%s:%d] bool_plugin table:<%s> has "
                       "invalid format of bool_expr in line:%s",
-                      __FUNCTION__, __LINE__, table_name, line);
+                      __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
             goto error;
         }
     }
@@ -394,7 +366,7 @@ void bool_plugin_expr_free(void *bool_expr)
 int bool_plugin_runtime_update(void *bool_plugin_runtime,
                                void *bool_plugin_schema, 
                                const char *table_name,
-                               const char *line, int valid_column)
+                               const char *line, enum maat_operation op)
 {
     if (NULL == bool_plugin_runtime || NULL == bool_plugin_schema || 
         NULL == line) {
@@ -408,64 +380,72 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime,
     struct bool_plugin_runtime *bool_plugin_rt =
         (struct bool_plugin_runtime *)bool_plugin_runtime;
 
-    size_t item_id_offset = 0, item_id_len = 0;
+    int ret = 0;
+    cJSON *tmp_obj = NULL;
+    cJSON *json = cJSON_Parse(line);
 
-    int is_valid = get_column_value(line, valid_column);
-    if (is_valid < 0) {
+    if (NULL == json) {
         log_fatal(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
-                  "[%s:%d] bool_plugin table:<%s> has no "
-                  "is_valid(column seq:%d) in table_line:%s",
-                  __FUNCTION__, __LINE__, table_name,
-                  valid_column, line);
+                  "[%s:%d] bool_plugin table:<%s> has invalid json format"
+                  " in table_line:%s", __FUNCTION__, __LINE__, table_name, line);
         bool_plugin_rt->update_err_cnt++;
-        return -1;
+        goto ERROR;
     }
 
-    int ret = get_column_pos(line, schema->item_id_column,
-                             &item_id_offset, &item_id_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, schema->key_name);
+    if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
         log_fatal(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
-                  "[%s:%d] bool_plugin table:<%s> has no item_id(column seq:%d)"
+                  "[%s:%d] bool_plugin table:<%s> has no key_name(field:%s) or invalid format"
                   " in table_line:%s", __FUNCTION__, __LINE__, table_name,
-                  schema->item_id_column, line);
+                  schema->key_name, line);
         bool_plugin_rt->update_err_cnt++;
-        return -1;
+        goto ERROR;
     }
 
     if (1 == schema->container_schema.set_flag) {
-        if (1 == is_valid) {
+        if (MAAT_OP_ADD == op) {
             // add
-            bool_expr = bool_plugin_expr_new(schema, table_name, line,
+            bool_expr = bool_plugin_expr_new(schema, table_name, json,
                                              bool_plugin_rt->logger);
             if (NULL == bool_expr) {
                 bool_plugin_rt->update_err_cnt++;
-                return -1;
+                goto ERROR;
             }
         }
 
-        const char *key = line + item_id_offset;
-        size_t key_len = item_id_len;
+        const char *key = tmp_obj->valuestring;
+        size_t key_len = strlen(key);
         ret = bool_plugin_runtime_update_row(bool_plugin_rt, table_name, line,
-                                             key, key_len, bool_expr, is_valid);
+                                             key, key_len, bool_expr, op);
         if (ret < 0) {
             log_fatal(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
                       "[%s:%d]bool_plugin table:<%s> update one line failed, "
                       "line:%s", __FUNCTION__, __LINE__, table_name, line);
             bool_plugin_rt->update_err_cnt++;
-            return -1;
+            goto ERROR;
         }
 
         log_debug(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
                   "bool_plugin table:<%s> update one line, key:%s, key_len:%zu,"
-                  " is_valid:%d", table_name, key, key_len, is_valid);
+                  " maat_op:%d", table_name, key, key_len, op);
     } else {
         //ex_schema not set
-        ex_data_runtime_cache_row_put(bool_plugin_rt->ex_data_rt, line);
+        ex_data_runtime_cache_row_put(bool_plugin_rt->ex_data_rt, line, op);
         bool_plugin_rt->rule_num = 
             ex_data_runtime_cached_row_count(bool_plugin_rt->ex_data_rt);
     }
 
     return 0;
+
+ERROR:
+    if (json != NULL) {
+        cJSON_Delete(json);
+    }
+    if (bool_expr != NULL) {
+        bool_plugin_expr_free(bool_expr);
+    }
+
+    return -1;
 }
 
 void garbage_bool_matcher_free(void *matcher, void *arg)

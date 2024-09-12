@@ -32,11 +32,6 @@ void *rule_schema_new(cJSON *json, struct table_manager *tbl_mgr,
                          const char *table_name, struct log_handle *logger);
 void rule_schema_free(void *rule_schema);
 
-void *object2rule_schema_new(cJSON *json, struct table_manager *tbl_mgr,
-                               const char *table_name, struct log_handle *logger);
-void object2rule_schema_free(void *g2c_schema);
-int object2rule_associated_rule_table_id(void *g2c_schema);
-
 /* rule runtime API */
 void *rule_runtime_new(void *rule_schema, size_t max_thread_num,
                           struct maat_garbage_bin *garbage_bin, 
@@ -47,7 +42,7 @@ void rule_runtime_init(void *rule_runtime, struct maat_runtime *maat_rt);
 
 int rule_runtime_update(void *rule_runtime, void *rule_schema,
                            const char *table_name, const char *line,
-                           int valid_column);
+                           enum maat_operation op);
 
 int rule_runtime_commit(void *rule_runtime, const char *table_name,
                            long long maat_rt_version);
@@ -63,25 +58,6 @@ size_t rule_runtime_get_hit_paths(struct rule_runtime *rule_rt, int thread_id,
 									 struct rule_compile_state *rule_compile_state, 
                                   	 struct maat_hit_path *hit_path_array, 
                                      size_t array_size, size_t n_hit_path);
-
-/* object2rule runtime API */
-void *object2rule_runtime_new(void *g2c_schema, size_t max_thread_num,
-                                struct maat_garbage_bin *garbage_bin, 
-                                struct log_handle *logger);
-
-void object2rule_runtime_init(void *g2c_runtime, void *rule_runtime);
-
-void object2rule_runtime_free(void *g2c_runtime);
-
-int object2rule_runtime_update(void *g2c_runtime, void *g2c_schema,
-                                 const char *table_name, const char *line,
-                                 int valid_column);
-
-long long object2rule_runtime_not_condition_count(void *g2c_runtime);
-
-long long object2rule_runtime_rule_count(void *g2c_runtime);
-
-long long object2rule_runtime_update_err_count(void *g2c_runtime);
 
 /* maat rule state API */
 struct rule_compile_state;

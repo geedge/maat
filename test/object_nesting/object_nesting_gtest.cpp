@@ -185,7 +185,7 @@ TEST_F(MaatObjectExclude, level_3_function) {
 
         sprintf(table_line, "%lld\t%s\t%s\t%d", rules.add_items[i].object_id,
                 rules.add_items[i].incl_sub_ids_str, rules.add_items[i].excl_sub_ids_str, 1);
-        object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+        object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_ADD);
     }
 
     object2object_runtime_commit(g2g_runtime, table_name, 1);
@@ -202,7 +202,7 @@ TEST_F(MaatObjectExclude, level_3_function) {
     memset(table_line, 0, sizeof(table_line));
     sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[0].object_id,
             rules.del_items[0].incl_sub_ids_str, rules.del_items[0].excl_sub_ids_str, 0);
-    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_DEL);
     object2object_runtime_commit(g2g_runtime, table_name, 2);
 
     super_object_cnt = object2object_runtime_get_super_objects(g2g_runtime, hit_object_ids, 2,
@@ -216,7 +216,7 @@ TEST_F(MaatObjectExclude, level_3_function) {
     memset(table_line, 0, sizeof(table_line));
     sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[1].object_id,
             rules.del_items[1].incl_sub_ids_str, rules.del_items[1].excl_sub_ids_str, 0);
-    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_DEL);
     object2object_runtime_commit(g2g_runtime, table_name, 3);
 
     super_object_cnt = object2object_runtime_get_super_objects(g2g_runtime, hit_object_ids, 2,
@@ -250,7 +250,7 @@ TEST_F(MaatObjectExclude, level_3_perf) {
 
         sprintf(table_line, "%lld\t%s\t%s\t%d", rules.add_items[i].object_id,
                 rules.add_items[i].incl_sub_ids_str, rules.add_items[i].excl_sub_ids_str, 1);
-        object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+        object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_ADD);
     }
 
     object2object_runtime_commit(g2g_runtime, table_name, 4);
@@ -274,7 +274,7 @@ TEST_F(MaatObjectExclude, level_3_perf) {
     memset(table_line, 0, sizeof(table_line));
     sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[0].object_id,
             rules.del_items[0].incl_sub_ids_str, rules.del_items[0].excl_sub_ids_str, 0);
-    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_DEL);
     object2object_runtime_commit(g2g_runtime, table_name, 5);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
@@ -291,7 +291,7 @@ TEST_F(MaatObjectExclude, level_3_perf) {
     memset(table_line, 0, sizeof(table_line));
     sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[1].object_id,
             rules.del_items[1].incl_sub_ids_str, rules.del_items[1].excl_sub_ids_str, 0);
-    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_DEL);
     object2object_runtime_commit(g2g_runtime, table_name, 6);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
@@ -327,7 +327,7 @@ TEST_F(MaatObjectExclude, level_4_function) {
 
         sprintf(table_line, "%lld\t%s\t%s\t%d", rules.add_items[i].object_id,
                 rules.add_items[i].incl_sub_ids_str, rules.add_items[i].excl_sub_ids_str, 1);
-        object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+        object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_ADD);
     }
 
     object2object_runtime_commit(g2g_runtime, table_name, 7);
@@ -347,7 +347,7 @@ TEST_F(MaatObjectExclude, level_4_function) {
     memset(table_line, 0, sizeof(table_line));
     sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[0].object_id,
             rules.del_items[0].incl_sub_ids_str, rules.del_items[0].excl_sub_ids_str, 0);
-    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_DEL);
     object2object_runtime_commit(g2g_runtime, table_name, 8);
 
     super_object_cnt = object2object_runtime_get_super_objects(g2g_runtime, hit_object_ids, 2,
@@ -384,7 +384,7 @@ TEST_F(MaatObjectExclude, level_4_perf) {
 
         sprintf(table_line, "%lld\t%s\t%s\t%d", rules.add_items[i].object_id,
                 rules.add_items[i].incl_sub_ids_str, rules.add_items[i].excl_sub_ids_str, 1);
-        object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+        object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_ADD);
     }
 
     object2object_runtime_commit(g2g_runtime, table_name, 7);
@@ -408,7 +408,7 @@ TEST_F(MaatObjectExclude, level_4_perf) {
     memset(table_line, 0, sizeof(table_line));
     sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[0].object_id,
             rules.del_items[0].incl_sub_ids_str, rules.del_items[0].excl_sub_ids_str, 0);
-    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_DEL);
     object2object_runtime_commit(g2g_runtime, table_name, 8);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
@@ -444,7 +444,7 @@ TEST_F(MaatObjectExclude, level_exceed_function) {
 
         sprintf(table_line, "%lld\t%s\t%s\t%d", rules.add_items[i].object_id,
                 rules.add_items[i].incl_sub_ids_str, rules.add_items[i].excl_sub_ids_str, 1);
-        object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+        object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_ADD);
     }
 
     object2object_runtime_commit(g2g_runtime, table_name, 8);
@@ -465,7 +465,7 @@ TEST_F(MaatObjectExclude, level_exceed_function) {
     memset(table_line, 0, sizeof(table_line));
     sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[0].object_id,
             rules.del_items[0].incl_sub_ids_str, rules.del_items[0].excl_sub_ids_str, 0);
-    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_DEL);
     object2object_runtime_commit(g2g_runtime, table_name, 9);
 
     hit_object_ids[0] = 7;

@@ -64,62 +64,17 @@ get_foreign_cont_filename(const char *table_name, long long rule_id,
 	return filename;
 }
 
-static const char *
-maat_cmd_find_Nth_column(const char *line, int Nth, int *column_len)
-{
-    size_t i = 0;
-	int j = 0;
-	size_t start=0, end=0;
-	size_t line_len = strlen(line);
-
-	for (i = 0; i < line_len; i++) {
-		if (line[i] != ' ' && line[i] != '\t') {
-			continue;
-		}
-
-		j++;
-		if (j == Nth - 1) {
-			start = i + 1;
-		}
-
-		if(j == Nth) {
-			end = i;
-			break;
-		}
-	}
-
-	if (start == end) {
-		return NULL;
-	}
-
-	if (end == 0) {
-		end = i;
-	}
-
-	*column_len = end - start;
-
-	return line + start;
-}
-
 static void
-get_foregin_keys(struct serial_rule *p_rule, int *foreign_columns, 
+get_foregin_keys(struct serial_rule *p_rule, const char foreign_names[MAX_FOREIGN_CLMN_NUM][MAX_FOREIGN_NAME_LEN + 1], 
                  int n_foreign, const char *dir, struct log_handle *logger)
 {
 	int foreign_key_size = 0;
 	p_rule->f_keys = ALLOC(struct foreign_key, n_foreign);
 
 	for (int i = 0; i < n_foreign; i++) {
-		const char *p_foreign =
-			maat_cmd_find_Nth_column(p_rule->table_line, foreign_columns[i], 
-                                     &foreign_key_size);
-		if (NULL == p_foreign) {
-			log_fatal(logger, MODULE_REDIS_MONITOR, 
-                      "[%s:%d] Get %s,%lld foreign keys failed: No %dth column",
-					  __FUNCTION__, __LINE__, p_rule->table_name, p_rule->rule_id, 
-                      foreign_columns[i]);
-			continue;
-		}
+		const char *p_foreign = foreign_names[i];
 
+		foreign_key_size = strlen(p_foreign);
         //emtpy file
 		if (0 == strncasecmp(p_foreign, "null", strlen("null"))) {
 			continue;
@@ -134,7 +89,6 @@ get_foregin_keys(struct serial_rule *p_rule, int *foreign_columns,
 			continue;
 		}
 
-		p_rule->f_keys[p_rule->n_foreign].column = foreign_columns[i];
 		foreign_key_size = foreign_key_size - strlen(foreign_source_prefix);
 		p_foreign += strlen(foreign_source_prefix);
 
@@ -172,7 +126,7 @@ get_foreign_keys_define(redisContext *ctx, struct serial_rule *rule_list,
 
         int table_id = table_manager_get_table_id(maat_inst->tbl_mgr,
 												  rule_list[i].table_name);
-		void *schema = table_manager_get_schema(maat_inst->tbl_mgr, table_id);
+		struct plugin_schema *schema = table_manager_get_schema(maat_inst->tbl_mgr, table_id);
 
         enum table_type table_type =
 			table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
@@ -181,15 +135,15 @@ get_foreign_keys_define(redisContext *ctx, struct serial_rule *rule_list,
 			continue;
 		}
 
-        int foreign_columns[8];
-        int n_foreign_column =
-			plugin_table_get_foreign_column((struct plugin_schema *)schema, 
-                                            foreign_columns);
-        if (0 == n_foreign_column) {
+        char foreign_names[MAX_FOREIGN_CLMN_NUM][MAX_FOREIGN_NAME_LEN + 1];
+        int n_foreign =
+			plugin_table_get_foreign_names(schema, 
+                                            foreign_names);
+        if (0 == n_foreign) {
             continue;
         }
 
-		get_foregin_keys(rule_list+i, foreign_columns, n_foreign_column,
+		get_foregin_keys(rule_list+i, foreign_names, n_foreign,
 						 dir, maat_inst->logger);
 		rule_with_foreign_key++;
 	}
@@ -202,33 +156,33 @@ int maat_get_foreign_keys_by_prefix(redisContext *ctx,
                                     int rule_num, const char* dir,
 									struct log_handle *logger)
 {
-	int j = 0;
-    int foreign_key_size = 0;
 	int rule_with_foreign_key = 0;
-	const char *p_foreign = NULL;
 
 	int n_foreign = 0;
-	int foreign_columns[MAX_FOREIGN_CLMN_NUM];
+	char foreign_names[MAX_FOREIGN_CLMN_NUM][MAX_FOREIGN_NAME_LEN + 1];
 
 	for (int i = 0; i < rule_num; i++) {
-		j = 1;
 		n_foreign = 0;
-		do {
-			p_foreign = maat_cmd_find_Nth_column(rule_list[i].table_line, j,
-												 &foreign_key_size);
+		memset(foreign_names, 0, sizeof(foreign_names));
 
-			if (p_foreign != NULL &&
-				foreign_key_size > (int)strlen(foreign_source_prefix) && 
-                0 == strncmp(p_foreign, foreign_source_prefix,
-							 strlen(foreign_source_prefix))) {
-				foreign_columns[n_foreign] = j;
-				n_foreign++;
+		cJSON *json = cJSON_Parse(rule_list[i].table_line);
+		if (json != NULL) {
+			cJSON *item = NULL;
+			cJSON_ArrayForEach(item, json) {
+				if (item->type == cJSON_String) {
+					if (strlen(item->valuestring) > strlen(foreign_source_prefix) &&
+					0 == strncmp(item->valuestring, foreign_key_prefix, strlen(foreign_key_prefix))) {
+						
+						strncpy(foreign_names[n_foreign], item->valuestring,
+							MAX_FOREIGN_NAME_LEN);
+						n_foreign++;
+					}
+				}
 			}
-			j++;
-		} while (p_foreign != NULL && n_foreign < MAX_FOREIGN_CLMN_NUM);
+		}
 
 		if (n_foreign > 0) {
-			get_foregin_keys(rule_list+i, foreign_columns, n_foreign,
+			get_foregin_keys(rule_list+i, foreign_names, n_foreign,
 							 dir, logger);
 			rule_with_foreign_key++;
 		}
@@ -799,53 +753,31 @@ void maat_get_foreign_conts(redisContext *c,
 	}
 }
 
-static int validate_line(char *line, int column_seq)
-{
-    if (NULL == line || column_seq < 0) {
-        return -1;
-    }
-
-	int offset = maat_get_valid_flag_offset(line, column_seq);
-	if (offset < 0) {
-		return -1;
-	}
-
-	line[offset] = '0';
-
-	return 0;
-}
-
 void maat_rewrite_table_line_with_foreign(struct serial_rule *s_rule)
 {
-    int i = 0;
-	size_t fn_size = 0;
-	
-	for (i = 0; i < s_rule->n_foreign; i++) {
-		fn_size += strlen(s_rule->f_keys[i].filename);
-	}
-	
-    char *rewrite_line = ALLOC(char, strlen(s_rule->table_line) + fn_size + 1);
-    char *pos_rewrite_line = rewrite_line;
-	const char *pos_origin_line = s_rule->table_line;
-	
-	for (i = 0; i < s_rule->n_foreign; i++) {
-        int origin_column_size = 0;
-		const char *origin_column =
-			maat_cmd_find_Nth_column(s_rule->table_line, s_rule->f_keys[i].column, 
-                                     &origin_column_size);
+	int i = 0;
 
-		strncat(pos_rewrite_line, pos_origin_line, origin_column - pos_origin_line);
-		pos_rewrite_line += origin_column - pos_origin_line;
-		pos_origin_line = origin_column+origin_column_size;
-		strncat(pos_rewrite_line, s_rule->f_keys[i].filename,
-				strlen(s_rule->f_keys[i].filename));
-		pos_rewrite_line += strlen(s_rule->f_keys[i].filename);
+	cJSON *json = cJSON_Parse(s_rule->table_line);
+	if (NULL == json) {
+		return;
 	}
 
-	strncat(pos_rewrite_line, pos_origin_line, 
-            strlen(s_rule->table_line) - (pos_origin_line - s_rule->table_line));
+	for (i = 0; i < s_rule->n_foreign; i++) {
+		cJSON *tmp_obj = cJSON_GetObjectItem(json, s_rule->f_keys[i].key);
+		if (NULL == tmp_obj) {
+			continue;
+		}
+
+		cJSON_DeleteItemFromObject(json, s_rule->f_keys[i].key);
+		cJSON_AddStringToObject(json, s_rule->f_keys[i].key, s_rule->f_keys[i].filename);
+	}
+
+	char *rewrite_line_json = cJSON_PrintUnformatted(json);
+	cJSON_Delete(json);
 	FREE(s_rule->table_line);
-	s_rule->table_line = rewrite_line;
+	s_rule->table_line = rewrite_line_json;
+
+	return;
 }
 
 static void
@@ -966,7 +898,7 @@ static void
 exec_serial_rule(redisContext *c, const char *transaction_list, 
                  struct serial_rule *s_rule, size_t rule_num,  
                  struct expected_reply *expect_reply, size_t *cnt, 
-                 size_t offset, int renew_allowed)
+                 size_t offset)
 {
     size_t i = 0;
     size_t append_cmd_cnt = 0;
@@ -1056,21 +988,6 @@ exec_serial_rule(redisContext *c, const char *transaction_list,
 				(*cnt)++;
 				append_cmd_cnt++;
 				break;
-			case	MAAT_OP_RENEW_TIMEOUT:
-				if (renew_allowed != 1) {
-					continue;
-				}
-				//s_rule[i].timeout>0 was checked by caller.
-				redisAppendCommand(c, "ZADD %s %lld %s,%lld",
-						              mr_expire_sset,
-						              s_rule[i].timeout,
-						              s_rule[i].table_name,
-						              s_rule[i].rule_id);
-				expected_reply_add(expect_reply+*cnt, -1, REDIS_REPLY_INTEGER, 0);
-				(*cnt)++;
-				append_cmd_cnt++;
-								
-				break;
 			default:
 				assert(0);
 				break;
@@ -1129,12 +1046,6 @@ int maat_cmd_write_rule(redisContext *c, struct serial_rule *s_rule,
 	size_t max_multi_cmd_num = MAX_REDIS_OP_PER_SRULE * serial_rule_num + 2; // 2 for operation in exec_serial_rule_end()
 	struct expected_reply *expected_reply =
 		ALLOC(struct expected_reply, max_multi_cmd_num);
-	
-	for (i = 0; i < serial_rule_num; i++) {
-		if (s_rule[i].op == MAAT_OP_RENEW_TIMEOUT) {
-			renew_num++;
-		}
-	}
 
 	int ret = exec_serial_rule_begin(c, serial_rule_num, renew_num,
 									 &renew_allowed, &transaction_version);
@@ -1152,7 +1063,7 @@ int maat_cmd_write_rule(redisContext *c, struct serial_rule *s_rule,
 	while (success_cnt < serial_rule_num) {
 		size_t batch_cnt = MIN(serial_rule_num - success_cnt, max_redis_batch);
 		exec_serial_rule(c, transaction_list, s_rule + success_cnt, batch_cnt, 
-                         expected_reply, &multi_cmd_cnt, success_cnt, renew_allowed);
+                         expected_reply, &multi_cmd_cnt, success_cnt);
 		assert(multi_cmd_cnt<max_multi_cmd_num);
 		success_cnt+=batch_cnt;
 	}
@@ -1199,21 +1110,6 @@ int maat_cmd_write_rule(redisContext *c, struct serial_rule *s_rule,
 	transaction_reply = NULL;
 	
 error_out:
-	if (renew_num > 0 && renew_allowed != 1) {
-		for (i = 0; i < (unsigned int)serial_rule_num; i++) {
-			if (s_rule[i].op == MAAT_OP_RENEW_TIMEOUT) {
-				log_fatal(logger, MODULE_REDIS_MONITOR, 
-                          "[%s:%d] %s %s %lld is not allowed due to lock contention",
-                          __FUNCTION__, __LINE__, mr_op_str[MAAT_OP_RENEW_TIMEOUT],
-                          s_rule[i].table_name, s_rule[i].rule_id);
-			}
-		}
-
-		if (success_cnt > 0) {
-			success_cnt -= renew_num;
-		}
-	}
-
 	FREE(expected_reply);
 
 	return success_cnt;
@@ -1346,7 +1242,7 @@ check_maat_expiration(redisContext *c, struct log_handle *logger)
 
 void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 							void (*start_fn)(long long, int, void *),
-							int (*update_fn)(const char *, const char *, void *),
+							int (*update_fn)(const char *, const char *, void *, enum maat_operation),
 							void (*finish_fn)(void *), void *u_param)
 {
     int i = 0;
@@ -1355,7 +1251,6 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
     int empty_value_num = 0;
     int no_table_num = 0;
     int call_update_num = 0;
-    int valid_column = -1;
     struct maat *maat_inst = (struct maat *)u_param;
 
     //authorized to write
@@ -1466,23 +1361,11 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 			continue;
 		}
 
-		if (rule_list[i].op == MAAT_OP_DEL) {
-			valid_column = table_manager_get_valid_column(maat_inst->tbl_mgr,
-														  table_id);
-			ret = validate_line(rule_list[i].table_line, valid_column);
-			if (ret < 0) {
-				log_fatal(maat_inst->logger, MODULE_REDIS_MONITOR, 
-                          "[%s:%d] Validate line failed, invaid format %s", 
-                          __FUNCTION__, __LINE__, rule_list[i].table_line);
-				continue;
-			}
-		}
-
 		if (rule_list[i].n_foreign > 0) {
 			maat_rewrite_table_line_with_foreign(rule_list+i);
 		}
 
-		update_fn(rule_list[i].table_name, rule_list[i].table_line, u_param);
+		update_fn(rule_list[i].table_name, rule_list[i].table_line, u_param, rule_list[i].op);
 		call_update_num++;
 	}
 

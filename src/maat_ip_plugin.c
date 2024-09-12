@@ -22,11 +22,9 @@
 #define MAX_IP_STR    128
 
 struct ip_plugin_schema {
-    int item_id_column;
-	int ip_column;
-	int rule_tag_column;
     int gc_timeout_s;
     int table_id;
+    char key_name[MAX_NAME_STR_LEN];
 	struct ex_container_schema container_schema;
     struct table_manager *ref_tbl_mgr;
     struct log_handle *logger;
@@ -71,33 +69,15 @@ void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "item_id");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->item_id_column = custom_item->valueint;
-    } else {
+    custom_item = cJSON_GetObjectItem(item, "key_name");
+    if (custom_item == NULL || custom_item->type != cJSON_String) {
         log_fatal(logger, MODULE_IP_PLUGIN, 
                   "[%s:%d] ip_plugin table:<%s> schema has no"
-                  " item_id column", __FUNCTION__, __LINE__,
+                  " key_name column", __FUNCTION__, __LINE__,
                   table_name);
         goto error;
     }
-
-    custom_item = cJSON_GetObjectItem(item, "ip");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->ip_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_IP_PLUGIN, 
-                  "[%s:%d] ip_plugin table:<%s> schema has no"
-                  " end_ip column", __FUNCTION__, __LINE__,
-                  table_name);
-        goto error;
-    }
-
-    // rule_tag is optional
-    custom_item = cJSON_GetObjectItem(item, "rule_tag");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->rule_tag_column = custom_item->valueint;
-    }
+    strncpy(schema->key_name, custom_item->valuestring, sizeof(schema->key_name) - 1);
 
     //gc_timeout_s is optional
     custom_item = cJSON_GetObjectItem(item, "gc_timeout_s");
@@ -124,80 +104,71 @@ void ip_plugin_schema_free(void *ip_plugin_schema)
 
 static int
 ip_plugin_accept_tag_match(struct ip_plugin_schema *schema,
-                           const char *table_name, const char *line,
+                           const char *table_name, const cJSON *json,
                            struct log_handle *logger)
 {
-    size_t column_offset = 0;
-    size_t column_len = 0;
+    cJSON *tmp_obj = NULL;
     size_t n_tag = table_manager_accept_tags_count(schema->ref_tbl_mgr);
 
-    if (schema->rule_tag_column > 0 && n_tag > 0) {
-        int ret = get_column_pos(line, schema->rule_tag_column, 
-                                 &column_offset, &column_len);
-        if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "tag");
+    if (tmp_obj && n_tag > 0) {
+        if (tmp_obj->type != cJSON_String) {
             log_fatal(logger, MODULE_IP_PLUGIN,
-                      "[%s:%d] ip_plugin table:<%s> has no rule_tag in line:%s",
-                      __FUNCTION__, __LINE__, table_name, line);
+                      "[%s:%d] ip_plugin table:<%s> has invalid tag format"
+                      " in line:%s", __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
             return TAG_MATCH_ERR;
         }
 
-        if (column_len > 2) {
-            char *tag_str = ALLOC(char, column_len + 1);
-            memcpy(tag_str, (line + column_offset), column_len);
-            ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
-            FREE(tag_str);
-            if (TAG_MATCH_ERR == ret) {
-                log_fatal(logger, MODULE_IP_PLUGIN,
-                          "[%s:%d] ip_plugin table:<%s> has invalid tag format"
-                          " in line:%s", __FUNCTION__, __LINE__, table_name, line);
-                return TAG_MATCH_ERR;
-            }
+        int ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tmp_obj->valuestring);
+        if (TAG_MATCH_ERR == ret) {
+            log_fatal(logger, MODULE_IP_PLUGIN,
+                      "[%s:%d] ip_plugin table:<%s> has invalid tag format"
+                      " in line:%s", __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+            return TAG_MATCH_ERR;
+        }
 
-            if (TAG_MATCH_UNMATCHED == ret) {
-                log_fatal(logger, MODULE_IP_PLUGIN,
-                          "[%s:%d] ip_plugin table:<%s> has unmatched tag in line:%s",
-                          __FUNCTION__, __LINE__, table_name, line);
-                return TAG_MATCH_UNMATCHED;
-            }
+        if (TAG_MATCH_UNMATCHED == ret) {
+            log_fatal(logger, MODULE_IP_PLUGIN,
+                      "[%s:%d] ip_plugin table:<%s> has unmatched tag in line:%s",
+                      __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+            return TAG_MATCH_UNMATCHED;
         }
     }
+
 
     return TAG_MATCH_MATCHED;
 }
 
 static struct ip_rule *
 ip_plugin_rule_new(struct ip_plugin_schema *schema, const char *table_name,
-                   const char *line, struct log_handle *logger)
+                   const cJSON *json, struct log_handle *logger)
 {
-    int ret = ip_plugin_accept_tag_match(schema, table_name, line, logger);
+    int ret = ip_plugin_accept_tag_match(schema, table_name, json, logger);
     if (ret == TAG_MATCH_UNMATCHED) {
         return NULL;
     }
 
-    size_t column_offset = 0;
-    size_t column_len = 0;
     char ip_str[128] = {0};
+    cJSON *tmp_obj = NULL;
     struct ip_rule *ip_plugin_rule = ALLOC(struct ip_rule, 1);
 
-    ret = get_column_pos(line, schema->item_id_column,
-                         &column_offset, &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, schema->key_name);
+    if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
         log_fatal(logger, MODULE_IP_PLUGIN, 
-                  "[%s:%d] ip_plugin table:<%s> has no item_id in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
+                  "[%s:%d] ip_plugin table:<%s> has no key %s or invalid format in line:%s",
+                  __FUNCTION__, __LINE__, table_name, schema->key_name, cJSON_Print(json));
         goto error;
     }
-    ip_plugin_rule->rule_id = atoll(line + column_offset);
+    ip_plugin_rule->rule_id = atoll(tmp_obj->valuestring);
     
-    ret = get_column_pos(line, schema->ip_column,
-                         &column_offset, &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "ip");
+    if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
         log_fatal(logger, MODULE_IP_PLUGIN, 
-                  "[%s:%d] ip_plugin table:<%s> has no end_ip in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
+                  "[%s:%d] ip_plugin table:<%s> has no ip field or invalid format in line:%s",
+                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
-    strncpy(ip_str, line + column_offset, column_len);
+    strncpy(ip_str, tmp_obj->valuestring, strlen(tmp_obj->valuestring));
 
     if (strchr(ip_str, ':') != NULL) {
 		ip_plugin_rule->type = IPV6;
@@ -211,7 +182,7 @@ ip_plugin_rule_new(struct ip_plugin_schema *schema, const char *table_name,
             log_fatal(logger, MODULE_IP_PLUGIN, 
                       "[%s:%d] ip_plugin table:<%s>> ip_format2range(ip4)"
                       " failed in line:%s", __FUNCTION__, __LINE__,
-                      table_name, line);
+                      table_name, cJSON_Print(json));
             goto error;
         }
     } else {
@@ -221,7 +192,7 @@ ip_plugin_rule_new(struct ip_plugin_schema *schema, const char *table_name,
             log_fatal(logger, MODULE_IP_PLUGIN, 
                       "[%s:%d] ip_plugin table:<%s> ip_format2range(ip6)"
                       " failed in line:%s", __FUNCTION__, __LINE__,
-                      table_name, line);
+                      table_name, cJSON_Print(json));
             goto error;
         }
     }
@@ -279,7 +250,7 @@ static int
 ip_plugin_runtime_update_row(struct ip_plugin_runtime *ip_plugin_rt,
                              const char *table_name, const char *row, 
                              const char *key, size_t key_len, 
-                             struct ip_rule *ip_plugin_rule, int is_valid)
+                             struct ip_rule *ip_plugin_rule, enum maat_operation op)
 {
     int ret = -1;
     struct ex_data_runtime *ex_data_rt = ip_plugin_rt->ex_data_rt;
@@ -287,7 +258,7 @@ ip_plugin_runtime_update_row(struct ip_plugin_runtime *ip_plugin_rt,
         return -1;
     }
 
-    if (0 == is_valid) {
+    if (MAAT_OP_DEL == op) {
         // delete
         ret = ex_data_runtime_del_ex_container(ex_data_rt, key, key_len);
         if (ret < 0) {
@@ -372,7 +343,7 @@ void ip_plugin_runtime_free(void *ip_plugin_runtime)
 
 int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema, 
                              const char *table_name, const char *line, 
-                             int valid_column)
+                             enum maat_operation op)
 {
     if (NULL == ip_plugin_runtime || NULL == ip_plugin_schema || 
         NULL == line) {
@@ -386,55 +357,71 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema,
     struct ip_plugin_runtime *ip_plugin_rt =
         (struct ip_plugin_runtime *)ip_plugin_runtime;
 
-    size_t item_id_offset = 0, item_id_len = 0;
+    int ret = 0;
+    cJSON *tmp_obj = NULL;
+    cJSON *json = cJSON_Parse(line);
 
-    int is_valid = get_column_value(line, valid_column);
-    if (is_valid < 0) {
+    if (NULL == json) {
+        log_fatal(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
+                  "[%s:%d]ip_plugin table:<%s> parse json failed, line:%s",
+                  __FUNCTION__, __LINE__, table_name, line);
         ip_plugin_rt->update_err_cnt++;
-        return -1;
+        goto ERROR;
     }
 
-    int ret = get_column_pos(line, schema->item_id_column,
-                             &item_id_offset, &item_id_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, schema->key_name);
+    if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
+        log_fatal(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
+                  "[%s:%d]ip_plugin table:<%s> has no entry_id in line:%s",
+                  __FUNCTION__, __LINE__, table_name, line);
         ip_plugin_rt->update_err_cnt++;
-        return -1;
+        goto ERROR;
     }
 
     if (1 == schema->container_schema.set_flag) {
-        if (1 == is_valid) {
+        if (MAAT_OP_ADD == op) {
             // add
-            ip_plugin_rule = ip_plugin_rule_new(schema, table_name, line,
+            ip_plugin_rule = ip_plugin_rule_new(schema, table_name, json,
                                                 ip_plugin_rt->logger);
             if (NULL == ip_plugin_rule) {
                 ip_plugin_rt->update_err_cnt++;
-                return -1;
+                goto ERROR;
             }
         }
 
-        const char *key = line + item_id_offset;
-        size_t key_len = item_id_len;
+        const char *key = tmp_obj->valuestring;
+        size_t key_len = strlen(key);
         ret = ip_plugin_runtime_update_row(ip_plugin_rt, table_name, line, key,
-                                           key_len, ip_plugin_rule, is_valid);
+                                           key_len, ip_plugin_rule, op);
         if (ret < 0) {
             log_fatal(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
                       "[%s:%d]ip_plugin table:<%s> update one line failed, "
                       "line:%s", __FUNCTION__, __LINE__, table_name, line);
             ip_plugin_rt->update_err_cnt++;
-            return -1;
+            goto ERROR;
         }
 
         log_debug(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
                  "ip_plugin table:<%s> update one line, key:%s, key_len:%zu,"
-                 " is_valid:%d", table_name, key, key_len, is_valid);
+                 " maat_op:%d", table_name, key, key_len, op);
     } else {
         //ex_schema not set
-        ex_data_runtime_cache_row_put(ip_plugin_rt->ex_data_rt, line);
+        ex_data_runtime_cache_row_put(ip_plugin_rt->ex_data_rt, line, op);
         ip_plugin_rt->rule_num =
             ex_data_runtime_cached_row_count(ip_plugin_rt->ex_data_rt);
     }
 
     return 0;
+
+ERROR:
+    if (ip_plugin_rule != NULL) {
+        ip_plugin_rule_free(ip_plugin_rule);
+    }
+    if (json != NULL) {
+        cJSON_Delete(json);
+    }
+
+    return -1;
 }
 
 int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name,

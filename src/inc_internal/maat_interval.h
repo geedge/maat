@@ -35,7 +35,7 @@ void interval_runtime_free(void *interval_runtime);
 
 int interval_runtime_update(void *interval_runtime, void *interval_schema,
                             const char *table_name, const char *line,
-                            int valid_column);
+                            enum maat_operation op);
 
 int interval_runtime_commit(void *interval_runtime, const char *table_name,
                             long long maat_rt_version);

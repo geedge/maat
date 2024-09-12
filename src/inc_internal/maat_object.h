@@ -37,7 +37,7 @@ void *object2object_runtime_new(void *g2g_schema, size_t max_thread_num,
 void object2object_runtime_free(void *g2g_runtime);
 
 int object2object_runtime_update(void *g2g_runtime, void *g2g_schema, const char *table_name, 
-                               const char *line, int valid_column);
+                               const char *line, enum maat_operation op);
 
 int object2object_runtime_commit(void *g2g_runtime, const char *table_name, long long maat_rt_version);
 

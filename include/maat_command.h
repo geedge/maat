@@ -20,12 +20,6 @@ extern "C"
 
 #include "maat.h"
 
-enum maat_operation {
-	MAAT_OP_DEL = 0,
-	MAAT_OP_ADD,
-	MAAT_OP_RENEW_TIMEOUT	//Rule expire time is changed to now+cmd->expire_after
-};
-
 struct maat_cmd_line {
 	const char *table_name;
 	const char *table_line;
@@ -40,7 +34,7 @@ struct maat_cmd_line {
  *      success: number of successfully updated rule.
  *      failed: -1
 */
-int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *line_rule);
+int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *line_rule, enum maat_operation op);
 
 int maat_cmd_set_file(struct maat *maat_instance, const char *key, const char *value, 
                       size_t size, enum maat_operation op);

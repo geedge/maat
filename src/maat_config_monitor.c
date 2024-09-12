@@ -16,9 +16,7 @@
 #include <dirent.h>
 #include <unistd.h>
 
-#include "maat_utils.h"
 #include "maat_core.h"
-#include "json2iris.h"
 #include "maat_config_monitor.h"
 
 #define MODULE_CONFIG_MONITOR	 module_name_str("maat.config_monitor")
@@ -31,162 +29,6 @@ struct cm_table_info_t {
 	int cfg_num;
 	char encrypt_algo[NAME_MAX];
 };
-
-static int cm_read_cfg_index_file(const char *path, struct cm_table_info_t *idx,
-								  int size, struct log_handle *logger)
-{
-	int ret = 0;
-	int i = 0;
-	char line[MAX_CONFIG_LINE];
-	struct stat file_info;
-
-	FILE* fp = fopen(path,"r");
-	while (!feof(fp)) {
-		memset(line, 0, sizeof(line));
-		fgets(line, sizeof(line), fp);
-		ret = sscanf(line, "%s\t%d\t%s\t%s", idx[i].table_name,
-					 &(idx[i].cfg_num), idx[i].cfg_path, idx[i].encrypt_algo);
-
-		//jump over empty line
-		if (!(ret == 3 || ret == 4) || idx[i].cfg_num == 0) {
-			continue;
-		}
-
-		ret = stat(idx[i].cfg_path, &file_info);
-		if (ret != 0) {
-			log_fatal(logger, MODULE_CONFIG_MONITOR, "%s of %s not exist",
-					  idx[i].cfg_path, path);
-			fclose(fp);
-			return -1;
-		}
-
-		i++;
-		if (i == size) {
-			log_fatal(logger, MODULE_CONFIG_MONITOR, "Too much lines in %s", path);
-			break;
-		}
-	}
-	fclose(fp);
-
-	return i;
-}
-
-static const char *path2filename(const char *path)
-{
-	int i = 0;
-	for (i = strlen(path);i > 0;i--) {
-		if (path[i]=='/') {
-			break;
-		}
-	}
-	return path + i + 1;
-}
-
-static char *read_nxt_line_from_buff(const char *buff, size_t buff_size, 
-                              		 size_t *offset, char *line, int line_size)
-{
-	int this_offset=0;
-	const char* p;
-
-	//search for CRLF, aka CR '\r'(old Mac), LF '\n'(UNIX) or CRLF"\r\n" (Windows)
-	p = (const char *)memchr(buff + *offset, '\n', buff_size - *offset);
-	if (p == NULL) { // NOT "\n" or "\r\n"
-		p = (const char *)memchr(buff + *offset, '\r', buff_size - *offset);
-	}
-
-	if (p != NULL) { //point to next character
-		p++;
-	} else { //Treat rest buff has no CRLF as a line.
-		p = buff + buff_size;
-	}
-
-	this_offset = p - (buff + *offset);
-	memcpy(line, buff + *offset, MIN(this_offset, line_size - 1));
-
-	*offset += this_offset;
-	line[MIN(this_offset, line_size - 1)] = '\0';
-
-	return line;
-}
-
-static int cm_read_table_file(struct cm_table_info_t *index,
-							  int (*update_fn)(const char *, const char *, void *),
-							  void *u_param, const char *dec_key,
-							  struct log_handle *logger)
-{
-	int ret = 0;
-    size_t file_sz = 0;
-	char *file_buff = NULL;
-    char error_string[NAME_MAX];
-	
-    if (strlen(index->encrypt_algo) > 0) {
-        //JSON file has been encrypted
-        if (NULL == dec_key || 0 == strlen(dec_key)) {
-            log_fatal(logger, MODULE_CONFIG_MONITOR, 
-                      "update error, no key to decrypt %s.",
-					  index->cfg_path);
-            return -1;
-        }
-
-        ret = decrypt_open(index->cfg_path, dec_key, index->encrypt_algo,
-                          (unsigned char**)&file_buff, &file_sz, error_string,
-                          sizeof(error_string));
-        if (ret < 0) {
-            log_fatal(logger, MODULE_CONFIG_MONITOR,
-                      "update error, decrypt %s failed: %s",
-					  index->cfg_path, error_string);
-            return -1;
-        }
-    } else {
-        // not encrypted
-        ret = load_file_to_memory(index->cfg_path, (unsigned char**)&file_buff, &file_sz);
-	    if (ret < 0) {
-		    log_fatal(logger, MODULE_CONFIG_MONITOR, "[%s:%d] open %s failed.", 
-                      __FUNCTION__, __LINE__, index->cfg_path);
-		    return -1;
-	    }
-    }
-
-    size_t file_offset = 0;
-    char line[MAX_CONFIG_LINE] = {0};
-	read_nxt_line_from_buff(file_buff, file_sz, &file_offset, line, sizeof(line));
-    int cfg_num = 0;
-	sscanf(line, "%d\n", &cfg_num);
-
-	if(cfg_num != index->cfg_num) {
-        FREE(file_buff);
-        log_fatal(logger, MODULE_CONFIG_MONITOR,
-				  "[%s:%d] file %s config num not matched",
-                  __FUNCTION__, __LINE__, index->cfg_path);
-		return -1;
-	}
-
-	for (int i = 0; i < cfg_num; i++) {
-		line[sizeof(line) - 1] = '\0';
-
-		char *ret_str = read_nxt_line_from_buff(file_buff, file_sz, &file_offset,
-												line, sizeof(line));
-		if (ret_str == NULL) {
-			log_fatal(logger, MODULE_CONFIG_MONITOR,
-					  "[%s:%d] file %s line_num %d less than claimed %d",
-                       __FUNCTION__, __LINE__, index->cfg_path, i, cfg_num);
-			break;
-		}
-
-		if(line[sizeof(line) - 1] != '\0') {
-			log_fatal(logger, MODULE_CONFIG_MONITOR,
-					  "[%s:%d] line size more than %u at of file %s:%d",
-                       __FUNCTION__, __LINE__, sizeof(line), index->cfg_path, i);
-			continue;
-		}
-
-		update_fn(index->table_name, line, u_param);
-	}
-
-	FREE(file_buff);
-	
-	return 0;
-}
 
 //replacement of glibc scandir, to adapt dictator malloc wrap
 #define	ENLARGE_STEP	1024
@@ -243,176 +85,140 @@ int my_scandir(const char *dir, struct dirent ***namelist,
 	return num; 
 }
 
-static int filter_fn(const struct dirent *ent)
+static void config_load_json_content(const cJSON *json_root, const char *table_name, const char *key, void *u_param,
+									int (*update_fn)(const char *, const char *, void *, enum maat_operation))
 {
-    return (strncmp(ent->d_name,"full_config_index",strlen("full_config_index")) == 0 ||
-   	        strncmp(ent->d_name,"inc_config_index",strlen("inc_config_index")) == 0);
+	cJSON *tmp_item = NULL;
+	cJSON *array_item = NULL;
+	int i;
+
+	tmp_item = cJSON_GetObjectItem(json_root, table_name);
+	array_item = cJSON_GetObjectItem(json_root, key);
+	if (array_item != NULL) {
+		for (i = 0; i < cJSON_GetArraySize(tmp_item); i++) {
+			cJSON *rule = cJSON_GetArrayItem(tmp_item, i);
+			if (rule == NULL) {
+				continue;
+			}
+
+			char *rule_str = cJSON_PrintUnformatted(rule);
+			if (rule_str == NULL) {
+				continue;
+			}
+
+			update_fn(tmp_item->valuestring, rule_str, u_param, MAAT_OP_ADD);
+			FREE(rule_str);
+		}
+	}
 }
 
-static int get_new_idx_path(long long current_version, const char *file_dir, 
-                     	    char ***idx_path, size_t *idx_num,
-							struct log_handle *logger)
-{
-	struct dirent **namelist = NULL;
-	int update_type = MAAT_UPDATE_TYPE_INVALID;
-	
-	int n = my_scandir(file_dir, &namelist, filter_fn,
-					   (int (*)(const void*, const void*))alphasort);
-	if (n < 0) {
-		log_fatal(logger, MODULE_CONFIG_MONITOR,
-				  "[%s:%d] scan dir error", __FUNCTION__, __LINE__);
-		return update_type;
-	}
-
-	int i = 0;
-    int full_file_idx = 0;
-    int *inc_file_idx = ALLOC(int, n);
-	int inc_idx_num = 0;
-    long long latest_inc_version = 0;
-	long long latest_full_version = 0;
-
-	for (i = 0; i < n; i++) {
-		long long config_seq = 0;
-        char update_str[32] = {0};
-        
-		if ((strcmp(namelist[i]->d_name, ".") == 0) ||
-			(strcmp(namelist[i]->d_name, "..") == 0)) {
-			continue;
-		}
-
-		if (strlen(namelist[i]->d_name) > 42) {
-			log_fatal(logger, MODULE_CONFIG_MONITOR, 
-                      "[%s:%d] config file %s filename too long, should like"
-					  " full_config_index.000000000001",
-					  __FUNCTION__, __LINE__, namelist[i]->d_name);
-			continue;
-		}
-
-		int ret = sscanf(namelist[i]->d_name,"%[a-zA-Z]_config_index.%lld",
-						 update_str, &config_seq);
-		if (ret != 2) {
-			log_fatal(logger, MODULE_CONFIG_MONITOR, 
-                      "[%s:%d] config file %s filename error, should like"
-					  " full_config_index.000000000001",
-                      __FUNCTION__, __LINE__, namelist[i]->d_name);
-			continue;
-		}
-
-		if (strncasecmp(update_str, "full", strlen(update_str)) == 0) {
-			if (config_seq > latest_full_version) {
-				latest_full_version = config_seq;
-				full_file_idx = i;
-			}
-		} else if(strncasecmp(update_str,"inc",strlen(update_str))==0) {
-			if (config_seq > current_version) {
-				inc_file_idx[inc_idx_num] = i;
-				inc_idx_num++;
-				if (config_seq > latest_inc_version) {
-					latest_inc_version = config_seq;
-				}
-			}
-		} else {
-			log_fatal(logger, MODULE_CONFIG_MONITOR, 
-                      "[%s:%d] config file %s, not full or inc config", 
-                      __FUNCTION__, __LINE__, namelist[i]->d_name);
-		}
-	}
-
-    size_t path_len = 0;
-	//full update
-	if (latest_full_version > current_version) {
-        *idx_path = (char **)malloc(sizeof(char **));
-		path_len = strlen(file_dir) + strlen(namelist[full_file_idx]->d_name) + 1 + 1;
-		(*idx_path)[0] = (char *)malloc(path_len);
-		snprintf((*idx_path)[0], path_len, "%s/%s", file_dir,
-				 namelist[full_file_idx]->d_name);
-		*idx_num = 1;
-		update_type = MAAT_UPDATE_TYPE_FULL;
-	} else if (latest_inc_version > current_version) {
-		/* Inc update, it's possible that do inc after Full update, 
-		   but we'll process it at next loop.
-		*/
-		*idx_path = (char **)malloc(sizeof(char **) * inc_idx_num);
-		for (i = 0; i < inc_idx_num; i++) {
-			path_len = strlen(file_dir) + strlen(namelist[inc_file_idx[i]]->d_name) + 1 + 1;
-			(*idx_path)[i] = (char *)malloc(path_len);
-			snprintf((*idx_path)[i], path_len, "%s/%s", file_dir,
-					 namelist[inc_file_idx[i]]->d_name);
-		}
-		*idx_num = inc_idx_num;
-		update_type = MAAT_UPDATE_TYPE_INC;
-	} else {
-		update_type = MAAT_UPDATE_TYPE_INVALID;
-	}
-
-	FREE(inc_file_idx);
-	for (i = 0; i < n; i++) {
-		FREE(namelist[i]);
-	}
-	FREE(namelist);
-
-	return update_type;
-}
-
-void config_monitor_traverse(long long current_version, const char *idx_dir,
+void config_monitor_traverse(long long current_version, const cJSON *json_root,
 							 void (*start_fn)(long long, int, void *),
-							 int (*update_fn)(const char *, const char *, void *),
+							 int (*update_fn)(const char *, const char *, void *, enum maat_operation),
 							 void (*finish_fn)(void *), void *u_param,
 							 const char *dec_key, struct log_handle *logger)
 {
 	size_t i = 0;
 	long long new_version = 0;
-	char **idx_path_array = NULL;
-	size_t idx_path_num = 0;
-	struct cm_table_info_t table_array[MAX_TABLE_NUM];
+	int update_type = MAAT_UPDATE_TYPE_FULL;
 
-	memset(table_array, 0, sizeof(table_array));
-
-	int update_type = get_new_idx_path(current_version, idx_dir, &idx_path_array,
-									   &idx_path_num, logger);
-	if (update_type != MAAT_UPDATE_TYPE_INVALID) {
-		for (i = 0; i < idx_path_num; i++) {
-            log_info(logger, MODULE_CONFIG_MONITOR, "load %s", idx_path_array[i]);
-			int table_num = cm_read_cfg_index_file(idx_path_array[i], table_array,
-												   MAX_TABLE_NUM, logger);
-			if (table_num < 0) {
-				log_fatal(logger, MODULE_CONFIG_MONITOR, 
-                          "[%s:%d] load %s failed, abandon update", 
-                          __FUNCTION__, __LINE__, idx_path_array[i]);
-				break;
-			}
-
-			char str_not_care[256] = {0};
-			const char *table_filename = path2filename(idx_path_array[i]);
-			sscanf(table_filename, "%[a-zA-Z]_config_index.%lld",
-				   str_not_care, &new_version);
-
-			if (start_fn != NULL) {
-				start_fn(new_version, update_type, u_param);
-			}
-
-			for (int j = 0; j < table_num; j++) {
-				cm_read_table_file(table_array + j, update_fn, u_param, dec_key, logger);
-			}
-
-			if (finish_fn != NULL) {
-				finish_fn(u_param);
-			}
-		}
-	}
-
-	for (i = 0; i < idx_path_num; i++) {
-		FREE(idx_path_array[i]);
+	if (start_fn != NULL) {
+		start_fn(new_version, update_type, u_param);
 	}
 	
-	FREE(idx_path_array);
+	cJSON *tmp_obj = NULL;
+
+	tmp_obj = cJSON_GetObjectItem(json_root, "objects");
+	if (tmp_obj != NULL) {
+		for (i = 0; i < cJSON_GetArraySize(tmp_obj); i++) {
+			cJSON *object = cJSON_GetArrayItem(tmp_obj, i);
+			if (object == NULL) {
+				continue;
+			}
+
+			cJSON *regions = cJSON_GetObjectItem(object, "regions");
+			if (regions == NULL) {
+				continue;
+			}
+
+			cJSON *table_name = cJSON_GetObjectItem(object, "table_name");
+			if (table_name == NULL) {
+				continue;
+			}
+
+			cJSON *table_content = cJSON_GetObjectItem(object, "table_content");
+			if (table_content == NULL) {
+				continue;
+			}
+
+			char *table_content_str = cJSON_PrintUnformatted(table_content);
+
+			update_fn(table_name->valuestring, table_content_str, u_param, MAAT_OP_ADD);
+			FREE(table_content_str);
+		}
+	}
+	
+	config_load_json_content(json_root, "object2object_table", "object_groups", u_param, update_fn);
+	config_load_json_content(json_root, "rule_table", "rules", u_param, update_fn);
+
+	if (finish_fn != NULL) {
+		finish_fn(u_param);
+	}
 }
 
-int load_maat_json_file(struct maat *maat_inst, const char *json_filename, 
-                        char *err_str, size_t err_str_sz)
+void convert_maat_json_rule(cJSON *json_root, unsigned char *json_buff)
+{
+	json_root = cJSON_Parse((const char *)json_buff);
+	cJSON *top_objects = cJSON_GetObjectItem(json_root, "objects");
+	//cJSON *object_groups = cJSON_GetObjectItem(json_root, "object_groups");//TODO: object include object in rules
+	cJSON *rules = cJSON_GetObjectItem(json_root, "rules");
+	cJSON *tmp_rule = NULL;
+	long long item_id = 1;
+	long long object_id = 1;
+	char str[10];
+
+	cJSON_ArrayForEach(tmp_rule, rules) {
+		cJSON *tmp_condition = NULL;
+		cJSON *condition_array = cJSON_GetObjectItem(tmp_rule, "conditions");
+		cJSON_ArrayForEach(tmp_condition, condition_array) {
+			cJSON *tmp_object = NULL;
+			cJSON *object_id_array = cJSON_CreateArray();
+			cJSON *object_array = cJSON_GetObjectItem(tmp_condition, "objects");
+			cJSON_ArrayForEach(tmp_object, object_array) {
+				//find items, generate item_id and object_id
+				cJSON *table_name = cJSON_GetObjectItem(tmp_object, "table_name");
+				cJSON *tmp_item = cJSON_CreateObject();
+				cJSON_AddItemToObject(tmp_item, "table_name", cJSON_CreateString(table_name->valuestring));
+				cJSON *dup = cJSON_Duplicate(tmp_object, 0);
+				if (cJSON_GetObjectItem(dup, "item_id") == NULL) {
+					memset(str, 0, sizeof(str));
+					snprintf(str, sizeof(str), "%lld", item_id);
+					cJSON_AddItemToObject(dup, "item_id", cJSON_CreateString(str));
+					item_id++;
+				}
+				if (cJSON_GetObjectItem(dup, "object_id") == NULL) {
+					memset(str, 0, sizeof(str));
+					snprintf(str, sizeof(str), "%lld", object_id);
+					cJSON_AddItemToObject(dup, "object_id", cJSON_CreateString(str));
+					object_id++;
+				}
+				cJSON_AddItemToObject(tmp_item, "table_content", dup);
+				cJSON_AddItemToArray(top_objects, tmp_item);
+
+				cJSON_AddItemToArray(object_id_array, cJSON_CreateString(str));
+			}
+			//replace object content with object_id
+			cJSON_DeleteItemFromObject(tmp_condition, "objects");
+			cJSON_AddItemToObject(tmp_condition, "object_ids", object_id_array);
+		}
+			
+	}
+}
+
+int load_maat_json_rule_file(struct maat *maat_inst, const char *json_filename, 
+                        cJSON *json_root, char *err_str, size_t err_str_sz)
 {
 	int ret = 0;
-	struct stat fstat_buf;
 	unsigned char *json_buff = NULL; 
     unsigned char *decrypted_buff = NULL; 
     unsigned char *uncompressed_buff = NULL;
@@ -466,29 +272,9 @@ int load_maat_json_file(struct maat *maat_inst, const char *json_filename,
 			return -1;
 		}
 	}
-
-	ret = json2iris((const char*)json_buff, json_filename, NULL,
-			        maat_inst->opts.json_ctx.iris_file, 
-                    sizeof(maat_inst->opts.json_ctx.iris_file),
-			        strlen(maat_inst->opts.decrypt_key) ? maat_inst->opts.decrypt_key : NULL,
-			        strlen(maat_inst->opts.decrypt_algo) ? maat_inst->opts.decrypt_algo : NULL,
-                    maat_inst->logger);
-	FREE(json_buff);
-	if (ret < 0) {
-		return -1;
-	}
-	
-	ret = stat(json_filename, &fstat_buf);
-	maat_inst->opts.json_ctx.last_md5_time = fstat_buf.st_ctim;
-	
-	md5_file(maat_inst->opts.json_ctx.json_file, maat_inst->opts.json_ctx.effective_json_md5);
-	log_info(maat_inst->logger, MODULE_CONFIG_MONITOR, 
-            "JSON file %s md5: %s, generate index file %s OK",
-			maat_inst->opts.json_ctx.json_file,
-			maat_inst->opts.json_ctx.effective_json_md5,
-		    maat_inst->opts.json_ctx.iris_file);
-
 	maat_inst->opts.input_mode = DATA_SOURCE_JSON_FILE;
+	
+	convert_maat_json_rule(json_root, json_buff);
 
 	return 0;	
 }

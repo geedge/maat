@@ -45,7 +45,7 @@ void *fqdn_plugin_runtime_new(void *fqdn_plugin_schema, size_t max_thread_num,
 void fqdn_plugin_runtime_free(void *fqdn_plugin_runtime);
 
 int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_schema, 
-                                const char *table_name, const char *line, int valid_column);
+                                const char *table_name, const char *line, enum maat_operation op);
 
 int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name,
                                long long maat_rt_version);

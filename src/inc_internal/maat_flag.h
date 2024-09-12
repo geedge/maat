@@ -35,7 +35,7 @@ void *flag_runtime_new(void *flag_schema, size_t max_thread_num,
 void flag_runtime_free(void *flag_runtime);
 
 int flag_runtime_update(void *flag_runtime, void *flag_schema, const char *table_name, 
-                        const char *line, int valid_column);
+                        const char *line, enum maat_operation op);
 
 int flag_runtime_commit(void *flag_runtime, const char *table_name, long long maat_rt_version);
 

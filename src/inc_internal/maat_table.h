@@ -38,10 +38,8 @@ enum table_type {
     TABLE_TYPE_FQDN_PLUGIN,
     TABLE_TYPE_BOOL_PLUGIN,
     //above are physical table
-    TABLE_TYPE_ATTRIBUTE,
     TABLE_TYPE_RULE,
     TABLE_TYPE_OBJECT2OBJECT,
-	TABLE_TYPE_OBJECT2RULE,
     TABLE_TYPE_MAX
 };
 
@@ -61,6 +59,8 @@ size_t table_manager_table_size(struct table_manager *tbl_mgr);
 size_t table_manager_table_num(struct table_manager *tbl_mgr);
 
 int table_manager_get_table_id(struct table_manager *tbl_mgr, const char *table_name);
+int table_manager_get_attribute_id(struct table_manager *tbl_mgr, const char *attribute_name);
+int table_manager_attribute_get_table_id(struct table_manager *tbl_mgr, int attr_id);
 /**
  * @brief get table_name's all conjunction parents' table_id
  * 
@@ -79,6 +79,7 @@ int table_manager_get_conj_parent_table_ids(struct table_manager *tbl_mgr, const
 
 const char *table_manager_get_table_name(struct table_manager *tbl_mgr,
                                          int table_id);
+const char *table_manager_get_attribute_name(struct table_manager *tbl_mgr, int attr_id);
 
 const char *table_manager_get_table_schema_tag(struct table_manager *tbl_mgr, int table_id);
 
@@ -86,8 +87,6 @@ enum table_type table_manager_get_table_type(struct table_manager *tbl_mgr, int 
 
 int table_manager_get_default_rule_table_id(struct table_manager *tbl_mgr);
 int table_manager_get_object2object_table_id(struct table_manager *tbl_mgr);
-
-int table_manager_get_valid_column(struct table_manager *tbl_mgr, int table_id);
 
 enum maat_expr_engine table_manager_get_expr_engine(struct table_manager *tbl_mgr);
 
@@ -99,7 +98,8 @@ void *table_manager_get_runtime(struct table_manager *tbl_mgr, int table_id);
 void *table_manager_get_updating_runtime(struct table_manager *tbl_mgr, int table_id);
 
 int table_manager_update_runtime(struct table_manager *tbl_mgr, const char *table_name, 
-                                 int table_id, const char *line, int update_type);
+                                 int table_id, const char *line, enum maat_operation op,
+                                  int update_type);
 
 void table_manager_commit_runtime(struct table_manager *tbl_mgr, int table_id, 
                                   int update_type, long long maat_rt_version);

@@ -35,6 +35,12 @@ struct ex_data_runtime {
 
 void cache_row_free(void *p)
 {
+    struct ex_data_row *ex_data_row = (struct ex_data_row *)(char*)p;
+
+    if (ex_data_row->row != NULL) {
+        FREE(ex_data_row->row);
+        ex_data_row->row = NULL;
+    }
 	free(*(char **)p);
 }
 
@@ -87,22 +93,24 @@ void ex_data_runtime_commit(struct ex_data_runtime *ex_data_rt)
     rcu_hash_commit(ex_data_rt->htable);
 }
 
-void ex_data_runtime_cache_row_put(struct ex_data_runtime *ex_data_rt, const char *row)
+void ex_data_runtime_cache_row_put(struct ex_data_runtime *ex_data_rt, const char *row, enum maat_operation op)
 {
     if (NULL == ex_data_rt || NULL == row) {
         return;
     }
 
 	size_t row_len = strlen(row);
-	char *row_copy = ALLOC(char, row_len + 1);
+    struct ex_data_row *ex_data_row = ALLOC(struct ex_data_row, 1);
+    ex_data_row->row = ALLOC(char, row_len + 1);
 
-	memcpy(row_copy, row, row_len);
+    ex_data_row->op = op;
+	memcpy(ex_data_row->row, row, row_len);
 	ex_data_rt->cache_size += row_len;
-	utarray_push_back(ex_data_rt->cache_rows, &row_copy);
+	utarray_push_back(ex_data_rt->cache_rows, &ex_data_row);
 	ex_data_rt->cache_row_num++;	
 }
 
-const char *ex_data_runtime_cached_row_get(struct ex_data_runtime *ex_data_rt, size_t index)
+const struct ex_data_row *ex_data_runtime_cached_row_get(struct ex_data_runtime *ex_data_rt, size_t index)
 {
     if (NULL == ex_data_rt) {
         return NULL;
@@ -110,7 +118,7 @@ const char *ex_data_runtime_cached_row_get(struct ex_data_runtime *ex_data_rt, s
 
     const char **row = NULL;
 	row = (const char **)utarray_eltptr(ex_data_rt->cache_rows, index);
-	return *row;
+	return (struct ex_data_row *)*row;
 }
 
 size_t ex_data_runtime_cached_row_count(struct ex_data_runtime *ex_data_rt)

@@ -7,7 +7,6 @@
 #include "maat_utils.h"
 #include "ip_matcher.h"
 #include "maat_command.h"
-#include "json2iris.h"
 #include "maat_config_monitor.h"
 #include "maat_redis_monitor.h"
 
@@ -1208,7 +1207,7 @@ void *perf_fqdn_plugin_update_thread(void *arg)
                  line_rule.rule_id, fqdn_buff);
 		line_rule.table_line = line_buff;
 		line_rule.expire_after = 0;
-		maat_cmd_set_line(maat_inst, &line_rule);
+		maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_ADD);
 		sleep(WAIT_FOR_EFFECTIVE_S);
 	}
 
@@ -1422,7 +1421,7 @@ void *perf_bool_plugin_update_thread(void *arg)
 		snprintf(line_buff, 1024, "%lld\t1&%d\ttunnel2\t1", line_rule.rule_id, i);
 		line_rule.table_line = line_buff;
 		line_rule.expire_after = 0;
-		maat_cmd_set_line(maat_inst, &line_rule);
+		maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_ADD);
 		sleep(WAIT_FOR_EFFECTIVE_S);
 	}
 
@@ -1489,43 +1488,6 @@ TEST_F(MaatPerfBoolPluginScan, MultiThread) {
              PERF_THREAD_NUM, scan_per_second);
 }
 
-class MaatPerfFileScan : public testing::Test
-{
-protected:
-    static void SetUpTestCase() {
-        logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        const char *rule_folder = "./tsgrule/index";
-        const char *table_info = "./tsg_table_info.json";
-
-        struct maat_options *opts = maat_options_new();
-        maat_options_set_stat_file(opts, "./stat.log");
-        maat_options_set_perf_on(opts);
-        maat_options_set_iris(opts, rule_folder, rule_folder);
-        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log",
-                                LOG_LEVEL_INFO);
-        maat_options_set_caller_thread_number(opts, 5);
-
-        _shared_maat_inst = maat_new(opts, table_info);
-        maat_options_free(opts);
-        if (NULL == _shared_maat_inst) {
-            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] create maat instance in MaatPerfFileScan failed.",
-                      __FUNCTION__, __LINE__);
-        }
-    }
-
-    static void TearDownTestCase() {
-        maat_free(_shared_maat_inst);
-        log_handle_destroy(logger);
-    }
-
-    static struct log_handle *logger;
-    static struct maat *_shared_maat_inst;
-};
-
-struct maat *MaatPerfFileScan::_shared_maat_inst;
-struct log_handle *MaatPerfFileScan::logger;
-
 struct perf_ip_plugin_ud {
 	long long rule_id;
 };
@@ -1564,6 +1526,45 @@ void perf_ip_plugin_EX_dup_cb(int table_id, void **to, void **from,
 
 	*to = u;
 }
+
+//TODO: convert iris rule to json rule
+#if 0
+class MaatPerfFileScan : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
+        const char *rule_folder = "./tsgrule/index";
+        const char *table_info = "./tsg_table_info.json";
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_stat_file(opts, "./stat.log");
+        maat_options_set_perf_on(opts);
+        maat_options_set_iris(opts, rule_folder, rule_folder);
+        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log",
+                                LOG_LEVEL_INFO);
+        maat_options_set_caller_thread_number(opts, 5);
+
+        _shared_maat_inst = maat_new(opts, table_info);
+        maat_options_free(opts);
+        if (NULL == _shared_maat_inst) {
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
+                      "[%s:%d] create maat instance in MaatPerfFileScan failed.",
+                      __FUNCTION__, __LINE__);
+        }
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_inst);
+        log_handle_destroy(logger);
+    }
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_inst;
+};
+
+struct maat *MaatPerfFileScan::_shared_maat_inst;
+struct log_handle *MaatPerfFileScan::logger;
 
 static void *ip_plugin_get_thread(void *arg)
 {
@@ -1632,6 +1633,7 @@ TEST_F(MaatPerfFileScan, IPPlugin) {
 		free(is_all_hit);
 	}
 }
+#endif
 
 class MaatPerfIPPortPluginScan : public testing::Test
 {
@@ -1730,7 +1732,7 @@ void *perf_ipport_plugin_update_thread(void *arg)
                  line_rule.rule_id, 200+i, 300+i);
 		line_rule.table_line = line_buff;
 		line_rule.expire_after = 0;
-		maat_cmd_set_line(maat_inst, &line_rule);
+		maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_ADD);
 		sleep(WAIT_FOR_EFFECTIVE_S);
 	}
 

@@ -25,11 +25,6 @@
 #define MODULE_FLAG	 module_name_str("maat.flag")
 
 struct flag_schema {
-    int item_id_column;
-    int object_id_column;
-    int district_column;
-    int flag_column;
-    int flag_mask_column;
     int table_id;
     struct table_manager *ref_tbl_mgr;
 };
@@ -71,7 +66,6 @@ void *flag_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     struct flag_schema *schema = ALLOC(struct flag_schema, 1);
 
     char table_type[NAME_MAX] = {0};
-    cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
     if (item != NULL && item->type == cJSON_Number) {
         schema->table_id = item->valueint;
@@ -85,67 +79,6 @@ void *flag_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     /* table_type already validate in maat_table_new() */
     item = cJSON_GetObjectItem(json, "table_type");
     memcpy(table_type, item->valuestring, strlen(item->valuestring));
-
-    item = cJSON_GetObjectItem(json, "custom");
-    if (item == NULL || item->type != cJSON_Object) {
-        log_fatal(logger, MODULE_FLAG, 
-                  "[%s:%d] flag table:<%s> schema has no custom column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "item_id");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->item_id_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_FLAG, 
-                  "[%s:%d] flag table:<%s> schema has no item_id column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "object_id");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->object_id_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_FLAG, 
-                  "[%s:%d] flag table:<%s> schema has no object_id column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    /* flag_plus has district */
-    if (strcmp(table_type, "flag_plus") == 0) {
-        custom_item = cJSON_GetObjectItem(item, "district");
-        if (custom_item != NULL && custom_item->type == cJSON_Number) {
-            schema->district_column = custom_item->valueint;
-        } else {
-            log_fatal(logger, MODULE_FLAG, 
-                  "[%s:%d] flag_plus table:<%s> schema has no district column", 
-                  __FUNCTION__, __LINE__, table_name);
-            goto error;
-        }
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "flag");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->flag_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_FLAG, 
-                  "[%s:%d] flag table:<%s> schema has no flag column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "flag_mask");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->flag_mask_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_FLAG, 
-                  "[%s:%d] flag table:<%s> schema has no flag_mask column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
 
     schema->ref_tbl_mgr = tbl_mgr;
     return schema;
@@ -253,11 +186,11 @@ void flag_runtime_free(void *flag_runtime)
 
 static int flag_runtime_update_row(struct flag_runtime *flag_rt, char *key,
                                    size_t key_len, struct flag_item *item,
-                                   int is_valid)
+                                   enum maat_operation op)
 {
     int ret = -1;
 
-    if (0 == is_valid) {
+    if (MAAT_OP_DEL == op) {
         //delete
         rcu_hash_del(flag_rt->item_hash, key, key_len);
     } else {
@@ -309,75 +242,69 @@ int flag_runtime_set_scan_district(struct flag_runtime *flag_rt, const char *dis
 
 static struct flag_item *
 flag_item_new(struct flag_schema *schema, const char *table_name,
-              const char *line, struct flag_runtime *flag_rt)
+              const cJSON *json, struct flag_runtime *flag_rt, long long item_id)
 {
-    size_t column_offset = 0;
-    size_t column_len = 0;
+    cJSON *tmp_obj = NULL;
     enum table_type table_type = TABLE_TYPE_INVALID;
     struct flag_item *item = ALLOC(struct flag_item, 1);
 
-    int ret = get_column_pos(line, schema->item_id_column, &column_offset,
-                             &column_len);
-    if (ret < 0) {
-        log_fatal(flag_rt->logger, MODULE_FLAG, 
-                  "[%s:%d] flag table:<%s> has no item_id in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-    item->item_id = atoll(line + column_offset);
+    item->item_id = item_id;
 
-    ret = get_column_pos(line, schema->object_id_column, &column_offset,
-                         &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "object_id");
+    if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
         log_fatal(flag_rt->logger, MODULE_FLAG, 
-                  "[%s:%d] flag table:<%s> has no object_id in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
+                  "[%s:%d] flag table:<%s> has no object_id in json:%s",
+                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
-    item->object_id = atoll(line + column_offset);
+    item->object_id = atoll(tmp_obj->valuestring);
 
     table_type = table_manager_get_table_type(schema->ref_tbl_mgr, schema->table_id);
     if (table_type == TABLE_TYPE_INTERVAL_PLUS) {
-        ret = get_column_pos(line, schema->district_column, &column_offset,
-                             &column_len);
-        if (ret < 0) {
+        tmp_obj = cJSON_GetObjectItem(json, "district");
+        if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
+            log_fatal(flag_rt->logger, MODULE_FLAG, 
+                      "[%s:%d] flag_plus table:<%s> has no district in json:%s",
+                      __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
             goto error;
         }
 
-        if (column_len > MAX_DISTRICT_STR_LEN) {
+        size_t len = strlen(tmp_obj->valuestring);
+        if (len > MAX_DISTRICT_STR_LEN) {
             log_fatal(flag_rt->logger, MODULE_FLAG, 
                       "[%s:%d] flag_plus table:<%s> district length exceed "
-                      "maximum:%d in line:%s", __FUNCTION__, __LINE__,
-                      table_name, MAX_DISTRICT_STR_LEN, line);
+                      "maximum:%d in json:%s", __FUNCTION__, __LINE__,
+                      table_name, MAX_DISTRICT_STR_LEN, cJSON_Print(json));
             goto error;
         }
 
         char district[MAX_DISTRICT_STR_LEN + 1] = {0};
-        memcpy(district, (line + column_offset), column_len);
+        memcpy(district, tmp_obj->valuestring, len);
         assert(strlen(district) > 0);
         item->district_id = flag_runtime_get_district_id(flag_rt, district);
     } else {
         item->district_id = DISTRICT_ANY;
     }
 
-    ret = get_column_pos(line, schema->flag_column, &column_offset, &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "flag");
+    if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
         log_fatal(flag_rt->logger, MODULE_FLAG, 
-                  "[%s:%d] flag table:<%s> has no flag in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
+                  "[%s:%d] flag table:<%s> has no flag in json:%s",
+                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
 
-    item->flag = strtoull(line + column_offset, NULL, 0);
+    item->flag = strtoull(tmp_obj->valuestring, NULL, 0);
 
-    ret = get_column_pos(line, schema->flag_mask_column, &column_offset, &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "flag_mask");
+    if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
         log_fatal(flag_rt->logger, MODULE_FLAG, 
-                  "[%s:%d] flag table:<%s> has no flag_mask in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
+                  "[%s:%d] flag table:<%s> has no flag_mask in json:%s",
+                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
-    item->flag_mask = strtoull(line + column_offset, NULL, 0);
+    
+    item->flag_mask = strtoull(tmp_obj->valuestring, NULL, 0);
 
     return item;
 error:
@@ -399,7 +326,7 @@ static struct flag_rule flag_item_to_flag_rule(struct flag_item *item)
 
 int flag_runtime_update(void *flag_runtime, void *flag_schema,
                         const char *table_name, const char *line,
-                        int valid_column)
+                        enum maat_operation op)
 {
     if (NULL == flag_runtime || NULL == flag_schema ||
         NULL == line) {
@@ -409,31 +336,30 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
     struct flag_schema *schema = (struct flag_schema *)flag_schema;
     struct flag_runtime *flag_rt = (struct flag_runtime *)flag_runtime;
 
-    long long item_id = get_column_value(line, schema->item_id_column);
-    if (item_id < 0) {
+    cJSON *json = cJSON_Parse(line);
+    if (NULL == json) {
         log_fatal(flag_rt->logger, MODULE_FLAG,
-                  "[%s:%d] flag table:<%s> has no item_id(column seq:%d)"
-                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
-                  schema->item_id_column, line);
+                  "[%s:%d] flag table:<%s> line:%s is not a valid json",
+                  __FUNCTION__, __LINE__, table_name, line);
         return -1;
     }
 
-    int is_valid = get_column_value(line, valid_column);
-    if (is_valid < 0) {
+    cJSON *item = cJSON_GetObjectItem(json, "item_id");
+    if (NULL == item || item->type != cJSON_String) {
         log_fatal(flag_rt->logger, MODULE_FLAG,
-                  "[%s:%d] flag table:<%s> has no is_valid(column seq:%d)"
-                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
-                  valid_column, line);
-        flag_rt->update_err_cnt++;
-        return -1;
+                  "[%s:%d] flag table:<%s> line:%s has no item_id",
+                  __FUNCTION__, __LINE__, table_name, line);
+        goto ERROR;
     }
+
+    long long item_id = atoll(item->valuestring);
 
     struct flag_item *flag_item = NULL;
-    if (1 == is_valid) {
-        flag_item = flag_item_new(schema, table_name, line, flag_rt);
+    if (MAAT_OP_ADD == op) {
+        flag_item = flag_item_new(schema, table_name, json, flag_rt, item_id);
         if (NULL == flag_item) {
             flag_rt->update_err_cnt++;
-            return -1;
+            goto ERROR;
         }
 
         int *item_district_id = ALLOC(int, 1);
@@ -443,7 +369,7 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
     }
 
     int ret = flag_runtime_update_row(flag_rt, (char *)&item_id, sizeof(long long),
-                                      flag_item, is_valid);
+                                      flag_item, op);
     if (ret < 0) {
         if (flag_item != NULL) {
             flag_item_free(flag_item);
@@ -451,7 +377,14 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
         //don't return failed, ignore the case of adding duplicate keys
     }
 
+    cJSON_Delete(json);
+
     return 0;
+ERROR:
+    if (json != NULL) {
+        cJSON_Delete(json);
+    }
+    return -1;
 }
 
 static void garbage_flag_matcher_free(void *flag_matcher, void *arg)

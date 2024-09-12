@@ -43,7 +43,7 @@ void *bool_plugin_runtime_new(void *bool_plugin_schema, size_t max_thread_num,
 void bool_plugin_runtime_free(void *bool_plugin_runtime);
 
 int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_schema, 
-                                const char *table_name, const char *line, int valid_column);
+                                const char *table_name, const char *line, enum maat_operation op);
 
 int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name,
                                long long maat_rt_version);

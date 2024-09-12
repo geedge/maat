@@ -22,10 +22,6 @@
 #define MODULE_INTERVAL	 module_name_str("maat.interval")
 
 struct interval_schema {
-    int item_id_column;
-    int object_id_column;
-    int district_column;
-    int interval_column;
     int table_id;
     struct table_manager *ref_tbl_mgr;
 };
@@ -67,7 +63,6 @@ void *interval_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     struct interval_schema *schema = ALLOC(struct interval_schema, 1);
 
     char table_type[NAME_MAX] = {0};
-    cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
     if (item != NULL && item->type == cJSON_Number) {
         schema->table_id = item->valueint;
@@ -81,57 +76,6 @@ void *interval_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     /* table_type already validate in maat_table_new() */
     item = cJSON_GetObjectItem(json, "table_type");
     memcpy(table_type, item->valuestring, strlen(item->valuestring));
-
-    item = cJSON_GetObjectItem(json, "custom");
-    if (item == NULL || item->type != cJSON_Object) {
-        log_fatal(logger, MODULE_INTERVAL, 
-                  "[%s:%d] interval table:<%s> schema has no custom column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "item_id");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->item_id_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_INTERVAL, 
-                  "[%s:%d] interval table:<%s> schema has no item_id column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "object_id");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->object_id_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_INTERVAL, 
-                  "[%s:%d] interval table:<%s> schema has no object_id column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    /* interval_plus has district */
-    if (strcmp(table_type, "interval_plus") == 0) {
-        custom_item = cJSON_GetObjectItem(item, "district");
-        if (custom_item != NULL && custom_item->type == cJSON_Number) {
-            schema->district_column = custom_item->valueint;
-        } else {
-            log_fatal(logger, MODULE_INTERVAL, 
-                  "[%s:%d] interval_plus table:<%s> schema has no district column", 
-                  __FUNCTION__, __LINE__, table_name);
-            goto error;
-        }
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "interval");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->interval_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_INTERVAL, 
-                  "[%s:%d] interval table:<%s> schema has no interval column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
 
     schema->ref_tbl_mgr = tbl_mgr;
     return schema;
@@ -271,66 +215,60 @@ int interval_runtime_set_scan_district(struct interval_runtime *interval_rt,
 
 static struct interval_item *
 interval_item_new(struct interval_schema *schema, const char *table_name,
-                  const char *line, struct interval_runtime *interval_rt)
+                  const cJSON *json, struct interval_runtime *interval_rt, long long item_id)
 {
-    size_t column_offset = 0;
-    size_t column_len = 0;
     enum table_type table_type = TABLE_TYPE_INVALID;
     char port_str[16] = {0};
     struct interval_item *item = ALLOC(struct interval_item, 1);
+    cJSON *tmp_obj = NULL;
 
-    int ret = get_column_pos(line, schema->item_id_column, &column_offset,
-                             &column_len);
-    if (ret < 0) {
-        log_fatal(interval_rt->logger, MODULE_INTERVAL, 
-                  "[%s:%d] interval table:<%s> has no item_id in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-    item->item_id = atoll(line + column_offset);
+    item->item_id = item_id;
 
-    ret = get_column_pos(line, schema->object_id_column, &column_offset,
-                         &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "object_id");
+    if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
         log_fatal(interval_rt->logger, MODULE_INTERVAL, 
                   "[%s:%d] interval table:<%s> has no object_id in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
+                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
-    item->object_id = atoll(line + column_offset);
+    item->object_id = atoll(tmp_obj->valuestring);
 
     table_type = table_manager_get_table_type(schema->ref_tbl_mgr, schema->table_id);
     if (table_type == TABLE_TYPE_INTERVAL_PLUS) {
-        ret = get_column_pos(line, schema->district_column, &column_offset,
-                             &column_len);
-        if (ret < 0) {
+        tmp_obj = cJSON_GetObjectItem(json, "district");
+        if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
+            log_fatal(interval_rt->logger, MODULE_INTERVAL, 
+                      "[%s:%d] interval_plus table:<%s> has no district in line:%s",
+                      __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
             goto error;
         }
 
-        if (column_len > MAX_DISTRICT_STR_LEN) {
+        size_t len = strlen(tmp_obj->valuestring);
+
+        if (len > MAX_DISTRICT_STR_LEN) {
             log_fatal(interval_rt->logger, MODULE_INTERVAL, 
                       "[%s:%d] interval_plus table:<%s> district length exceed "
                       "maximum:%d in line:%s", __FUNCTION__, __LINE__, table_name,
-                      MAX_DISTRICT_STR_LEN, line);
+                      MAX_DISTRICT_STR_LEN, cJSON_Print(json));
             goto error;
         }
 
         char district[MAX_DISTRICT_STR_LEN + 1] = {0};
-        memcpy(district, (line + column_offset), column_len);
+        memcpy(district, tmp_obj->valuestring, len);
         assert(strlen(district) > 0);
         item->district_id = interval_runtime_get_district_id(interval_rt, district);
     } else {
         item->district_id = DISTRICT_ANY;
     }
 
-    ret = get_column_pos(line, schema->interval_column, &column_offset, &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "interval");
+    if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
         log_fatal(interval_rt->logger, MODULE_INTERVAL, 
                   "[%s:%d] interval table:<%s> has no interval in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
+                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
-    memcpy(port_str, line + column_offset, column_len);
+    memcpy(port_str, tmp_obj->valuestring, strlen(tmp_obj->valuestring));
     if (strchr(port_str, '-') != NULL) {
         sscanf(port_str, "%d-%d", &item->low_boundary, &item->up_boundary);
     } else {
@@ -359,11 +297,11 @@ interval_item_to_interval_rule(struct interval_item *item)
 
 static int interval_runtime_update_row(struct interval_runtime *interval_rt,
                                        char *key, size_t key_len,
-                                       struct interval_item *item, int is_valid)
+                                       struct interval_item *item, enum maat_operation op)
 {
     int ret = -1;
 
-    if (0 == is_valid) {
+    if (MAAT_OP_DEL == op) {
         //delete
         rcu_hash_del(interval_rt->item_hash, key, key_len);
     } else {
@@ -383,7 +321,7 @@ static int interval_runtime_update_row(struct interval_runtime *interval_rt,
 
 int interval_runtime_update(void *interval_runtime, void *interval_schema, 
                             const char *table_name, const char *line, 
-                            int valid_column)
+                            enum maat_operation op)
 {
     if (NULL == interval_runtime || NULL == interval_schema ||
         NULL == line) {
@@ -392,34 +330,44 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
 
     struct interval_schema *schema = (struct interval_schema *)interval_schema;
     struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
-
-    long long item_id = get_column_value(line, schema->item_id_column);
-    if (item_id < 0) {
+    cJSON *tmp_obj = NULL;
+    cJSON *json = NULL;
+    
+    json = cJSON_Parse(line);
+    if (NULL == json) {
         log_fatal(interval_rt->logger, MODULE_INTERVAL,
-                  "[%s:%d] interval table:<%s> has no item_id(column seq:%d)"
-                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
-                  schema->item_id_column, line);
+                  "[%s:%d] interval table:<%s> line:%s is not a valid json",
+                  __FUNCTION__, __LINE__, table_name, line);
         interval_rt->update_err_cnt++;
-        return -1;
+        goto ERROR;
     }
 
-    int is_valid = get_column_value(line, valid_column);
-    if (is_valid < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "item_id");
+    if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
         log_fatal(interval_rt->logger, MODULE_INTERVAL,
-                  "[%s:%d] interval table:<%s> has no is_valid(column seq:%d)"
-                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
-                  valid_column, line);
+                  "[%s:%d] interval table:<%s> has no item_id in line:%s",
+                  __FUNCTION__, __LINE__, table_name, line);
         interval_rt->update_err_cnt++;
-        return -1;
+        goto ERROR;
+    }
+
+    long long item_id = atoll(tmp_obj->valuestring);
+    if (item_id < 0) {
+        log_fatal(interval_rt->logger, MODULE_INTERVAL,
+                  "[%s:%d] interval table:<%s> item_id wrong"
+                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
+                  line);
+        interval_rt->update_err_cnt++;
+        goto ERROR;
     }
     
     struct interval_item *interval_item = NULL;
-    if (1 == is_valid) {
+    if (MAAT_OP_ADD == op) {
         //add
-        interval_item = interval_item_new(schema, table_name, line, interval_rt);
+        interval_item = interval_item_new(schema, table_name, json, interval_rt, item_id);
         if (NULL == interval_item) {
             interval_rt->update_err_cnt++;
-            return -1;
+            goto ERROR;
         }
 
         int *item_district_id = ALLOC(int, 1);
@@ -429,7 +377,7 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
     }
 
     int ret = interval_runtime_update_row(interval_rt, (char *)&item_id, sizeof(long long),
-                                          interval_item, is_valid);
+                                          interval_item, op);
     if (ret < 0) {
         if (interval_item != NULL) {
             interval_item_free(interval_item);
@@ -437,7 +385,14 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
         //don't return failed, ignore the case of adding duplicate keys
     }
 
+    cJSON_Delete(json);
     return 0;
+    
+ERROR:
+    if (json != NULL) {
+        cJSON_Delete(json);
+    }
+    return -1;
 }
 
 void garbage_interval_matcher_free(void *interval_matcher, void *arg)

@@ -45,7 +45,7 @@ void *ipport_plugin_runtime_new(void *ipport_plugin_schema, size_t max_thread_nu
 void ipport_plugin_runtime_free(void *ipport_plugin_runtime);
 
 int ipport_plugin_runtime_update(void *ipport_plugin_runtime, void *ipport_plugin_schema, 
-                                 const char *table_name, const char *line, int valid_column);
+                                 const char *table_name, const char *line, enum maat_operation op);
 
 int ipport_plugin_runtime_commit(void *ipport_plugin_runtime, const char *table_name,
                                  long long maat_rt_version);

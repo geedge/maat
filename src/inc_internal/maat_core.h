@@ -36,6 +36,7 @@ extern "C"
 #include "hiredis/hiredis.h"
 
 #define MAX_TABLE_NUM	1024
+#define MAX_ATTRIBUTE_NUM	1024
 
 #define	DISTRICT_ANY	   -1
 #define	DISTRICT_UNKNOWN   -2
@@ -81,7 +82,6 @@ struct rule_tag {
 enum data_source {
     DATA_SOURCE_NONE = 0,
     DATA_SOURCE_REDIS,
-    DATA_SOURCE_IRIS_FILE,
     DATA_SOURCE_JSON_FILE
 };
 
@@ -132,7 +132,6 @@ struct maat_options {
     enum maat_expr_engine expr_engine;
     enum data_source input_mode;
     union {
-        struct source_iris_ctx iris_ctx;
         struct source_json_ctx json_ctx;
         struct source_redis_ctx redis_ctx;
     };

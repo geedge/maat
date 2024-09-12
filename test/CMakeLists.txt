@@ -39,7 +39,7 @@ target_link_libraries(maat_ex_data_gtest maat_frame_static gtest_static)
 
 add_subdirectory(object_nesting)
 add_subdirectory(ipport_plugin)
-add_subdirectory(benchmark)
+#add_subdirectory(benchmark) //TODO: convert iris rule to json rule
 
 configure_file(table_info.json table_info.json COPYONLY)
 configure_file(tsg_table_info.json tsg_table_info.json COPYONLY)

@@ -21,6 +21,7 @@ extern "C"
 #include "maat_ex_data.h"
 
 #define	MAX_FOREIGN_CLMN_NUM 8
+#define MAX_FOREIGN_NAME_LEN 31
 
 /* plugin schema API */
 void *plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
@@ -38,7 +39,7 @@ int plugin_table_add_callback(void *plugin_schema, int table_id,
 void plugin_table_all_callback_start(struct plugin_schema *plugin_schema, int update_type);
 void plugin_table_all_callback_finish(struct plugin_schema *plugin_schema);
 
-int plugin_table_get_foreign_column(struct plugin_schema *plugin_schema, int *foreign_columns);
+int plugin_table_get_foreign_names(struct plugin_schema *plugin_schema, char foreign_names[MAX_FOREIGN_CLMN_NUM][MAX_FOREIGN_NAME_LEN + 1]);
 
 /* plugin table ex data API */
 int plugin_table_set_ex_container_schema(void *plugin_schema, int table_id,
@@ -56,7 +57,7 @@ void *plugin_runtime_new(void *plugin_schema, size_t max_thread_num,
 void plugin_runtime_free(void *plugin_runtime);
 
 int plugin_runtime_update(void *plugin_runtime, void *plugin_schema, const char *table_name, 
-                          const char *line, int valid_column);
+                          const char *line, enum maat_operation op);
 
 int plugin_runtime_commit(void *plugin_runtime, const char *table_name, long long maat_rt_version);
 
@@ -68,7 +69,7 @@ struct ex_data_runtime *plugin_runtime_get_ex_data_rt(void *plugin_runtime);
 
 size_t plugin_runtime_cached_row_count(void *plugin_runtime);
 
-const char *plugin_runtime_cached_row_get(void *plugin_runtime, size_t index);
+const struct ex_data_row *plugin_runtime_cached_row_get(void *plugin_runtime, size_t index);
 
 void *plugin_runtime_get_ex_data(void *plugin_runtime, void *plugin_schema,
                                  const char *key, size_t key_len);

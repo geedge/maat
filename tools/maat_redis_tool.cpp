@@ -11,7 +11,6 @@
 #include "cJSON/cJSON.h"
 #include "maat_config_monitor.h"
 #include "maat_redis_monitor.h"
-#include "json2iris.h"
 #include "../test/test_utils.h"
 #include "hiredis/hiredis.h"
 

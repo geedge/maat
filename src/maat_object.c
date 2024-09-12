@@ -29,9 +29,6 @@ struct object2object_item {
 };
 
 struct object2object_schema {
-    int object_id_column;
-    int incl_sub_object_ids_column;
-    int excl_sub_object_ids_column;
     int table_id;
     struct table_manager *ref_tbl_mgr;
 };
@@ -92,51 +89,12 @@ void *object2object_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 {
 	struct object2object_schema *g2g_schema = ALLOC(struct object2object_schema, 1);
 	
-	cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
     if (item != NULL && item->type == cJSON_Number) {
         g2g_schema->table_id = item->valueint;
     } else {
         log_fatal(logger, MODULE_OBJECT, 
                   "[%s:%d] g2g table:<%s> schema has no table_id column",
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    item = cJSON_GetObjectItem(json, "custom");
-    if (item == NULL || item->type != cJSON_Object) {
-        log_fatal(logger, MODULE_OBJECT, 
-                  "[%s:%d] g2g table:<%s> schema has no custom column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "object_id");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        g2g_schema->object_id_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_OBJECT, 
-                  "[%s:%d] g2g table:<%s> schema has no object_id column",
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "included_sub_object_ids");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        g2g_schema->incl_sub_object_ids_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_OBJECT, 
-                  "[%s:%d] g2g table:<%s> schema has no included_sub_object_ids column",
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "excluded_sub_object_ids");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        g2g_schema->excl_sub_object_ids_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_OBJECT, 
-                  "[%s:%d] g2g table:<%s> schema has no excluded_sub_object_ids column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -323,40 +281,47 @@ static struct object2object_item *
 object2object_item_new(const char *line, struct object2object_schema *g2g_schema,
                      const char *table_name, struct log_handle *logger)
 {
-    size_t column_offset = 0;
-    size_t column_len = 0;
+    cJSON *tmp_obj = NULL;
+    cJSON *json = cJSON_Parse(line);
+
+    if (json == NULL) {
+        log_fatal(logger, MODULE_OBJECT,
+                  "[%s:%d] g2g table:<%s> line:<%s> parse json failed",
+                  __FUNCTION__, __LINE__, table_name, line);
+        return NULL;
+    }
+
     struct object2object_item *g2g_item = ALLOC(struct object2object_item, 1);
     utarray_new(g2g_item->incl_sub_object_ids, &ut_object_id_icd);
     utarray_new(g2g_item->excl_sub_object_ids, &ut_object_id_icd);
 
-    int ret = get_column_pos(line, g2g_schema->object_id_column, 
-                             &column_offset, &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "object_id");
+    if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
         log_fatal(logger, MODULE_OBJECT,
-                  "[%s:%d] g2 table:<%s> has no object_id in line:%s",
+                  "[%s:%d] g2g table:<%s> has no object_id or format is not string in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
-    g2g_item->object_id = atoll(line + column_offset);
+    g2g_item->object_id = atoll(tmp_obj->valuestring);
 
-    ret = get_column_pos(line, g2g_schema->incl_sub_object_ids_column,
-                         &column_offset, &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "include_object_ids");
+    if (tmp_obj == NULL || tmp_obj->type != cJSON_Array) {
         log_fatal(logger, MODULE_OBJECT,
-                  "[%s:%d] g2g table:<%s> has no included_sub_object_ids in line:%s",
+                  "[%s:%d] g2g table:<%s> has no included_sub_object_ids or format is not array in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
 
-    char object_ids_str[MAX_OBJECT_IDS_STR_LEN] = {0};
-    memcpy(object_ids_str, line + column_offset, MIN(MAX_OBJECT_IDS_STR_LEN, column_len));
-
-    ret = ids_str2longlong_array(object_ids_str, g2g_item->incl_sub_object_ids);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_OBJECT,
-				  "[%s:%d] g2c table:<%s> included_sub_object_ids str2longlong failed in line:%s",
-				  __FUNCTION__, __LINE__, table_name, line);
-		goto error; 
+    for (int i = 0; i < cJSON_GetArraySize(tmp_obj); i++) {
+        cJSON *item = cJSON_GetArrayItem(tmp_obj, i);
+        if (item == NULL || item->type != cJSON_String) {
+            log_fatal(logger, MODULE_OBJECT,
+                      "[%s:%d] g2g table:<%s> included_sub_object_ids format error in line:%s",
+                      __FUNCTION__, __LINE__, table_name, line);
+            goto error;
+        }
+        long long object_id = atoll(item->valuestring);
+        utarray_push_back(g2g_item->incl_sub_object_ids, &object_id);
     }
 
     if (utarray_len(g2g_item->incl_sub_object_ids) > MAX_OBJECT_CNT) {
@@ -366,24 +331,24 @@ object2object_item_new(const char *line, struct object2object_schema *g2g_schema
 		goto error;
     }
 
-    ret = get_column_pos(line, g2g_schema->excl_sub_object_ids_column, 
-                         &column_offset, &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "exclude_object_ids");
+    if (tmp_obj == NULL || tmp_obj->type != cJSON_Array) {
         log_fatal(logger, MODULE_OBJECT,
-                  "[%s:%d] g2g table:<%s> has no excluded_sub_object_ids in line:%s",
+                  "[%s:%d] g2g table:<%s> has no excluded_sub_object_ids or format is not array in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
 
-    memset(object_ids_str, 0, sizeof(object_ids_str));
-    memcpy(object_ids_str, line + column_offset, MIN(MAX_OBJECT_IDS_STR_LEN, column_len));
-
-    ret = ids_str2longlong_array(object_ids_str, g2g_item->excl_sub_object_ids);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_OBJECT,
-				  "[%s:%d] g2c table:<%s> excluded_sub_object_ids str2longlong failed in line:%s",
-				  __FUNCTION__, __LINE__, table_name, line);
-		goto error;
+    for (int i = 0; i < cJSON_GetArraySize(tmp_obj); i++) {
+        cJSON *item = cJSON_GetArrayItem(tmp_obj, i);
+        if (item == NULL || item->type != cJSON_String) {
+            log_fatal(logger, MODULE_OBJECT,
+                      "[%s:%d] g2g table:<%s> excluded_sub_object_ids format error in line:%s",
+                      __FUNCTION__, __LINE__, table_name, line);
+            goto error;
+        }
+        long long object_id = atoll(item->valuestring);
+        utarray_push_back(g2g_item->excl_sub_object_ids, &object_id);
     }
 
     if (utarray_len(g2g_item->excl_sub_object_ids) > MAX_OBJECT_CNT) {
@@ -743,7 +708,7 @@ static int object_topology_build_super_objects(struct maat_object_topology *obje
 
 int object2object_runtime_update(void *g2g_runtime, void *g2g_schema, 
                                const char *table_name, const char *line, 
-                               int valid_column)
+                               enum maat_operation op)
 {
     if (NULL == g2g_runtime || NULL == g2g_schema || 
         NULL == line) {
@@ -752,15 +717,6 @@ int object2object_runtime_update(void *g2g_runtime, void *g2g_schema,
 
     struct object2object_schema *schema = (struct object2object_schema *)g2g_schema;
 	struct object2object_runtime *g2g_rt = (struct object2object_runtime *)g2g_runtime;
-    int is_valid = get_column_value(line, valid_column);
-    if (is_valid < 0) {
-        log_fatal(g2g_rt->logger, MODULE_OBJECT,
-                  "[%s:%d] g2g table:<%s> has no is_valid(column seq:%d)"
-                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
-                  valid_column, line);
-        g2g_rt->update_err_cnt++;
-        return -1;
-    }
 
     struct object2object_item *g2g_item = object2object_item_new(line, schema, table_name,
                                                              g2g_rt->logger);
@@ -779,7 +735,7 @@ int object2object_runtime_update(void *g2g_runtime, void *g2g_schema,
     size_t i = 0;
     int err_flag = 0;
     long long *sub_object_id = NULL;
-    if (0 == is_valid) {
+    if (MAAT_OP_DEL == op) {
         //delete
         for (i = 0; i < utarray_len(g2g_item->incl_sub_object_ids); i++) {
             sub_object_id = (long long *)utarray_eltptr(g2g_item->incl_sub_object_ids, i);

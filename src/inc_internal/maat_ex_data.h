@@ -40,6 +40,11 @@ struct ex_container_schema {
     void (*custom_data_free)(void *);
 };
 
+struct ex_data_row {
+    char *row;
+    enum maat_operation op;
+};
+
 struct ex_data_runtime;
 
 /* ex_data_runtime API */
@@ -51,9 +56,9 @@ void ex_data_runtime_free(struct ex_data_runtime *ex_data_rt);
 void ex_data_runtime_commit(struct ex_data_runtime *ex_data_rt);
 
 /* ex_data_runtime cache row API */
-void ex_data_runtime_cache_row_put(struct ex_data_runtime *ex_data_rt, const char *row);
+void ex_data_runtime_cache_row_put(struct ex_data_runtime *ex_data_rt, const char *row, enum maat_operation op);
 
-const char *ex_data_runtime_cached_row_get(struct ex_data_runtime *ex_data_rt, size_t index);
+const struct ex_data_row *ex_data_runtime_cached_row_get(struct ex_data_runtime *ex_data_rt, size_t index);
 
 size_t ex_data_runtime_cached_row_count(struct ex_data_runtime *ex_data_rt);
 

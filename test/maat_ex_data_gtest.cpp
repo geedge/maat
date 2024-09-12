@@ -1,7 +1,6 @@
 #include "maat.h"
 #include "log/log.h"
 #include "maat_utils.h"
-#include "json2iris.h"
 #include "maat_command.h"
 #include "maat_ex_data.h"
 #include "maat_garbage_collection.h"

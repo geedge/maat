@@ -16,7 +16,6 @@
 #include <sys/stat.h>
 #include <assert.h>
 
-#include "json2iris.h"
 #include "log/log.h"
 #include "maat_utils.h"
 #include "maat_core.h"
@@ -131,7 +130,7 @@ maat_start_cb(long long new_version, int update_type, void *u_param)
 }
 
 static int
-maat_update_cb(const char *table_name, const char *line, void *u_param)
+maat_update_cb(const char *table_name, const char *line, void *u_param, enum maat_operation op)
 {
 	if (NULL == table_name || NULL == line || NULL == u_param) {
 		return 0;
@@ -161,7 +160,7 @@ maat_update_cb(const char *table_name, const char *line, void *u_param)
         for (int i = 0; i < conj_parent_table_cnt; i++) {
             int ret = table_manager_update_runtime(maat_inst->tbl_mgr, table_name,
                                                    (int)conj_parent_table_ids[i],
-                                                   line, update_type);
+                                                   line, op, update_type);
             if (ret < 0) {
                 log_fatal(maat_inst->logger, MODULE_MAAT_RULE,
                           "[%s:%d] table<%s> update runtime error for rule:%s",
@@ -171,7 +170,7 @@ maat_update_cb(const char *table_name, const char *line, void *u_param)
         }
     } else {
         int ret = table_manager_update_runtime(maat_inst->tbl_mgr, table_name,
-                                               table_id, line, update_type);
+                                               table_id, line, op, update_type);
             if (ret < 0) {
                 log_fatal(maat_inst->logger, MODULE_MAAT_RULE,
                           "[%s:%d] table<%s> update runtime error for rules:%s",
@@ -307,6 +306,7 @@ void maat_read_full_config(struct maat *maat_inst)
 {
     int ret = -1;
     char err_str[NAME_MAX] = {0};
+    cJSON *json_root = NULL;
     struct source_redis_ctx *redis_ctx = NULL;
 
     switch (maat_inst->opts.input_mode) {
@@ -334,21 +334,9 @@ void maat_read_full_config(struct maat *maat_inst)
                           redis_ctx->redis_db);
             }
             break;
-        case DATA_SOURCE_IRIS_FILE:
-			config_monitor_traverse(maat_inst->maat_version,
-                                    maat_inst->opts.iris_ctx.full_idx_dir,
-                                    maat_start_cb, maat_update_cb, maat_finish_cb,
-                                    maat_inst, maat_inst->opts.decrypt_key,
-                                    maat_inst->logger);
-            if (NULL == maat_inst->creating_maat_rt) {
-                log_fatal(maat_inst->logger, MODULE_MAAT_RULE, 
-                          "[%s:%d] At initiation: NO effective rule in %s",
-                          __FUNCTION__, __LINE__, maat_inst->opts.iris_ctx.full_idx_dir);
-            }
-            break;
         case DATA_SOURCE_JSON_FILE:
-            ret = load_maat_json_file(maat_inst, maat_inst->opts.json_ctx.json_file,
-                                      err_str, sizeof(err_str));
+            ret = load_maat_json_rule_file(maat_inst, maat_inst->opts.json_ctx.json_file,
+                                      json_root, err_str, sizeof(err_str));
             if (ret < 0) {
                 log_fatal(maat_inst->logger, MODULE_MAAT_RULE, 
                           "[%s:%d] Maat re-initiate with JSON file %s failed: %s", 
@@ -357,7 +345,7 @@ void maat_read_full_config(struct maat *maat_inst)
             }
             
             config_monitor_traverse(maat_inst->maat_version,
-                                    maat_inst->opts.json_ctx.iris_file,
+                                    json_root,
                                     maat_start_cb, maat_update_cb, maat_finish_cb,
                                     maat_inst, maat_inst->opts.decrypt_key,
                                     maat_inst->logger);
@@ -366,6 +354,7 @@ void maat_read_full_config(struct maat *maat_inst)
                           "[%s:%d] At initiation: NO effective rule in %s",
                           __FUNCTION__, __LINE__, maat_inst->opts.json_ctx.iris_file);
             }
+            cJSON_Delete(json_root);
             break;
         default:
             break;
@@ -444,6 +433,7 @@ void *rule_monitor_loop(void *arg)
     char md5_tmp[MD5_DIGEST_LENGTH * 2 + 1] = {0};
     char err_str[NAME_MAX] = {0};
     struct stat attrib;
+    cJSON *json_root = NULL;
 
     while (maat_inst->is_running) {
         if (time(NULL) % 10 == 0) {
@@ -461,13 +451,6 @@ void *rule_monitor_loop(void *arg)
                                         maat_start_cb, maat_update_cb, maat_finish_cb,
                                         maat_inst);
                 break;
-            case DATA_SOURCE_IRIS_FILE:
-                config_monitor_traverse(maat_inst->maat_version, 
-                                        maat_inst->opts.iris_ctx.inc_idx_dir,
-                                        maat_start_cb, maat_update_cb, maat_finish_cb,
-                                        maat_inst, maat_inst->opts.decrypt_key,
-                                        maat_inst->logger);
-                break;
             case DATA_SOURCE_JSON_FILE:
                 memset(md5_tmp, 0, sizeof(md5_tmp));
                 stat(maat_inst->opts.json_ctx.json_file, &attrib);
@@ -476,15 +459,15 @@ void *rule_monitor_loop(void *arg)
                     maat_inst->opts.json_ctx.last_md5_time = attrib.st_ctim;
                     md5_file(maat_inst->opts.json_ctx.json_file, md5_tmp);
                     if (0 != strcmp(md5_tmp, maat_inst->opts.json_ctx.effective_json_md5)) {
-                        ret = load_maat_json_file(maat_inst, maat_inst->opts.json_ctx.json_file, 
-                                                    err_str, sizeof(err_str));
+                        ret = load_maat_json_rule_file(maat_inst, maat_inst->opts.json_ctx.json_file, 
+                                                    json_root, err_str, sizeof(err_str));
                         if (ret < 0) {
                             log_fatal(maat_inst->logger, MODULE_MAAT_RULE, 
                                         "[%s:%d] Maat re-initiate with JSON file %s (md5=%s)failed: %s\n",
                                         __FUNCTION__, __LINE__, maat_inst->opts.json_ctx.json_file, 
                                         md5_tmp, err_str);
                         } else {
-                            config_monitor_traverse(0, maat_inst->opts.json_ctx.iris_file,
+                            config_monitor_traverse(0, json_root,
                                                     maat_start_cb, maat_update_cb, maat_finish_cb,
                                                     maat_inst, maat_inst->opts.decrypt_key,
                                                     maat_inst->logger);
@@ -492,6 +475,7 @@ void *rule_monitor_loop(void *arg)
                                         "Maat re-initiate with JSON file %s success, md5: %s\n",
                                         maat_inst->opts.json_ctx.json_file, md5_tmp);
                         }
+                        cJSON_Delete(json_root);
                     }
                 }
                 break;

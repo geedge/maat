@@ -36,38 +36,16 @@ enum condition_negate_option {
 };
 
 struct rule_schema {
-    int rule_id_column;
-    int rule_tag_column;
-    int declared_condition_num_column;
     int table_id;
     struct table_manager *ref_tbl_mgr;
     struct log_handle *logger;
 };
 
-struct object2rule_schema {
-    int object_id_column;
-    int rule_id_column;
-    int negate_option_column;
-    int attribute_name_column;
-    int condition_index_column;
-    int asso_rule_table_id; //asso is abbreviation for associated
-    int table_id;
-    struct table_manager *ref_tbl_mgr;
-};
-
 struct rule_item {
-    int declared_condition_num;
+    int condition_num;
     long long rule_id;
     char *table_line;
     size_t table_line_len;
-};
-
-struct object2rule_item {
-    UT_array *object_ids;
-    long long rule_id;
-    int negate_option;
-    int attribute_id;
-    int condition_index;
 };
 
 struct condition_query_key {
@@ -105,19 +83,12 @@ struct rule_runtime {
     struct condition_id_kv *not_condition_id_kv_hash; //store NOT_condition_ids(negate_option == 1)
     struct bool_expr_match *expr_match_buff;
     struct maat_garbage_bin *ref_garbage_bin;
+    struct table_condition *tbl_not_condition_hash; //each attribute's negate condition number <= MAX_NOT_CONDITION_NUM
     struct log_handle *logger;
     time_t version;
 
     long long rule_num;
     long long update_err_cnt;
-};
-
-struct object2rule_runtime {
-    long long not_condition_cnt;
-    long long rule_num;
-    long long update_err_cnt;
-    struct rule_runtime *ref_rule_rt;
-    struct table_condition *tbl_not_condition_hash; //each attribute's negate condition number <= MAX_NOT_CONDITION_NUM
 };
 
 struct condition_literal {
@@ -128,22 +99,23 @@ struct condition_literal {
 
 struct rule_condition {
 	long long condition_id;
-    UT_array *literals; //struct condition_literal
+    long long object_ids[MAX_OBJECT_CNT];
+    int object_cnt;
+    int attribute_id;
 	char negate_option;      // 1 byte
 	char in_use;        // 1 byte
     char pad[6];        // for 8 bytes alignment
 };
 
 struct rule_sort_para {
-	int declared_condition_num;
+	int condition_num;
 	long long rule_id;
 };
 
 #define MAAT_RULE_MAGIC	0x4a5b6c7d
 struct maat_rule {
 	uint32_t magic_num;
-    int actual_condition_num;
-	int declared_condition_num;
+    int condition_num;
     int table_id;
     long long rule_id;
     void *user_data; // rule_item
@@ -181,138 +153,14 @@ struct rule_compile_state {
 };
 
 UT_icd ut_condition_id_icd = {sizeof(long long), NULL, NULL, NULL};
-UT_icd ut_condition_literal_icd = {sizeof(struct condition_literal), NULL, NULL, NULL};
 UT_icd ut_rule_object_id_icd = {sizeof(long long), NULL, NULL, NULL};
 UT_icd ut_maat_hit_object_icd = {sizeof(struct maat_hit_object), NULL, NULL, NULL};
 UT_icd ut_hit_path_icd = {sizeof(struct internal_hit_path), NULL, NULL, NULL};
 UT_icd ut_hit_rule_table_id_icd = {sizeof(struct rule2table_id), NULL, NULL, NULL};
 
-static struct maat_rule *maat_rule_new(long long rule_id)
-{
-	struct maat_rule *rule = ALLOC(struct maat_rule, 1);
-
-	rule->magic_num = MAAT_RULE_MAGIC;
-	rule->rule_id = rule_id;
-
-    for(int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {	
-		utarray_new(rule->conditions[i].literals, &ut_condition_literal_icd);
-		rule->conditions[i].in_use = 0;
-        rule->conditions[i].condition_id = 0;
-	}
-
-	return rule;
-}
-
-static int maat_rule_set(struct maat_rule *rule, int table_id,
-                            int declared_condition_num, void *user_data)
-{
-    if (NULL == rule) {
-        return -1;
-    }
-
-    rule->table_id = table_id;
-    rule->declared_condition_num = declared_condition_num;
-    rule->user_data = user_data;
-
-    return 0;
-}
-
-static int rule_accept_tag_match(struct rule_schema *schema, const char *line,
-                                    const char *table_name, struct log_handle *logger)
-{
-    size_t column_offset = 0;
-    size_t column_len = 0;
-    size_t n_tag = table_manager_accept_tags_count(schema->ref_tbl_mgr);
-
-    if (schema->rule_tag_column > 0 && n_tag > 0) {
-        int ret = get_column_pos(line, schema->rule_tag_column, 
-                                 &column_offset, &column_len);
-        if (ret < 0) {
-            log_fatal(logger, MODULE_RULE,
-                      "[%s:%d] table: <%s> has no rule_tag in line:%s",
-                      __FUNCTION__, __LINE__, table_name, line);
-            return TAG_MATCH_ERR;
-        }
-
-        if (column_len > 2) {
-            char *tag_str = ALLOC(char, column_len + 1);
-            memcpy(tag_str, (line + column_offset), column_len);
-            ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
-            FREE(tag_str);
-            if (TAG_MATCH_ERR == ret) {
-                log_fatal(logger, MODULE_RULE,
-                          "[%s:%d] table: <%s> has invalid tag format in line:%s",
-                          __FUNCTION__, __LINE__, table_name, line);
-                return TAG_MATCH_ERR;
-            }
-
-            if (TAG_MATCH_UNMATCHED == ret) {
-                log_fatal(logger, MODULE_RULE,
-                          "[%s:%d] table: <%s> has unmatched tag in line:%s",
-                          __FUNCTION__, __LINE__, table_name, line);
-                return TAG_MATCH_UNMATCHED;
-            }
-        }
-    }
-
-    return TAG_MATCH_MATCHED;
-}
-
-static struct rule_item *
-rule_item_new(const char *table_line, struct rule_schema *schema,
-                 const char *table_name, struct log_handle *logger)
-{
-    int ret = rule_accept_tag_match(schema, table_line, table_name, logger);
-    if (ret == TAG_MATCH_UNMATCHED) {
-        return NULL;
-    }
-
-    size_t column_offset = 0;
-    size_t column_len = 0;
-    struct rule_item *rule_item = ALLOC(struct rule_item, 1);
-
-    ret = get_column_pos(table_line, schema->rule_id_column,
-                         &column_offset, &column_len);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_RULE,
-                  "[%s:%d] table: <%s> has no rule_id in line:%s",
-                  __FUNCTION__, __LINE__, table_name, table_line);
-        goto error;
-    }
-    rule_item->rule_id = atoll(table_line + column_offset);
-
-    ret = get_column_pos(table_line, schema->declared_condition_num_column,
-                         &column_offset, &column_len);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_RULE,
-                  "[%s:%d] table: <%s> has no condition_num in line:%s",
-                  __FUNCTION__, __LINE__, table_name, table_line);
-		goto error;
-    }
-
-    rule_item->declared_condition_num = atoi(table_line + column_offset);
-    if (rule_item->declared_condition_num < 0 ||
-        rule_item->declared_condition_num > MAX_NOT_CONDITION_NUM) {
-        log_fatal(logger, MODULE_RULE,
-                  "[%s:%d] table: <%s> condition_num:%d exceed maximum:%d in line:%s",
-                  __FUNCTION__, __LINE__, table_name, rule_item->declared_condition_num,
-                  MAX_NOT_CONDITION_NUM, table_line);
-		goto error;
-    }
-
-    rule_item->table_line_len = strlen(table_line);
-    rule_item->table_line = ALLOC(char, rule_item->table_line_len + 1);
-    memcpy(rule_item->table_line, table_line, rule_item->table_line_len);
-
-    return rule_item;
-error:
-    FREE(rule_item);
-    return NULL;
-}
-
 static void rule_item_free(struct rule_item *item)
 {
-    item->declared_condition_num = 0;
+    item->condition_num = 0;
 
     if (item->table_line != NULL) {
         FREE(item->table_line);
@@ -333,17 +181,223 @@ static void maat_rule_free(struct maat_rule *rule)
 	for (int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
 		condition = rule->conditions + i;
 
-        if (condition->literals != NULL) {
-            utarray_free(condition->literals);
-            condition->literals = NULL;
-        }
-		
 		condition->in_use = 0;
         condition->condition_id = 0;
 	}
 
 	rule->magic_num = 0;
 	FREE(rule);
+}
+
+static int validate_table_not_condition(struct rule_runtime *rule_rt,
+                                     struct table_manager *tbl_mgr, int attribute_id,
+                                     enum maat_operation op, struct log_handle *logger)
+{
+    struct table_condition *not_condition = NULL;
+    HASH_FIND_INT(rule_rt->tbl_not_condition_hash, &attribute_id, not_condition);
+
+    if (MAAT_OP_DEL == op) {
+        //delete
+        if (NULL == not_condition || 0 == not_condition->actual_condition_num) {
+            return 0;
+        } else {
+            not_condition->actual_condition_num--;
+        }
+    } else {
+        //add
+        if (NULL == not_condition) {
+            not_condition = ALLOC(struct table_condition, 1);
+            not_condition->attribute_id = attribute_id;
+            not_condition->actual_condition_num++;
+            HASH_ADD_INT(rule_rt->tbl_not_condition_hash, attribute_id, not_condition);
+        } else {
+            if (not_condition->actual_condition_num >= MAX_NOT_CONDITION_NUM) {
+                const char *attr_name = table_manager_get_attribute_name(tbl_mgr, attribute_id);
+                log_fatal(logger, MODULE_RULE,
+                          "[%s:%d]attribute:<%s> negate condition num exceed maximum:%d",
+                          __FUNCTION__, __LINE__, attr_name, MAX_NOT_CONDITION_NUM);
+                return -1;
+            }
+            not_condition->actual_condition_num++;
+        }
+    }
+    
+    return 0;
+}
+
+static struct maat_rule *maat_rule_new(struct rule_runtime *rule_rt, struct rule_schema *schema,
+                                        const char *table_name, long long rule_id, 
+                                        const char *table_line, struct rule_item *rule_item)
+{
+	struct maat_rule *rule = ALLOC(struct maat_rule, 1);
+    struct log_handle *logger = rule_rt->logger;
+    cJSON *tmp_obj = NULL;
+    cJSON *table_json = cJSON_Parse(table_line);
+
+	rule->magic_num = MAAT_RULE_MAGIC;
+	rule->rule_id = rule_id;
+
+    for(int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {	
+		rule->conditions[i].in_use = 0;
+        rule->conditions[i].condition_id = 0;
+	}
+
+    tmp_obj = cJSON_GetObjectItem(table_json, "conditions");
+    if (tmp_obj == NULL || tmp_obj->type != cJSON_Array) {
+        log_fatal(logger, MODULE_RULE,
+                  "[%s:%d] table: <%s> has no conditions or not array format",
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
+    }
+
+    rule->condition_num = cJSON_GetArraySize(tmp_obj);
+    if (rule->condition_num > MAX_ITEMS_PER_BOOL_EXPR) {
+        log_fatal(logger, MODULE_RULE,
+                  "[%s:%d] table: <%s> condition_num:%d exceed maximum:%d",
+                  __FUNCTION__, __LINE__, table_name, rule->condition_num, MAX_ITEMS_PER_BOOL_EXPR);
+        goto error;
+    }
+
+    for (int i = 0; i < rule->condition_num; i++) {
+        cJSON *condition_obj = cJSON_GetArrayItem(tmp_obj, i);
+        struct rule_condition *condition = rule->conditions + i;
+
+        tmp_obj = cJSON_GetObjectItem(condition_obj, "attribute_name");
+        if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
+            log_fatal(rule_rt->logger, MODULE_RULE,
+                        "[%s:%d] table: <%s> has no attribute_name or not string format",
+                        __FUNCTION__, __LINE__, table_name);
+            goto error;
+        }
+
+        condition->attribute_id = table_manager_get_attribute_id(schema->ref_tbl_mgr, tmp_obj->valuestring);
+        if (condition->attribute_id < 0) {
+            log_fatal(logger, MODULE_RULE,
+                      "[%s:%d] table: <%s> attribute_name:%s is illegal",
+                      __FUNCTION__, __LINE__, table_name, tmp_obj->valuestring);
+            goto error;
+        }
+
+        tmp_obj = cJSON_GetObjectItem(condition_obj, "negate_option");
+        if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
+            log_fatal(logger, MODULE_RULE,
+                        "[%s:%d] table: <%s> has no negate_option or not string format",
+                        __FUNCTION__, __LINE__, table_name);
+            goto error;
+        }
+
+        if (strncmp(tmp_obj->valuestring, "true", 4) == 0) {
+            condition->negate_option = CONDITION_NEGATE_OPTION_SET;
+        } else if (strncmp(tmp_obj->valuestring, "false", 5) == 0) {
+            condition->negate_option = CONDITION_NEGATE_OPTION_UNSET;
+        } else {
+            log_fatal(logger, MODULE_RULE,
+                        "[%s:%d] table: <%s> negate_option:%s is illegal",
+                        __FUNCTION__, __LINE__, table_name, tmp_obj->valuestring);
+            goto error;
+        }
+
+        if (condition->negate_option == CONDITION_NEGATE_OPTION_SET) {
+            int ret = validate_table_not_condition(rule_rt, schema->ref_tbl_mgr, condition->attribute_id, MAAT_OP_ADD, logger);
+            if (ret < 0) {
+                log_fatal(logger, MODULE_RULE,
+                          "[%s:%d] table: <%s> validate negate_option failed, line: %s",
+                          __FUNCTION__, __LINE__, table_name, table_line);
+                goto error;
+            }
+        }
+
+        tmp_obj = cJSON_GetObjectItem(condition_obj, "object_ids");
+        if (tmp_obj && tmp_obj->type == cJSON_Array) {
+            int n_object_ids = cJSON_GetArraySize(tmp_obj);
+
+            condition->object_cnt = n_object_ids;
+
+            for (int j = 0; j < n_object_ids; j++) {
+                cJSON *object_id_obj = cJSON_GetArrayItem(tmp_obj, j);
+                if (object_id_obj && object_id_obj->type == cJSON_Number) {
+                    long long object_id = object_id_obj->valueint;
+                    condition->object_ids[j] = object_id;
+                }
+            }
+        }
+
+        condition->in_use = 1;
+    }
+
+    rule_item->condition_num = rule->condition_num;
+    rule->user_data = rule_item;
+
+	return rule;
+
+error:
+    if (rule) {
+        maat_rule_free(rule);
+    }
+
+    return NULL;
+}
+
+static int rule_accept_tag_match(struct rule_schema *schema, const char *line,
+                                    const char *table_name, struct log_handle *logger)
+{
+    size_t n_tag = table_manager_accept_tags_count(schema->ref_tbl_mgr);
+    cJSON *tmp_obj = NULL;
+    cJSON *table_json = cJSON_Parse(line);
+
+    tmp_obj = cJSON_GetObjectItem(table_json, "tag");
+
+    if (tmp_obj && n_tag > 0) {
+        char *tag_str = tmp_obj->valuestring;
+        int ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
+        if (TAG_MATCH_ERR == ret) {
+            log_fatal(logger, MODULE_RULE,
+                      "[%s:%d] table: <%s> has invalid tag format in line:%s",
+                      __FUNCTION__, __LINE__, table_name, line);
+            return TAG_MATCH_ERR;
+        }
+
+        if (TAG_MATCH_UNMATCHED == ret) {
+            log_fatal(logger, MODULE_RULE,
+                      "[%s:%d] table: <%s> has unmatched tag in line:%s",
+                      __FUNCTION__, __LINE__, table_name, line);
+            return TAG_MATCH_UNMATCHED;
+        }
+    }
+
+    return TAG_MATCH_MATCHED;
+}
+
+static struct rule_item *
+rule_item_new(const char *table_line, struct rule_schema *schema,
+                 const char *table_name, struct log_handle *logger)
+{
+    int ret = rule_accept_tag_match(schema, table_line, table_name, logger);
+    if (ret == TAG_MATCH_UNMATCHED) {
+        return NULL;
+    }
+
+    cJSON *tmp_obj = NULL;
+    struct rule_item *rule_item = ALLOC(struct rule_item, 1);
+    cJSON *table_json = cJSON_Parse(table_line);
+
+    tmp_obj = cJSON_GetObjectItem(table_json, "rule_id");
+    if (tmp_obj == NULL && tmp_obj->type != cJSON_String) {
+        log_fatal(logger, MODULE_RULE,
+                  "[%s:%d] table: <%s> has no rule_id or not string format in line:%s",
+                  __FUNCTION__, __LINE__, table_name, cJSON_Print(table_json));
+        goto error;
+    }
+    rule_item->rule_id = atoll(tmp_obj->valuestring);
+
+    rule_item->table_line_len = strlen(table_line);
+    rule_item->table_line = ALLOC(char, rule_item->table_line_len + 1);
+    memcpy(rule_item->table_line, table_line, rule_item->table_line_len);
+
+    return rule_item;
+error:
+    FREE(rule_item);
+    return NULL;
 }
 
 static void rcu_rule_cfg_free(void *user_ctx, void *data)
@@ -359,46 +413,12 @@ void *rule_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 	struct rule_schema *schema = ALLOC(struct rule_schema, 1);
     schema->logger = logger;
 
-	cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
     if (item != NULL && item->type == cJSON_Number) {
         schema->table_id = item->valueint;
     } else {
         log_fatal(logger, MODULE_RULE, 
                   "[%s:%d] table: <%s> schema has no table_id column",
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-   	item = cJSON_GetObjectItem(json, "custom");
-    if (item == NULL || item->type != cJSON_Object) {
-        log_fatal(logger, MODULE_RULE, 
-                  "[%s:%d] table: <%s> schema has no custom column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "rule_id");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->rule_id_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_RULE, 
-                  "[%s:%d] table: <%s> schema has no rule_id column",
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "tags");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->rule_tag_column = custom_item->valueint;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "condition_num");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->declared_condition_num_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_RULE, 
-                  "[%s:%d] table: <%s> schema has no condition_num column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -413,109 +433,6 @@ error:
 void rule_schema_free(void *rule_schema)
 {
 	FREE(rule_schema);
-}
-
-void *object2rule_schema_new(cJSON *json, struct table_manager *tbl_mgr,
-                               const char *table_name, struct log_handle *logger)
-{
-	struct object2rule_schema *g2c_schema = ALLOC(struct object2rule_schema, 1);
-
-	cJSON *custom_item = NULL;
-    cJSON *item = cJSON_GetObjectItem(json, "table_id");
-    if (item != NULL && item->type == cJSON_Number) {
-        g2c_schema->table_id = item->valueint;
-    } else {
-        log_fatal(logger, MODULE_RULE, 
-                  "[%s:%d] table: <%s> schema has no table_id column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    item = cJSON_GetObjectItem(json, "associated_rule_table_id");
-    if (item != NULL && item->type == cJSON_Number) {
-        g2c_schema->asso_rule_table_id = item->valueint;
-    } else {
-        log_fatal(logger, MODULE_RULE, 
-                  "[%s:%d] table: <%s> schema has no associated_rule_table_id column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    item = cJSON_GetObjectItem(json, "custom");
-    if (item == NULL || item->type != cJSON_Object) {
-        log_fatal(logger, MODULE_RULE, 
-                  "[%s:%d] table: <%s> schema has no custom column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-	custom_item = cJSON_GetObjectItem(item, "object_id");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        g2c_schema->object_id_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_RULE, 
-                  "[%s:%d] table: <%s> schema has no object_id column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "rule_id");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        g2c_schema->rule_id_column = custom_item->valueint;
-    } else {
-         log_fatal(logger, MODULE_RULE, 
-                  "[%s:%d] table: <%s> schema has no rule_id column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "negate_option");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        g2c_schema->negate_option_column = custom_item->valueint;
-    } else {
-         log_fatal(logger, MODULE_RULE, 
-                  "[%s:%d] table: <%s> schema has no negate_option column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "attribute_name");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        g2c_schema->attribute_name_column = custom_item->valueint;
-    } else {
-         log_fatal(logger, MODULE_RULE, 
-                  "[%s:%d] table: <%s> schema has no attribute_name column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "condition_index");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        g2c_schema->condition_index_column = custom_item->valueint;
-    } else {
-         log_fatal(logger, MODULE_RULE, 
-                  "[%s:%d] table: <%s> schema has no condition_index column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    g2c_schema->ref_tbl_mgr = tbl_mgr;
-	return g2c_schema;
-error:
-	FREE(g2c_schema);
-	return NULL;
-}
-
-void object2rule_schema_free(void *g2c_schema)
-{
-	FREE(g2c_schema);
-}
-
-int object2rule_associated_rule_table_id(void *g2c_schema)
-{
-    struct object2rule_schema *schema = (struct object2rule_schema *)g2c_schema;
-
-    return schema->asso_rule_table_id;
 }
 
 #define RULE_GC_TIMEOUT_S 5
@@ -537,6 +454,7 @@ void *rule_runtime_new(void *rule_schema, size_t max_thread_num,
     rule_rt->not_condition_id_kv_hash = NULL;
     rule_rt->logger = logger;
     rule_rt->ref_garbage_bin = garbage_bin;
+    rule_rt->tbl_not_condition_hash = NULL;
 
     return rule_rt;
 }
@@ -609,203 +527,6 @@ void rule_runtime_init(void *rule_runtime, struct maat_runtime *maat_rt)
     rule_rt->ref_maat_rt = maat_rt;
 }
 
-void *object2rule_runtime_new(void *g2c_schema, size_t max_thread_num,
-                                struct maat_garbage_bin *garbage_bin, 
-                                struct log_handle *logger)
-{
-    if (NULL == g2c_schema) {
-        return NULL;
-    }
-
-    struct object2rule_runtime *g2c_rt =
-        ALLOC(struct object2rule_runtime, 1);
-
-    g2c_rt->tbl_not_condition_hash = NULL;
-
-    return g2c_rt;
-}
-
-void object2rule_runtime_init(void *g2c_runtime, void *rule_runtime)
-{
-    struct object2rule_runtime *g2c_rt =
-        (struct object2rule_runtime *)g2c_runtime;
-
-    g2c_rt->ref_rule_rt = (struct rule_runtime *)rule_runtime;
-}
-
-void object2rule_runtime_free(void *g2c_runtime)
-{
-    if (NULL == g2c_runtime) {
-        return;
-    }
-
-    struct object2rule_runtime *g2c_rt =
-        (struct object2rule_runtime *)g2c_runtime;
-
-    if (g2c_rt->tbl_not_condition_hash != NULL) {
-        struct table_condition *not_condition = NULL, *tmp_not_condition = NULL;
-        HASH_ITER(hh, g2c_rt->tbl_not_condition_hash, not_condition, tmp_not_condition) {
-            HASH_DEL(g2c_rt->tbl_not_condition_hash, not_condition);
-            FREE(not_condition);
-        }
-    }
-    assert(g2c_rt->tbl_not_condition_hash == NULL);
-
-    FREE(g2c_runtime);
-}
-
-static int is_valid_table_name(const char *str)
-{
-	size_t integer_cnt=0;
-	for (size_t i = 0; i < strlen(str); i++) {
-		if (str[i] >= '0' && str[i] <= '9') {
-			integer_cnt++;
-		}
-	}
-
-	if (strlen(str) == 0 || integer_cnt == strlen(str) || 
-        0 == strcasecmp(str, "null")) {
-		return 0;
-	}
-
-	return 1;
-}
-
-static void object2rule_item_free(struct object2rule_item *g2c_item)
-{
-    if (NULL == g2c_item) {
-        return;
-    }
-
-    if (g2c_item->object_ids != NULL) {
-        utarray_free(g2c_item->object_ids);
-        g2c_item->object_ids = NULL;
-    }
-
-    FREE(g2c_item);
-}
-
-static struct object2rule_item *
-object2rule_item_new(const char *line, struct object2rule_schema *g2c_schema,
-                       const char *table_name, struct log_handle *logger)
-{
-    size_t column_offset = 0;
-    size_t column_len = 0;
-    char attribute_name[MAX_NAME_STR_LEN + 1] = {0};
-    struct object2rule_item *g2c_item = ALLOC(struct object2rule_item, 1);
-    utarray_new(g2c_item->object_ids, &ut_rule_object_id_icd);
-
-    int ret = get_column_pos(line, g2c_schema->object_id_column, &column_offset,
-                             &column_len);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_RULE,
-				  "[%s:%d] g2c table:<%s> has no object_id in line:%s",
-				  __FUNCTION__, __LINE__, table_name, line);
-		goto error;
-    }
-
-    char object_ids_str[MAX_OBJECT_IDS_STR_LEN] = {0};
-    memcpy(object_ids_str, line + column_offset, MIN(MAX_OBJECT_IDS_STR_LEN, column_len));
-
-    ret = ids_str2longlong_array(object_ids_str, g2c_item->object_ids);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_RULE,
-				  "[%s:%d] g2c table:<%s> object_ids str2longlong failed in line:%s",
-				  __FUNCTION__, __LINE__, table_name, line);
-		goto error; 
-    }
-
-    if (utarray_len(g2c_item->object_ids) > MAX_OBJECT_CNT) {
-        log_fatal(logger, MODULE_RULE,
-				  "[%s:%d] g2c table:<%s> object_ids exceed maximum:%d in line:%s",
-				  __FUNCTION__, __LINE__, table_name, MAX_OBJECT_CNT, line);
-		goto error;
-    }
-
-    ret = get_column_pos(line, g2c_schema->rule_id_column, &column_offset,
-                         &column_len);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_RULE,
-				  "[%s:%d] g2c table:<%s> has no rule_id in line:%s",
-				  __FUNCTION__, __LINE__, table_name, line);
-		goto error;
-    }
-    g2c_item->rule_id = atoll(line + column_offset);
-
-    ret = get_column_pos(line, g2c_schema->negate_option_column, &column_offset,
-                         &column_len);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_RULE,
-				  "[%s:%d] g2c table:<%s> has no negate_option in line:%s ",
-				  __FUNCTION__, __LINE__, table_name, line);
-		goto error;
-    }
-
-    g2c_item->negate_option = atoi(line + column_offset);
-    if (g2c_item->negate_option != CONDITION_NEGATE_OPTION_SET && 
-        g2c_item->negate_option != CONDITION_NEGATE_OPTION_UNSET) {
-        log_fatal(logger, MODULE_RULE,
-				  "[%s:%d] g2c table:<%s>  negate_option:%d is illegal in line:%s ",
-				  __FUNCTION__, __LINE__, table_name, g2c_item->negate_option, line);
-		goto error;
-    }
-
-    ret = get_column_pos(line, g2c_schema->attribute_name_column, &column_offset,
-                         &column_len);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_RULE,
-				  "[%s:%d] g2c table:<%s> has no attribute_name in line:%s",
-				  __FUNCTION__, __LINE__, table_name, line);
-		goto error;
-    }
-
-    if (column_len > MAX_NAME_STR_LEN) {
-        log_fatal(logger, MODULE_RULE, 
-                  "[%s:%d] g2c table:<%s> attribute_name length exceed "
-                  "maxium:%d in line:%s", __FUNCTION__, __LINE__, table_name,
-                  MAX_NAME_STR_LEN, line);
-        goto error;
-    }
-    
-    memset(attribute_name, 0, sizeof(attribute_name));
-    memcpy(attribute_name, (line + column_offset), column_len);
-    
-    if (is_valid_table_name(attribute_name)) {
-        g2c_item->attribute_id = table_manager_get_table_id(g2c_schema->ref_tbl_mgr,
-                                                         attribute_name);
-        if (g2c_item->attribute_id < 0) {
-            log_fatal(logger, MODULE_RULE,
-                      "[%s:%d] g2c table:<%s> has unknown attribute:%s in line:%s",
-                      __FUNCTION__, __LINE__, table_name, attribute_name, line);
-            goto error;
-        }
-    }
-   
-    ret = get_column_pos(line, g2c_schema->condition_index_column, &column_offset,
-                         &column_len);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_RULE,
-                  "[%s:%d] g2c table:<%s> has no condition_index in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-
-    g2c_item->condition_index = atoi(line + column_offset);
-    if (g2c_item->condition_index < 0 || g2c_item->condition_index >= MAX_NOT_CONDITION_NUM) {
-        log_fatal(logger, MODULE_RULE,
-                  "[%s:%d] g2c table:<%s> condition_index:%d exceed maximum:%d in line:%s",
-                  __FUNCTION__, __LINE__, table_name, g2c_item->condition_index,
-                  MAX_NOT_CONDITION_NUM, line);
-        goto error;
-    }
-
-    return g2c_item;
-
-error:
-    object2rule_item_free(g2c_item);
-    return NULL;
-}
-
 static inline int compare_object_id(const void *a, const void *b)
 {
 	long long ret = *(const long long *)a - *(const long long *)b;
@@ -819,80 +540,6 @@ static inline int compare_object_id(const void *a, const void *b)
 	}
 }
 
-static void rule_condition_add_literal(struct rule_condition *condition,
-                                       struct object2rule_item *g2c_item)
-{
-    struct condition_literal tmp_literal;
-    tmp_literal.attribute_id = g2c_item->attribute_id;
-    tmp_literal.object_cnt = utarray_len(g2c_item->object_ids);
-    utarray_sort(g2c_item->object_ids, compare_object_id);
-
-    for (size_t i = 0; i < utarray_len(g2c_item->object_ids); i++) {
-        tmp_literal.object_ids[i] = *(long long *)utarray_eltptr(g2c_item->object_ids, i);
-    }
-    utarray_push_back(condition->literals, &tmp_literal);
-}
-
-void rule_condition_remove_literal(struct rule_condition *condition,
-                                   struct object2rule_item *g2c_item)
-{
-    struct condition_literal *tmp_literal = NULL;
-
-    for (size_t i = 0; i < utarray_len(condition->literals); i++) {
-        tmp_literal = (struct condition_literal *)utarray_eltptr(condition->literals, i);
-        if (tmp_literal->attribute_id == g2c_item->attribute_id) {
-            size_t remove_idx = utarray_eltidx(condition->literals, tmp_literal);
-            utarray_erase(condition->literals, remove_idx, 1);
-            break; 
-        }
-    } 
-}
-
-static int maat_rule_condition_find_literal(struct maat_rule *rule,
-                                            struct object2rule_item *g2c_item)
-{
-    struct rule_condition *condition = rule->conditions + g2c_item->condition_index;
-    struct condition_literal *tmp_literal = NULL;
-    int found = 0;
-
-    for (size_t i = 0; i < utarray_len(condition->literals); i++) {
-        tmp_literal = (struct condition_literal *)utarray_eltptr(condition->literals, i);
-        if (tmp_literal->attribute_id == g2c_item->attribute_id) {
-            found = 1;
-        }
-    }
-
-    return found;
-}
-
-static void maat_rule_condition_add_literal(struct maat_rule *rule,
-                                            struct object2rule_item *g2c_item)
-{
-    struct rule_condition *condition = rule->conditions + g2c_item->condition_index;
-
-    condition->negate_option = g2c_item->negate_option;
-
-    if (0 == condition->in_use) {
-        condition->in_use = 1;
-        rule->actual_condition_num++;
-    }
-
-    rule_condition_add_literal(condition, g2c_item);
-}
-
-static void maat_rule_condition_remove_literal(struct maat_rule *rule,
-                                               struct object2rule_item *g2c_item)
-{
-    struct rule_condition *condition = rule->conditions + g2c_item->condition_index;
-
-    rule_condition_remove_literal(condition, g2c_item);
-    if (0 == utarray_len(condition->literals)) {
-        condition->in_use = 0;
-        condition->condition_id = 0;
-        rule->actual_condition_num--;
-    }
-}
-
 static struct bool_matcher *
 maat_rule_bool_matcher_new(struct rule_runtime *rule_rt,
                               size_t *rule_cnt)
@@ -902,7 +549,6 @@ maat_rule_bool_matcher_new(struct rule_runtime *rule_rt,
     }
 
     size_t i = 0, j = 0, idx = 0;
-    int has_condition_num = 0;
 
     // STEP 1, update condition_id of each rule
     void **data_array = NULL;
@@ -911,20 +557,17 @@ maat_rule_bool_matcher_new(struct rule_runtime *rule_rt,
 
     for (idx = 0; idx < *rule_cnt; idx++) {
         iter_rule = (struct maat_rule *)data_array[idx];
-        has_condition_num = 0;
         for (i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
             struct rule_condition *condition = iter_rule->conditions + i;
             if (!condition->in_use) {
                 continue;
             }
 
-            has_condition_num++;
             if (0 == condition->condition_id) {
                 condition->condition_id =
                     maat_runtime_get_sequence(rule_rt->ref_maat_rt, "condition_id");
             }
         }
-        assert(has_condition_num == iter_rule->actual_condition_num);
     }
 
     // STEP 2, serial rule condition states to a bool expression array
@@ -942,7 +585,7 @@ maat_rule_bool_matcher_new(struct rule_runtime *rule_rt,
         }
 
         // some rule may have zero objects, e.g. default policy.
-        if (j == (size_t)iter_rule->declared_condition_num && j > 0) {
+        if (j == (size_t)iter_rule->condition_num && j > 0) {
             bool_expr_array[expr_cnt].expr_id = iter_rule->rule_id;
             bool_expr_array[expr_cnt].user_tag = iter_rule;
             bool_expr_array[expr_cnt].item_num = j;
@@ -987,22 +630,6 @@ static inline int compare_condition_id(const void *a, const void *b)
 	} else {
 		return 1;
 	}
-}
-
-static inline int compare_hit_object(const void *pa, const void *pb)
-{
-	struct maat_hit_object *la=(struct maat_hit_object *)pa;
-	struct maat_hit_object *lb=(struct maat_hit_object *)pb;
-
-	long long ret = la->item_id - lb->item_id;
-	if (0 == ret) {
-		ret = la->object_id - lb->object_id;
-        if (0 == ret) {
-            ret = la->attribute_id - lb->attribute_id;
-        }
-	}
-
-	return ret;
 }
 
 static inline int compare_rule_id(const void *a, const void *b)
@@ -1057,32 +684,27 @@ build_condition_id_kv_hash(struct rule_runtime *rule_rt, int negate_option)
                 }
             }
 
-            struct condition_literal *tmp_cl = NULL;
-            for (size_t j = 0; j < utarray_len(condition->literals); j++) {
-                tmp_cl = (struct condition_literal *)utarray_eltptr(condition->literals, j);
-
-                for (size_t k = 0; k < tmp_cl->object_cnt; k++) {
-                    struct condition_query_key key =
-                        {tmp_cl->object_ids[k], tmp_cl->attribute_id, condition->negate_option};
-                    struct condition_id_kv *condition_id_kv = NULL;
-                    
-                    HASH_FIND(hh, condition_id_kv_hash, &key, sizeof(struct condition_query_key),
-                              condition_id_kv);
-                    if (NULL == condition_id_kv) {
-                        condition_id_kv = ALLOC(struct condition_id_kv, 1);
-                        condition_id_kv->key = key;
-                        utarray_new(condition_id_kv->condition_ids, &ut_condition_id_icd);
-                        HASH_ADD_KEYPTR(hh, condition_id_kv_hash, &condition_id_kv->key,
-                                        sizeof(condition_id_kv->key), condition_id_kv);
-                    }
-
-                    if (utarray_find(condition_id_kv->condition_ids, &(condition->condition_id),
-                                     compare_condition_id)) {
-                        continue;
-                    }
-                    utarray_push_back(condition_id_kv->condition_ids, &(condition->condition_id));
-                    utarray_sort(condition_id_kv->condition_ids, compare_condition_id);
+            for (size_t k = 0; k < condition->object_cnt; k++) {
+                struct condition_query_key key =
+                    {condition->object_ids[k], condition->attribute_id, condition->negate_option};
+                struct condition_id_kv *condition_id_kv = NULL;
+                
+                HASH_FIND(hh, condition_id_kv_hash, &key, sizeof(struct condition_query_key),
+                            condition_id_kv);
+                if (NULL == condition_id_kv) {
+                    condition_id_kv = ALLOC(struct condition_id_kv, 1);
+                    condition_id_kv->key = key;
+                    utarray_new(condition_id_kv->condition_ids, &ut_condition_id_icd);
+                    HASH_ADD_KEYPTR(hh, condition_id_kv_hash, &condition_id_kv->key,
+                                    sizeof(condition_id_kv->key), condition_id_kv);
                 }
+
+                if (utarray_find(condition_id_kv->condition_ids, &(condition->condition_id),
+                                    compare_condition_id)) {
+                    continue;
+                }
+                utarray_push_back(condition_id_kv->condition_ids, &(condition->condition_id));
+                utarray_sort(condition_id_kv->condition_ids, compare_condition_id);
             }
         }
     }
@@ -1185,7 +807,7 @@ maat_rule_bool_matcher_match(struct rule_runtime *rule_rt,
 		rule = (struct maat_rule *)expr_match[i].user_tag;
 		assert(rule->magic_num == MAAT_RULE_MAGIC);
 		assert((unsigned long long)rule->rule_id == expr_match[i].expr_id);
-		if (0 == rule->actual_condition_num) {
+		if (0 == rule->condition_num) {
 			continue;
 		}
 
@@ -1201,201 +823,6 @@ maat_rule_bool_matcher_match(struct rule_runtime *rule_rt,
 	}
 
 	return ud_result_cnt;
-}
-
-static struct rule_item *rule_item_clone(struct rule_item *item)
-{
-    struct rule_item *new_item = ALLOC(struct rule_item, 1);
-
-    new_item->rule_id = item->rule_id;
-    new_item->declared_condition_num = item->declared_condition_num;
-    new_item->table_line_len = item->table_line_len;
-    new_item->table_line = ALLOC(char, new_item->table_line_len + 1);
-    memcpy(new_item->table_line, item->table_line, new_item->table_line_len);
-
-    return new_item;
-}
-
-static struct maat_rule *
-maat_rule_clone(struct maat_rule *rule, int deep_copy)
-{
-    struct maat_rule *new_rule = ALLOC(struct maat_rule, 1);
-
-    new_rule->magic_num = rule->magic_num;
-    new_rule->rule_id = rule->rule_id;
-    new_rule->actual_condition_num = rule->actual_condition_num;
-    new_rule->declared_condition_num = rule->declared_condition_num;
-    if (1 == deep_copy && rule->user_data != NULL) {
-        new_rule->user_data =
-            rule_item_clone((struct rule_item *)rule->user_data);
-    }
-
-    struct condition_literal *tmp_literal = NULL;
-    for (size_t i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
-        new_rule->conditions[i].condition_id = rule->conditions[i].condition_id;
-        new_rule->conditions[i].in_use = rule->conditions[i].in_use;
-        new_rule->conditions[i].negate_option = rule->conditions[i].negate_option;
-        utarray_new(new_rule->conditions[i].literals, &ut_condition_literal_icd);
-        for (size_t j = 0; j < utarray_len(rule->conditions[i].literals); j++) {
-            tmp_literal =
-                (struct condition_literal *)utarray_eltptr(rule->conditions[i].literals, j);
-            utarray_push_back(new_rule->conditions[i].literals, tmp_literal);
-        }
-    }
-
-    return new_rule;
-}
-
-static int maat_add_object_to_rule(struct rcu_hash_table *hash_tbl,
-                                      struct object2rule_item *g2c_item,
-                                      struct log_handle *logger)
-{
-	int ret = 0;
-    long long rule_id = g2c_item->rule_id;
-    struct maat_rule *rule = NULL;
-
-    int updating_flag = rcu_hash_is_updating(hash_tbl);
-    if (1 == updating_flag) {
-        rule = rcu_updating_hash_find(hash_tbl, (char *)&rule_id, sizeof(long long));
-        if (rule != NULL) {
-            ret = maat_rule_condition_find_literal(rule, g2c_item);
-            if (ret > 0) {
-                log_fatal(logger, MODULE_RULE,
-                          "[%s:%d]rule:%lld condition(index:%d) already has attribute_id:%d's "
-                          "literal, can't add again", __FUNCTION__, __LINE__, rule->rule_id,
-                          g2c_item->condition_index, g2c_item->attribute_id);
-                return -1;
-            }
-            /* rule found in updating hash(added by rule runtime), it can
-             * be modified directly */
-            maat_rule_condition_add_literal(rule, g2c_item);
-        } else {
-            /* rule neither in effective hash nor in updating hash, so new one */
-            rule = maat_rule_new(rule_id);
-            assert(rule != NULL);
-
-            maat_rule_condition_add_literal(rule, g2c_item);
-            rcu_hash_add(hash_tbl, (char *)&rule_id, sizeof(long long), rule);
-        }
-    } else {
-        rule = rcu_hash_find(hash_tbl, (char *)&rule_id, sizeof(long long));
-        if (rule != NULL) {
-            /*******************************************************************
-                rule found in effective hash(added by rule runtime), which means
-
-                1. rcu_hash_add(hash_tbl, rule)  ==> finished
-                2. rcu_hash_commit(hash_tbl)        ==> finished
-
-                can only be deleted but not modified
-                before delete it, we need to make a copy for further use
-            *********************************************************************/
-            ret = maat_rule_condition_find_literal(rule, g2c_item);
-            if (ret > 0) {
-                log_fatal(logger, MODULE_RULE,
-                          "[%s:%d]rule:%lld condition(index:%d) already has attribute_id:%d's "
-                          "literal, can't add again", __FUNCTION__, __LINE__, rule->rule_id,
-                          g2c_item->condition_index, g2c_item->attribute_id);
-                return -1;
-            }
-
-            struct maat_rule *copy_rule = maat_rule_clone(rule, 1);
-            assert(copy_rule != NULL);
-
-            /* delete rule from rcu hash */
-            rcu_hash_del(hash_tbl, (char *)&rule_id, sizeof(long long));
-
-            maat_rule_condition_add_literal(copy_rule, g2c_item);
-            rcu_hash_add(hash_tbl, (char *)&rule_id, sizeof(long long), copy_rule);
-        } else {
-            rule = maat_rule_new(rule_id);
-            assert(rule != NULL);
-
-            maat_rule_condition_add_literal(rule, g2c_item);
-            rcu_hash_add(hash_tbl, (char *)&rule_id, sizeof(long long), rule);
-        }
-    }
-
-    return 0;
-}
-
-static int maat_remove_object_from_rule(struct rcu_hash_table *hash_tbl,
-                                           struct object2rule_item *g2c_item,
-                                           struct log_handle *logger)
-{
-	int ret = 0;
-    long long rule_id = g2c_item->rule_id;
-    struct maat_rule *rule = NULL;
-
-    int updating_flag = rcu_hash_is_updating(hash_tbl);
-    if (1 == updating_flag) {
-        rule = rcu_updating_hash_find(hash_tbl, (char *)&rule_id,
-                                         sizeof(long long));
-        if (NULL == rule) {
-            log_fatal(logger, MODULE_RULE,
-                      "[%s:%d] Remove condition(index:%d) from rule %lld failed,"
-                      "rule not existed.", __FUNCTION__, __LINE__,
-                      g2c_item->condition_index, rule_id);
-            return -1;
-        } else {
-            ret = maat_rule_condition_find_literal(rule, g2c_item);
-            if (0 == ret) {
-                log_fatal(logger, MODULE_RULE,
-                          "[%s:%d]rule:%lld condition(index:%d) has no attribute_id:%d's "
-                          "literal, can't be removed", __FUNCTION__, __LINE__,
-                          rule->rule_id, g2c_item->condition_index, g2c_item->attribute_id);
-                return -1;
-            }
-
-            /* rule found in updating hash, it can be modified directly */
-            maat_rule_condition_remove_literal(rule, g2c_item);
-            if (0 == rule->actual_condition_num && NULL == rule->user_data) {
-                rcu_hash_del(hash_tbl, (char *)&rule_id, sizeof(long long));
-            } 
-        }
-    } else {
-        //find in effetive hash
-        rule = rcu_hash_find(hash_tbl, (char *)&rule_id, sizeof(long long));
-        if (rule != NULL) {
-            ret = maat_rule_condition_find_literal(rule, g2c_item);
-            if (0 == ret) {
-                log_fatal(logger, MODULE_RULE,
-                          "[%s:%d]rule:%lld condition(index:%d) has no attribute_id:%d's "
-                          "literal, can't be removed", __FUNCTION__, __LINE__,
-                          rule->rule_id, g2c_item->condition_index, g2c_item->attribute_id);
-                return -1;
-            }
-
-            /*******************************************************************
-                rule found in effective hash, which means
-
-                1. rcu_hash_add(hash_tbl, rule)  ==> finished
-                2. rcu_hash_commit(hash_tbl)        ==> finished
-
-                can only be deleted but not modified
-                before delete it, we need to make a copy for further use
-            *********************************************************************/
-            struct maat_rule *copy_rule = maat_rule_clone(rule, 1);
-            assert(copy_rule != NULL);
-
-            /* delete rule from rcu hash */
-            rcu_hash_del(hash_tbl, (char *)&rule_id, sizeof(long long));
-            maat_rule_condition_remove_literal(copy_rule, g2c_item);
-
-            if (0 == copy_rule->actual_condition_num && NULL == copy_rule->user_data) {
-                maat_rule_free(copy_rule);
-            } else {
-                rcu_hash_add(hash_tbl, (char *)&rule_id, sizeof(long long), copy_rule);
-            }
-        } else {
-            log_fatal(logger, MODULE_RULE,
-                      "[%s:%d] Remove condition(index:%d) from rule_id %lld failed,"
-                      "rule is not existed.", __FUNCTION__, __LINE__, 
-                      g2c_item->condition_index, rule_id);
-            return -1;
-        }
-    }
-
-    return 0;
 }
 
 struct rule_compile_state *rule_compile_state_new(void)
@@ -1573,23 +1000,20 @@ static int maat_rule_has_condition_query_key(struct maat_rule *rule,
 			continue;
 		}
 
-        struct condition_literal *tmp_cl = NULL;
-        for (size_t j = 0; j < utarray_len(condition->literals); j++) {
-            tmp_cl = (struct condition_literal *)utarray_eltptr(condition->literals, j);
-            if (tmp_cl->attribute_id != key->attribute_id) {
-                continue;
-            }
 
-            if (condition->negate_option != key->negate_option) {
-                continue;
-            }
+        if (condition->attribute_id != key->attribute_id) {
+            continue;
+        }
 
-            long long *tmp_object_id = bsearch(&(key->object_id), tmp_cl->object_ids,
-                                              tmp_cl->object_cnt, sizeof(long long),
-                                              compare_object_id);
-            if (tmp_object_id != NULL) {
-                return 1;
-            }
+        if (condition->negate_option != key->negate_option) {
+            continue;
+        }
+
+        long long *tmp_object_id = bsearch(&(key->object_id), condition->object_ids,
+                                            condition->object_cnt, sizeof(long long),
+                                            compare_object_id);
+        if (tmp_object_id != NULL) {
+            return 1;
         }
 	}
 
@@ -1610,20 +1034,17 @@ maat_rule_get_hit_condition_index(struct maat_rule *rule,
             continue;
         }
 
-        struct condition_literal *tmp_cl = NULL;
-        for (size_t j = 0; j < utarray_len(tmp_condition->literals); j++) {
-            tmp_cl = (struct condition_literal *)utarray_eltptr(tmp_condition->literals, j);
-            if (tmp_cl->attribute_id != attribute_id) {
-                continue;
-            }
 
-            long long *tmp_object_id = bsearch(&hit_object_id, tmp_cl->object_ids,
-                                              tmp_cl->object_cnt, sizeof(long long),
-                                              compare_object_id);
-            if (tmp_object_id != NULL) {
-                condition_idx_array[hit_condition_cnt++] = i;
-                break;
-            }
+        if (tmp_condition->attribute_id != attribute_id) {
+            continue;
+        }
+
+        long long *tmp_object_id = bsearch(&hit_object_id, tmp_condition->object_ids,
+                                            tmp_condition->object_cnt, sizeof(long long),
+                                            compare_object_id);
+        if (tmp_object_id != NULL) {
+            condition_idx_array[hit_condition_cnt++] = i;
+            break;
         }
     }
 
@@ -1727,7 +1148,7 @@ size_t rule_runtime_get_hit_paths(struct rule_runtime *rule_rt, int thread_id,
         rule = (struct maat_rule *)expr_match[idx].user_tag;
 		assert(rule->magic_num == MAAT_RULE_MAGIC);
 		assert((unsigned long long)rule->rule_id == expr_match[idx].expr_id);
-		if (0 == rule->actual_condition_num || NULL == rule->user_data) {
+		if (0 == rule->condition_num || NULL == rule->user_data) {
 			continue;
 		}
 
@@ -1982,73 +1403,36 @@ rule_runtime_add_rule(struct rule_runtime *rule_rt,
     }
 
     int updating_flag = rcu_hash_is_updating(rule_rt->cfg_hash);
+
     if (1 == updating_flag) {
         rule = rcu_updating_hash_find(rule_rt->cfg_hash, (char *)&rule_id,
                                          sizeof(long long));
-        if (rule != NULL) {
-            /****************************************************************
-               rule found in updating hash(added by object2rule runtime), which means
-
-               1. rcu_hash_add(htable, rule) ==> finished
-               2. rcu_hash_commit(htable)       ==> undo
-               because it's in updating hash, we can modify it directly
-           ******************************************************************/
-
-            /* rule has object2rule_table info, so set rule_table info */
-            maat_rule_set(rule, table_id, rule_item->declared_condition_num, rule_item);
-        } else {
-            // rule neither in effective hash nor in updating hash
-            rule = maat_rule_new(rule_item->rule_id);
-            assert(rule != NULL);
-            maat_rule_set(rule, table_id, rule_item->declared_condition_num, rule_item);
-            rcu_hash_add(rule_rt->cfg_hash, (char *)&rule_id, sizeof(long long), rule);
-        }
     } else {
         rule = rcu_hash_find(rule_rt->cfg_hash, (char *)&rule_id, sizeof(long long));
-        if (rule != NULL) {
-            /********************************************************************************
-               rule found in effective hash(added by object2rule runtime), which means
-
-               1. rcu_hash_add(htable, rule)  ==> finished
-               2. rcu_hash_commit(htable)        ==> finished
-
-               can only be deleted but not modified
-               before delete it, we need to make a copy for further use
-           ***********************************************************************************/
-            struct maat_rule *copy_rule = maat_rule_clone(rule, 0);
-            assert(copy_rule != NULL);
-
-            /* delete rule from rcu hash */
-            rcu_hash_del(rule_rt->cfg_hash, (char *)&rule_id, sizeof(long long));
-
-            /* copy_rule has object2rule_table info, so set rule_table info */
-            maat_rule_set(copy_rule, table_id, rule_item->declared_condition_num, rule_item);
-            /* add copy_rule to rcu hash */
-            rcu_hash_add(rule_rt->cfg_hash, (char *)&rule_id, sizeof(long long), copy_rule);
-        } else {
-            rule = maat_rule_new(rule_item->rule_id);
-            assert(rule != NULL);
-            maat_rule_set(rule, table_id, rule_item->declared_condition_num, rule_item);
-            rcu_hash_add(rule_rt->cfg_hash, (char *)&rule_id, sizeof(long long), rule);
-        }
     }
+    if (rule != NULL) {
+        log_fatal(logger, MODULE_RULE,
+                  "[%s:%d]rule_id:%lld already existed in rule table, drop line:%s",
+                  __FUNCTION__, __LINE__, rule_id, line);
+    }
+
+    rule = maat_rule_new(rule_rt, schema, table_name, rule_id, line, rule_item);
+    if (NULL == rule) {
+        log_fatal(logger, MODULE_RULE,
+                  "[%s:%d]maat_rule_new failed, drop line:%s",
+                  __FUNCTION__, __LINE__, line);
+        return -1;
+    }
+
+    rcu_hash_add(rule_rt->cfg_hash, (char *)&rule_id, sizeof(long long), rule);
 
     return 0;
 }
 
-static void garbage_rule_item_free(void *data, void *arg)
-{
-    if (NULL == data) {
-        return;
-    }
-
-    struct rule_item *rule_item = (struct rule_item *)data;
-
-    rule_item_free(rule_item);
-}
-
 static void rule_runtime_del_rule(struct rule_runtime *rule_rt,
-                                        long long rule_id)
+                                    struct rule_schema *schema,
+                                    long long rule_id,
+                                    struct log_handle *logger)
 {
     struct maat_rule *rule = NULL;
 
@@ -2057,56 +1441,26 @@ static void rule_runtime_del_rule(struct rule_runtime *rule_rt,
         // find in updating hash
         rule = rcu_updating_hash_find(rule_rt->cfg_hash, (char *)&rule_id,
                                          sizeof(long long));
-        if (rule != NULL) {
-            /****************************************************************
-                rule found in updating hash, which means
-
-                1. rcu_hash_del(htable, rule) ==> finished
-                2. rcu_hash_commit(htable)       ==> undo
-                because it's in updating hash, we can modify it directly
-            ******************************************************************/
-            if (rule->user_data != NULL) {
-                maat_garbage_bagging(rule_rt->ref_garbage_bin, rule->user_data, NULL,
-                                     garbage_rule_item_free);
-                rule->user_data = NULL;
-            }
-
-            if (0 == rule->actual_condition_num) {
-                rcu_hash_del(rule_rt->cfg_hash, (char *)&rule_id, sizeof(long long));
-            }
-        }
     } else {
         // find in effective hash
         rule = rcu_hash_find(rule_rt->cfg_hash, (char *)&rule_id, sizeof(long long));
-        if (rule != NULL) {
-            /*******************************************************************
-                rule found in effective hash, which means
+    }
 
-                1. rcu_hash_add(htable, rule)  ==> finished
-                2. rcu_hash_commit(htable)        ==> finished
-
-                can only be deleted but not modified
-                before delete it, we need to make a copy for further use
-            *********************************************************************/
-            struct maat_rule *copy_rule = maat_rule_clone(rule, 0);
-            assert(copy_rule != NULL);
-
-            /* delete rule from rcu hash */
-            rcu_hash_del(rule_rt->cfg_hash, (char *)&rule_id, sizeof(long long));
-
-            if (0 == copy_rule->actual_condition_num) {
-                maat_rule_free(copy_rule);
-            } else {
-                rcu_hash_add(rule_rt->cfg_hash, (char *)&rule_id, 
-                             sizeof(long long), copy_rule);
+    if (rule != NULL) {
+        for (int i = 0; i < rule->condition_num; i++) {
+            struct rule_condition *condition = rule->conditions + i;
+            if (condition->in_use && condition->negate_option == CONDITION_NEGATE_OPTION_SET) {
+                validate_table_not_condition(rule_rt, schema->ref_tbl_mgr, condition->attribute_id, MAAT_OP_DEL, logger);
             }
         }
+
+        rcu_hash_del(rule_rt->cfg_hash, (char *)&rule_id, sizeof(long long));
     }
 }
 
 int rule_runtime_update(void *rule_runtime, void *rule_schema, 
                            const char *table_name, const char *line, 
-                           int valid_column)
+                           enum maat_operation op)
 {
     if (NULL == rule_runtime || NULL == rule_schema || NULL == line) {
         return -1;
@@ -2114,29 +1468,30 @@ int rule_runtime_update(void *rule_runtime, void *rule_schema,
 
     struct rule_schema *schema = (struct rule_schema *)rule_schema;
     struct rule_runtime *rule_rt = (struct rule_runtime *)rule_runtime;
-    int is_valid = get_column_value(line, valid_column);
-    if (is_valid < 0) {
+    cJSON *tmp_obj = NULL;
+    cJSON *json = cJSON_Parse(line);
+
+    if (NULL == json) {
         log_fatal(rule_rt->logger, MODULE_RULE,
-                  "[%s:%d] rule table:<%s> has no is_valid(column seq:%d)"
-                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
-                  valid_column, line);
+                  "[%s:%d]parse json failed, line:%s", __FUNCTION__, __LINE__, line);
         rule_rt->update_err_cnt++;
         return -1;
     }
 
-    long long rule_id = get_column_value(line, schema->rule_id_column);
-    if (rule_id < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "rule_id");
+    if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
         log_fatal(rule_rt->logger, MODULE_RULE,
-                  "[%s:%d] rule table:<%s> has no rule_id(column seq:%d)"
-                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
-                  schema->rule_id_column, line);
+                  "[%s:%d] rule table:<%s> has no rule_id or not string format in table_line:%s",
+                  __FUNCTION__, __LINE__, table_name, line);
         rule_rt->update_err_cnt++;
+        cJSON_Delete(json);
         return -1;
     }
+    long long rule_id = atoll(tmp_obj->valuestring);
 
-    if (0 == is_valid) {
+    if (MAAT_OP_DEL == op) {
         // delete
-        rule_runtime_del_rule(rule_rt, rule_id);
+        rule_runtime_del_rule(rule_rt, schema, rule_id, rule_rt->logger);
     } else {
         // add
         int ret = rule_runtime_add_rule(rule_rt, schema, rule_id, 
@@ -2146,152 +1501,8 @@ int rule_runtime_update(void *rule_runtime, void *rule_schema,
         }
     }
 
+    cJSON_Delete(json);
     return 0;
-}
-
-static int validate_table_not_condition(struct object2rule_runtime *g2c_rt,
-                                     struct table_manager *tbl_mgr, int table_id,
-                                     int is_valid, struct log_handle *logger)
-{
-    struct table_condition *not_condition = NULL;
-    HASH_FIND_INT(g2c_rt->tbl_not_condition_hash, &table_id, not_condition);
-
-    if (0 == is_valid) {
-        //delete
-        if (NULL == not_condition || 0 == not_condition->actual_condition_num) {
-            return 0;
-        } else {
-            not_condition->actual_condition_num--;
-        }
-    } else {
-        //add
-        if (NULL == not_condition) {
-            not_condition = ALLOC(struct table_condition, 1);
-            not_condition->attribute_id = table_id;
-            not_condition->actual_condition_num++;
-            HASH_ADD_INT(g2c_rt->tbl_not_condition_hash, attribute_id, not_condition);
-        } else {
-            if (not_condition->actual_condition_num >= MAX_NOT_CONDITION_NUM) {
-                const char *table_name = table_manager_get_table_name(tbl_mgr, table_id);
-                log_fatal(logger, MODULE_RULE,
-                          "[%s:%d]table:<%s> negate condition num exceed maximum:%d",
-                          __FUNCTION__, __LINE__, table_name, MAX_NOT_CONDITION_NUM);
-                return -1;
-            }
-            not_condition->actual_condition_num++;
-        }
-    }
-    
-    return 0;
-}
-
-int object2rule_runtime_update(void *g2c_runtime, void *g2c_schema, 
-                                 const char *table_name, const char *line, 
-                                 int valid_column)
-{
-    if (NULL == g2c_runtime || NULL == g2c_schema || NULL == line) {
-        return -1;
-    }
-
-    struct object2rule_schema *schema = (struct object2rule_schema *)g2c_schema;
-    struct object2rule_runtime *g2c_rt = (struct object2rule_runtime *)g2c_runtime;
-    struct rule_runtime *rule_rt = g2c_rt->ref_rule_rt;
-
-    int is_valid = get_column_value(line, valid_column);
-    if (is_valid < 0) {
-         log_fatal(rule_rt->logger, MODULE_RULE,
-                  "[%s:%d] g2c table:<%s> has no is_valid(column seq:%d)"
-                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
-                  valid_column, line);
-        g2c_rt->update_err_cnt++;
-        return -1;
-    } 
-    
-    int ret = -1;
-    struct object2rule_item *g2c_item =
-        object2rule_item_new(line, schema, table_name, rule_rt->logger);
-    if (NULL == g2c_item) {
-        g2c_rt->update_err_cnt++;
-        return -1;
-    }
-
-    if (1 == g2c_item->negate_option) {
-        ret = validate_table_not_condition(g2c_rt, schema->ref_tbl_mgr,
-                                        g2c_item->attribute_id, is_valid,
-                                        rule_rt->logger);
-        if (ret < 0) {
-            log_fatal(rule_rt->logger, MODULE_RULE,
-                      "[%s:%d]validate negate condition failed, abandon config:%s",
-                      __FUNCTION__, __LINE__, line);
-            goto next;
-        }
-    }
-
-    if (0 == is_valid) {
-        //delete
-        ret = maat_remove_object_from_rule(rule_rt->cfg_hash, g2c_item,
-                                             rule_rt->logger);
-        if (0 == ret) {
-            if (g2c_item->negate_option) {
-                g2c_rt->not_condition_cnt--;
-            }
-            g2c_rt->rule_num--;
-        } else {
-            g2c_rt->update_err_cnt++;
-        }
-    } else {
-        //add
-        ret = maat_add_object_to_rule(rule_rt->cfg_hash, g2c_item,
-                                        rule_rt->logger);
-        if (0 == ret) {
-            if (g2c_item->negate_option) {
-                g2c_rt->not_condition_cnt++;
-            }
-            g2c_rt->rule_num++;
-        } else {
-            g2c_rt->update_err_cnt++;
-        }
-    }
-
-next:
-    object2rule_item_free(g2c_item);
-    return ret;
-}
-
-long long object2rule_runtime_not_condition_count(void *g2c_runtime)
-{
-     if (NULL == g2c_runtime) {
-        return 0;
-    }
-    
-    struct object2rule_runtime *g2c_rt =
-        (struct object2rule_runtime *)g2c_runtime;
-
-    return g2c_rt->not_condition_cnt;
-}
-
-long long object2rule_runtime_rule_count(void *g2c_runtime)
-{
-    if (NULL == g2c_runtime) {
-        return 0;
-    }
-    
-    struct object2rule_runtime *g2c_rt =
-        (struct object2rule_runtime *)g2c_runtime;
-
-    return g2c_rt->rule_num;
-}
-
-long long object2rule_runtime_update_err_count(void *g2c_runtime)
-{   
-    if (NULL == g2c_runtime) {
-        return 0;
-    }
-
-    struct object2rule_runtime *g2c_rt =
-        (struct object2rule_runtime *)g2c_runtime;
-
-    return g2c_rt->update_err_cnt;
 }
 
 int rule_runtime_commit(void *rule_runtime, const char *table_name,
@@ -2405,8 +1616,8 @@ static int rule_sort_para_compare(const struct rule_sort_para *a,
                                      const struct rule_sort_para *b)
 {
 	//If rule rule's execute sequences are not specified or equal.
-	if (a->declared_condition_num != b->declared_condition_num) {
-		return (a->declared_condition_num - b->declared_condition_num);
+	if (a->condition_num != b->condition_num) {
+		return (a->condition_num - b->condition_num);
 	} else {
 		return (b->rule_id - a->rule_id);
 	}
@@ -2416,7 +1627,7 @@ static void rule_sort_para_set(struct rule_sort_para *para,
                                   const struct rule_item *item)
 {
 	para->rule_id = item->rule_id;
-	para->declared_condition_num = item->declared_condition_num;
+	para->condition_num = item->condition_num;
 }
 
 static int compare_rule_item(const void *a, const void *b)

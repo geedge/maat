@@ -32,7 +32,7 @@ void *ip_runtime_new(void *ip_schema, size_t max_thread_num,
 void ip_runtime_free(void *ip_runtime);
 
 int ip_runtime_update(void *ip_runtime, void *ip_schema, const char *table_name, 
-                      const char *line, int valid_column);
+                      const char *line, enum maat_operation op);
 
 int ip_runtime_commit(void *ip_runtime, const char *table_name, long long maat_rt_version);
 

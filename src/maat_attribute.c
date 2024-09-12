@@ -246,18 +246,3 @@ long long attribute_runtime_hit_item_num(void *attribute_runtime)
     
     return sum;
 }
-
-int attribute_get_physical_table_id(struct table_manager *tbl_mgr, int table_id)
-{
-    enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
-
-    if (table_type != TABLE_TYPE_ATTRIBUTE) {
-        return -1;
-    }
-
-    // find physical table id
-    struct attribute_schema *attribute_schema = table_manager_get_schema(tbl_mgr, table_id);
-    assert(attribute_schema != NULL);
-
-    return attribute_schema->physical_table_id;
-}

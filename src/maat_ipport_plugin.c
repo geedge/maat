@@ -23,13 +23,9 @@
 #define MODULE_IPPORT_PLUGIN	 module_name_str("maat.ipport_plugin")
 
 struct ipport_plugin_schema {
-    int item_id_column;
-    int ip_type_column;
-    int ip_addr_column;
-    int port1_column;
-    int port2_column;
     int gc_timeout_s;
     int table_id;
+    char key_name[MAX_NAME_STR_LEN];
     struct ex_container_schema container_schema;
     struct table_manager *ref_tbl_mgr;
     struct log_handle *logger;
@@ -95,56 +91,14 @@ void *ipport_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "item_id");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->item_id_column = custom_item->valueint;
+    custom_item = cJSON_GetObjectItem(item, "key_name");
+    if (custom_item != NULL && custom_item->type == cJSON_String) {
+        strncpy(schema->key_name, custom_item->valuestring, sizeof(schema->key_name) - 1);
     } else {
         log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport_plugin table:<%s> schema has no"
                   " item_id column", __FUNCTION__, __LINE__,
                   table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "ip_type");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->ip_type_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
-                  "[%s:%d] ipport_plugin table:<%s> schema has no"
-                  " ip_type column", __FUNCTION__, __LINE__,
-                  table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "ip_addr");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->ip_addr_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
-                  "[%s:%d] ipport_plugin table:<%s> schema has no"
-                  " ip_addr column", __FUNCTION__, __LINE__,
-                  table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "port1");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->port1_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
-                  "[%s:%d] ipport_plugin table:<%s> schema has no"
-                  " port1 column", __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "port2");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->port2_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
-                  "[%s:%d] ipport_plugin table:<%s> schema has no"
-                  " port2 column", __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -269,93 +223,78 @@ void ipport_plugin_runtime_free(void *ipport_plugin_runtime)
 
 static struct ipport_item *
 ipport_item_new(struct ipport_plugin_schema *schema, const char *table_name,
-                const char *line, struct log_handle *logger)
+                const cJSON *json, struct log_handle *logger)
 {
-    size_t column_offset = 0;
-    size_t column_len = 0;
-    char ip_str[40] = {0};
+    char ip_str[128] = {0};
     struct ipport_item *ipport_item = ALLOC(struct ipport_item, 1);
+    cJSON *tmp_obj = NULL;
+    int ret = 0;
 
-    int ret = get_column_pos(line, schema->item_id_column, &column_offset,
-                             &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, schema->key_name);
+    if (NULL == tmp_obj || tmp_obj->type != cJSON_Number) {
         log_fatal(logger, MODULE_IPPORT_PLUGIN, 
-                  "[%s:%d] ipport table:<%s> has no item_id in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
+                  "[%s:%d] ipport table:<%s> has no key or invalid format, line:%s",
+                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
-    ipport_item->item_id = atoll(line + column_offset);
+    ipport_item->item_id = atoll(tmp_obj->valuestring);
 
-    ret = get_column_pos(line, schema->ip_type_column, &column_offset,
-                         &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "ip");
+    if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
         log_fatal(logger, MODULE_IPPORT_PLUGIN, 
-                  "[%s:%d] ipport table:<%s> has no ip_type in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
+                  "[%s:%d] ipport table:<%s> has no ip or invalid format in line:%s",
+                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
-    ipport_item->ip_type = atoi(line + column_offset);
+    strncpy(ip_str, tmp_obj->valuestring, strlen(tmp_obj->valuestring));
 
-    if (ipport_item->ip_type != IPV4 && ipport_item->ip_type != IPV6) {
-        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
-                  "[%s:%d] ipport table:<%s> has invalid ip type:%d in line:%s",
-                  __FUNCTION__, __LINE__, table_name, ipport_item->ip_type, line);
-        goto error;
+    if (strchr(ip_str, ':') != NULL) {
+		ipport_item->ip_type = IPV6;
+	} else {
+		ipport_item->ip_type = IPV4;
     }
-
-    ret = get_column_pos(line, schema->ip_addr_column, &column_offset,
-                         &column_len);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
-                  "[%s:%d] ipport table:<%s> has no ip_addr in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-    memcpy(ip_str, (line + column_offset), column_len);
 
     if (IPV4 == ipport_item->ip_type) {
-        uint32_t ipv4_addr = 0;
-		ret = inet_pton(AF_INET, ip_str, &ipv4_addr);
+        ret = ip_format2range(ip_str, ipport_item->ip_type, &ipport_item->ipv4.min_ip, &ipport_item->ipv4.max_ip);
         if (ret < 0) {
             log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                       "[%s:%d] ipport table:<%s> ip_format2range(ip4) failed in line:%s",
-                      __FUNCTION__, __LINE__, table_name, line);
+                      __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
             goto error;
         }
-        ipport_item->ipv4.min_ip = ipv4_addr;
-        ipport_item->ipv4.max_ip = ipv4_addr;
     } else {
         //ipv6
-        uint32_t ipv6_addr[4] = {0};
-		ret = inet_pton(AF_INET6, ip_str, ipv6_addr);
+        ret = ip_format2range(ip_str, ipport_item->ip_type, ipport_item->ipv6.min_ip, ipport_item->ipv6.max_ip);
         if (ret < 0) {
             log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                       "[%s:%d] ipport table:<%s> ip_format2range(ip6) failed in line:%s",
-                      __FUNCTION__, __LINE__, table_name, line);
+                      __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
             goto error;
         }
-        memcpy(ipport_item->ipv6.min_ip, ipv6_addr, sizeof(ipv6_addr));
     }
 
-    ret = get_column_pos(line, schema->port1_column, &column_offset,
-                         &column_len);
-    if (ret < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, "port");
+    if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
         log_fatal(logger, MODULE_IPPORT_PLUGIN, 
-                  "[%s:%d] ipport table:<%s>) has no port1 in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
+                  "[%s:%d] ipport table:<%s> has no port or invalid format in line:%s",
+                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
-    ipport_item->min_port = atoi(line + column_offset);
 
-    ret = get_column_pos(line, schema->port2_column, &column_offset,
-                         &column_len);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
-                  "[%s:%d] ipport table:<%s> has no port2 in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
+    char port_range[20] = {0};
+    memcpy(port_range, tmp_obj->valuestring, strlen(tmp_obj->valuestring));
+
+    //port range is port or port_start-port_end
+    if(strchr(port_range,'-')!=NULL){
+        char *saveptr = NULL;
+        char *port_start = strtok_r(port_range,"-", &saveptr);
+        char *port_end = strtok_r(NULL,"-", &saveptr);
+        ipport_item->min_port = atoi(port_start);
+        ipport_item->max_port = atoi(port_end);
+    } else {
+        ipport_item->min_port = atoi(port_range);
+        ipport_item->max_port = atoi(port_range);
     }
-    ipport_item->max_port = atoi(line + column_offset);
 
     return ipport_item;
 error:
@@ -376,7 +315,7 @@ static int
 ipport_plugin_runtime_update_row(struct ipport_plugin_runtime *ipport_plugin_rt,
                                  const char *table_name, const char *row, 
                                  const char *key, size_t key_len, 
-                                 struct ipport_item *ipport_item, int is_valid)
+                                 struct ipport_item *ipport_item, enum maat_operation op)
 {
     int ret = -1;
     struct ex_data_runtime *ex_data_rt = ipport_plugin_rt->ex_data_rt;
@@ -384,7 +323,7 @@ ipport_plugin_runtime_update_row(struct ipport_plugin_runtime *ipport_plugin_rt,
         return -1;
     }
 
-    if (0 == is_valid) {
+    if (MAAT_OP_DEL == op) {
         // delete
         ret = ex_data_runtime_del_ex_container(ex_data_rt, key, key_len);
         if (ret < 0) {
@@ -415,7 +354,7 @@ ipport_plugin_runtime_update_row(struct ipport_plugin_runtime *ipport_plugin_rt,
 int ipport_plugin_runtime_update(void *ipport_plugin_runtime,
                                  void *ipport_plugin_schema, 
                                  const char *table_name,
-                                 const char *line, int valid_column)
+                                 const char *line, enum maat_operation op)
 {
     if (NULL == ipport_plugin_runtime || NULL == ipport_plugin_schema || 
         NULL == line) {
@@ -429,56 +368,64 @@ int ipport_plugin_runtime_update(void *ipport_plugin_runtime,
     struct ipport_plugin_runtime *ipport_plugin_rt =
         (struct ipport_plugin_runtime *)ipport_plugin_runtime;
 
-    size_t item_id_offset = 0, item_id_len = 0;
+    int ret = 0;
+    cJSON *tmp_obj = NULL;
+    cJSON *json = cJSON_Parse(line);
 
-    int is_valid = get_column_value(line, valid_column);
-    if (is_valid < 0) {
+    tmp_obj = cJSON_GetObjectItem(json, schema->key_name);
+    if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
+        log_fatal(ipport_plugin_rt->logger, MODULE_IPPORT_PLUGIN,
+                  "[%s:%d]ipport_plugin table:<%s> has no key or invalid format, line:%s",
+                  __FUNCTION__, __LINE__, table_name, line);
         ipport_plugin_rt->update_err_cnt++;
-        return -1;
-    }
-
-    int ret = get_column_pos(line, schema->item_id_column,
-                             &item_id_offset, &item_id_len);
-    if (ret < 0) {
-        ipport_plugin_rt->update_err_cnt++;
-        return -1;
+        goto ERROR;
     }
 
     if (1 == schema->container_schema.set_flag) {
-        if (1 == is_valid) {
+        if (MAAT_OP_ADD == op) {
             // add
-            ipport_item = ipport_item_new(schema, table_name, line,
+            ipport_item = ipport_item_new(schema, table_name, json,
                                           ipport_plugin_rt->logger);
             if (NULL == ipport_item) {
                 ipport_plugin_rt->update_err_cnt++;
-                return -1;
+                goto ERROR;
             }
         }
 
-        const char *key = line + item_id_offset;
-        size_t key_len = item_id_len;
+        const char *key = tmp_obj->valuestring;
+        size_t key_len = strlen(key);
         ret = ipport_plugin_runtime_update_row(ipport_plugin_rt, table_name,
                                                line, key, key_len, ipport_item,
-                                               is_valid);
+                                               op);
         if (ret < 0) {
             log_fatal(ipport_plugin_rt->logger, MODULE_IPPORT_PLUGIN,
                       "[%s:%d]ipport_plugin table:<%s> update one line failed, "
                       "line:%s", __FUNCTION__, __LINE__, table_name, line);
             ipport_plugin_rt->update_err_cnt++;
-            return -1;
+            goto ERROR;
         }
 
         log_debug(ipport_plugin_rt->logger, MODULE_IPPORT_PLUGIN,
                  "ipport_plugin table:<%s> update one line, key:%s, key_len:%zu,"
-                 " is_valid:%d", table_name, key, key_len, is_valid);
+                 " maat_op:%d", table_name, key, key_len, op);
     } else {
         //ex_schema not set
-        ex_data_runtime_cache_row_put(ipport_plugin_rt->ex_data_rt, line);
+        ex_data_runtime_cache_row_put(ipport_plugin_rt->ex_data_rt, line, op);
         ipport_plugin_rt->rule_num =
             ex_data_runtime_cached_row_count(ipport_plugin_rt->ex_data_rt);
     }
 
     return 0;
+
+ERROR:
+    if (NULL != ipport_item) {
+        ipport_item_free(ipport_item);
+    }
+    if (NULL != json) {
+        cJSON_Delete(json);
+    }
+
+    return -1;
 }
 
 static void 

@@ -44,7 +44,7 @@ void *ip_plugin_runtime_new(void *ip_plugin_schema, size_t max_thread_num,
 void ip_plugin_runtime_free(void *ip_plugin_runtime);
 
 int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema, 
-                             const char *table_name, const char *line, int valid_column);
+                             const char *table_name, const char *line, enum maat_operation op);
 
 int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name, long long maat_rt_version);
 

@@ -11,7 +11,7 @@ LINK_DIRECTORIES(/opt/MESA/lib /usr/lib64)
 
 add_definitions(-D_GNU_SOURCE) 
 add_definitions(-fPIC)
-set(MAAT_SRC alignment.c json2iris.c maat_api.c rcu_hash.c maat_garbage_collection.c maat_config_monitor.c 
+set(MAAT_SRC alignment.c maat_api.c rcu_hash.c maat_garbage_collection.c maat_config_monitor.c 
     maat_core.c maat_kv.c maat_ex_data.c maat_utils.c maat_command.c maat_redis_monitor.c maat_table.c 
     maat_rule.c maat_object.c maat_ip.c maat_flag.c maat_interval.c maat_expr.c maat_plugin.c 
     maat_ip_plugin.c maat_ipport_plugin.c maat_bool_plugin.c maat_fqdn_plugin.c maat_attribute.c maat_stat.c)

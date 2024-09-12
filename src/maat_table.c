@@ -38,15 +38,22 @@ struct maat_table {
     char schema_tag[MAX_TAG_STR_LEN + 1];
     size_t schema_tag_len;
     enum table_type table_type;
-    int valid_column;
     void *schema;
     void *runtime;
     void *updating_runtime;
 };
 
+struct maat_attribute {
+    int table_id;
+    int attr_id;
+    char attr_name[MAX_NAME_STR_LEN + 1];
+};
+
 struct table_manager {
     struct maat_table *tbl[MAX_TABLE_NUM];
     size_t n_table;
+    struct maat_attribute *attr[MAX_ATTRIBUTE_NUM];
+    size_t n_attr;
 
     struct rule_tag *accept_tags;
     size_t n_accept_tag;
@@ -56,6 +63,8 @@ struct table_manager {
     int g2g_table_id;
     struct maat_kv_store *tbl_name2id_map;
     struct maat_kv_store *conj_tbl_name2id_map;
+    struct maat_kv_store *attr_name2id_map;
+    struct maat_kv_store *sequence_map;
 
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
@@ -75,7 +84,7 @@ struct table_operations {
     void (*free_runtime)(void *runtime);
 
     int (*update_runtime)(void *runtime, void *schema, const char *table_name,
-                          const char *line, int valid_column);
+                          const char *line, enum maat_operation op);
 
     int (*commit_runtime)(void *runtime, const char *table_name, 
                           long long maat_rt_version);
@@ -263,6 +272,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .rule_count = bool_plugin_runtime_rule_count,
         .update_err_count = bool_plugin_runtime_update_err_count
     },
+#if 0
     {
         .type = TABLE_TYPE_ATTRIBUTE,
         .new_schema = attribute_schema_new,
@@ -277,6 +287,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .hit_times = attribute_runtime_hit_times,
         .hit_item_num = attribute_runtime_hit_item_num
     },
+#endif
     {
         .type = TABLE_TYPE_RULE,
         .new_schema = rule_schema_new,
@@ -298,17 +309,6 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .commit_runtime = object2object_runtime_commit,
         .rule_count = object2object_runtime_rule_count,
         .update_err_count = object2object_runtime_update_err_count
-    },
-    {
-        .type = TABLE_TYPE_OBJECT2RULE,
-        .new_schema = object2rule_schema_new,
-        .free_schema = object2rule_schema_free,
-        .new_runtime = object2rule_runtime_new,
-        .free_runtime = object2rule_runtime_free,
-        .update_runtime = object2rule_runtime_update,
-        .commit_runtime = NULL,
-        .rule_count = object2rule_runtime_rule_count,
-        .update_err_count = object2rule_runtime_update_err_count
     }
 };
 
@@ -500,7 +500,6 @@ static void maat_table_schema_free(void *schema, enum table_type table_type)
 static void register_reserved_word(struct maat_kv_store *reserved_word_map)
 {
     maat_kv_register(reserved_word_map, "rule", TABLE_TYPE_RULE);
-    maat_kv_register(reserved_word_map, "object2rule", TABLE_TYPE_OBJECT2RULE);
     maat_kv_register(reserved_word_map, "object2object", TABLE_TYPE_OBJECT2OBJECT);
     maat_kv_register(reserved_word_map, "flag", TABLE_TYPE_FLAG);
     maat_kv_register(reserved_word_map, "flag_plus", TABLE_TYPE_FLAG_PLUS);
@@ -514,7 +513,6 @@ static void register_reserved_word(struct maat_kv_store *reserved_word_map)
     maat_kv_register(reserved_word_map, "ipport_plugin", TABLE_TYPE_IPPORT_PLUGIN);
     maat_kv_register(reserved_word_map, "bool_plugin", TABLE_TYPE_BOOL_PLUGIN);
     maat_kv_register(reserved_word_map, "fqdn_plugin", TABLE_TYPE_FQDN_PLUGIN);
-    maat_kv_register(reserved_word_map, "attribute", TABLE_TYPE_ATTRIBUTE);
 }
 
 static struct maat_table *
@@ -595,18 +593,6 @@ maat_table_new(cJSON *json, struct maat_kv_store *reserved_word_map,
                   item->valuestring);
         goto error;
     }
-
-    item = cJSON_GetObjectItem(json, "valid_column");
-    if (NULL == item || item->type != cJSON_Number) {
-        if (ptable->table_type != TABLE_TYPE_ATTRIBUTE) {
-            log_fatal(logger, MODULE_TABLE, 
-                      "[%s:%d] table:%s has no valid column", 
-                      __FUNCTION__, __LINE__, ptable->table_name);
-            goto error;
-        }
-    } else {
-        ptable->valid_column = item->valueint;
-    }
     
     return ptable;
 error:
@@ -671,6 +657,31 @@ static int register_single_tbl_name2id(struct maat_kv_store *tbl_name2id_map,
     }
 
     maat_kv_register(tbl_name2id_map, table_name, table_id);
+    return 0;
+}
+
+static int register_single_attribute_name2id(struct maat_kv_store *attr_name2id_map,
+                                             const char *attr_name, int attr_id,
+                                             struct log_handle *logger)
+{
+    if (strlen(attr_name) >= NAME_MAX) {
+        log_fatal(logger, MODULE_TABLE,
+                  "[%s:%d] attribute:<%s> name length exceed maxium:%d",
+                  __FUNCTION__, __LINE__, attr_name, NAME_MAX);
+        return -1;
+    }
+
+    long long tmp_attr_id = -1;
+    int ret = maat_kv_read(attr_name2id_map, attr_name, &tmp_attr_id, 1);
+    if (ret > 0 && tmp_attr_id != attr_id) {
+        log_fatal(logger, MODULE_TABLE,
+                  "[%s:%d] attribute:<%s>(attr_id:%lld) has already been registered"
+                  ", can't register again",
+                  __FUNCTION__, __LINE__, attr_name, tmp_attr_id);
+        return -1;
+    }
+
+    maat_kv_register(attr_name2id_map, attr_name, attr_id);
     return 0;
 }
 
@@ -799,6 +810,71 @@ int maat_default_rule_table_id(cJSON *json, struct log_handle *logger)
     return item->valueint;
 }
 
+static long long maat_table_get_sequence(struct maat_kv_store *sequence_map,
+                                         const char *sequence_name)
+{
+    long long sequence = 1;
+    int map_ret = maat_kv_read(sequence_map, sequence_name, &sequence, 1);
+    if (map_ret < 0) {
+        maat_kv_register(sequence_map, sequence_name, sequence);
+    } else {
+        sequence++;
+        int ret = maat_kv_write(sequence_map, sequence_name, sequence);
+        if (ret < 0) {
+            return -1;
+        }
+    }
+
+    return sequence;
+}
+
+static void maat_table_attribute_update(struct table_manager *tbl_mgr, cJSON *json,
+                                        int table_id, struct log_handle *logger)
+{
+    cJSON *item = cJSON_GetObjectItem(json, "supported_attributes");
+    if (NULL == item) {
+        return;
+    }
+
+    if (item->type != cJSON_Array) {
+        log_fatal(logger, MODULE_TABLE,
+                  "[%s:%d] table_id:%d supported_attributes should be an array",
+                  __FUNCTION__, __LINE__, table_id);
+        return;
+    }
+
+    int n_attr = cJSON_GetArraySize(item);
+    for (int i = 0; i < n_attr; i++) {
+        cJSON *attr = cJSON_GetArrayItem(item, i);
+        if (NULL == attr || attr->type != cJSON_String) {
+            log_fatal(logger, MODULE_TABLE,
+                      "[%s:%d] table_id:%d supported_attributes element should be string",
+                      __FUNCTION__, __LINE__, table_id);
+            return;
+        }
+
+        struct maat_attribute *pattr = ALLOC(struct maat_attribute, 1);
+        pattr->table_id = table_id;
+        pattr->attr_id = maat_table_get_sequence(tbl_mgr->sequence_map, "attribute_id");
+        if (pattr->attr_id < 0) {
+            log_fatal(logger, MODULE_TABLE,
+                      "[%s:%d] table_id:%d attribute %s get id failed",
+                      __FUNCTION__, __LINE__, table_id, attr->valuestring);
+            return;
+        }
+        if (register_single_attribute_name2id(tbl_mgr->attr_name2id_map, attr->valuestring, pattr->attr_id, logger) < 0) {
+            log_fatal(logger, MODULE_TABLE,
+                      "[%s:%d] table_id:%d attribute %s register failed",
+                      __FUNCTION__, __LINE__, table_id, attr->valuestring);
+            return;
+        }
+        strncpy(pattr->attr_name, attr->valuestring, MAX_NAME_STR_LEN);
+
+        tbl_mgr->attr[pattr->attr_id] = pattr;
+        tbl_mgr->n_attr++;
+    }
+}
+
 struct table_manager *
 table_manager_create(const char *table_info_path, const char *accept_tags,
                      enum maat_expr_engine engine_type, struct maat_garbage_bin *garbage_bin,
@@ -844,6 +920,8 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
     tbl_mgr->logger = logger;
     tbl_mgr->tbl_name2id_map = maat_kv_store_new();
     tbl_mgr->conj_tbl_name2id_map = maat_kv_store_new();
+    tbl_mgr->attr_name2id_map = maat_kv_store_new();
+    tbl_mgr->sequence_map = maat_kv_store_new();
     tbl_mgr->engine_type = engine_type;
     tbl_mgr->ref_garbage_bin = garbage_bin;
 
@@ -909,20 +987,16 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
                 g2g_table_id = maat_tbl->table_id;
             }
 
+            if (maat_tbl->table_type >= TABLE_TYPE_FLAG && maat_tbl->table_type <= TABLE_TYPE_INTERVAL_PLUS) {
+                maat_table_attribute_update(tbl_mgr, json, maat_tbl->table_id, logger);
+            }
+
             tbl_mgr->tbl[maat_tbl->table_id] = maat_tbl;
             tbl_mgr->n_table++;
 
-            if (maat_tbl->table_type == TABLE_TYPE_ATTRIBUTE) {
-                int phy_table_id = attribute_get_physical_table_id(tbl_mgr, maat_tbl->table_id);
-                log_info(logger, MODULE_TABLE,
-                         "successfully register attribute[%s]->attribute_id:%d,"
-                         " physical_table_id:%d", maat_tbl->table_name, maat_tbl->table_id,
-                         phy_table_id);
-            } else {
-                log_info(logger, MODULE_TABLE,
-                         "successfully register physical table[%s]->table_id:%d",
-                         maat_tbl->table_name, maat_tbl->table_id);
-            }
+            log_info(logger, MODULE_TABLE,
+                        "successfully register table[%s]->table_id:%d",
+                        maat_tbl->table_name, maat_tbl->table_id);
         }
     }
 
@@ -988,32 +1062,6 @@ int table_manager_runtime_create(struct table_manager *tbl_mgr, size_t max_threa
         assert(table_type != TABLE_TYPE_INVALID);
         tbl_mgr->tbl[i]->updating_runtime = maat_table_runtime_new(schema, table_type, max_thread_num,
                                                                     garbage_bin, tbl_mgr->logger);
-    }
-
-    /* object2rule runtime depends on associated rule runtime,
-       must make sure associated rule runtime already exist */
-    for (i = 0; i < MAX_TABLE_NUM; i++) {
-        table_type = table_manager_get_table_type(tbl_mgr, i);
-        if (table_type != TABLE_TYPE_OBJECT2RULE) {
-            continue;
-        }
-
-        void *schema = table_manager_get_schema(tbl_mgr, i);
-        if (NULL == schema) {
-            log_fatal(tbl_mgr->logger, MODULE_TABLE, 
-                      "[%s:%d] object2rule table(table_id:%d) schema is null",
-                      __FUNCTION__, __LINE__, i);
-            continue;
-        }
-
-        void *g2c_updating_rt = table_manager_get_updating_runtime(tbl_mgr, i);
-        if (NULL == g2c_updating_rt) {
-            continue;
-        }
-
-        int asso_rule_table_id = object2rule_associated_rule_table_id(schema);
-        void *rule_updating_rt = table_manager_get_updating_runtime(tbl_mgr, asso_rule_table_id);
-        object2rule_runtime_init(g2c_updating_rt, rule_updating_rt);
     }
 
     return 0;
@@ -1104,6 +1152,21 @@ int table_manager_get_table_id(struct table_manager *tbl_mgr, const char *table_
     return (int)table_id;
 }
 
+int table_manager_get_attribute_id(struct table_manager *tbl_mgr, const char *attr_name)
+{
+    if (NULL == tbl_mgr || NULL == attr_name) {
+        return -1;
+    }
+
+    long long attr_id = -1;
+    int ret = maat_kv_read(tbl_mgr->attr_name2id_map, attr_name, &attr_id, 1);
+    if (ret < 0) {
+        return -1;
+    }
+
+    return (int)attr_id;
+}
+
 int table_manager_get_conj_parent_table_ids(struct table_manager *tbl_mgr, const char *table_name,
                                             long long *table_ids_array, size_t n_table_ids_array)
 {
@@ -1126,6 +1189,32 @@ const char *table_manager_get_table_name(struct table_manager *tbl_mgr, int tabl
     }
 
     return tbl_mgr->tbl[table_id]->table_name;
+}
+
+const char *table_manager_get_attribute_name(struct table_manager *tbl_mgr, int attr_id)
+{
+    if (NULL == tbl_mgr || attr_id < 0) {
+        return NULL;
+    }
+
+    if (NULL == tbl_mgr->attr[attr_id]) {
+        return NULL;
+    }
+
+    return tbl_mgr->attr[attr_id]->attr_name;
+}
+
+int table_manager_attribute_get_table_id(struct table_manager *tbl_mgr, int attr_id)
+{
+    if (NULL == tbl_mgr || attr_id < 0) {
+        return -1;
+    }
+
+    if (NULL == tbl_mgr->attr[attr_id]) {
+        return -1;
+    }
+
+    return tbl_mgr->attr[attr_id]->table_id;
 }
 
 const char *table_manager_get_table_schema_tag(struct table_manager *tbl_mgr, int table_id)
@@ -1185,19 +1274,6 @@ void *table_manager_get_schema(struct table_manager *tbl_mgr, int table_id)
     return tbl_mgr->tbl[table_id]->schema;
 }
 
-int table_manager_get_valid_column(struct table_manager *tbl_mgr, int table_id)
-{
-    if (NULL == tbl_mgr || table_id < 0 || table_id >= MAX_TABLE_NUM) {
-        return -1;
-    }
-
-    if (NULL == tbl_mgr->tbl[table_id]) {
-        return -1;
-    }
-
-    return tbl_mgr->tbl[table_id]->valid_column;
-}
-
 enum maat_expr_engine table_manager_get_expr_engine(struct table_manager *tbl_mgr)
 {
     if (NULL == tbl_mgr) {
@@ -1252,7 +1328,8 @@ void *table_manager_get_updating_runtime(struct table_manager *tbl_mgr, int tabl
 }
 
 int table_manager_update_runtime(struct table_manager *tbl_mgr, const char *table_name,
-                                 int table_id, const char *line, int update_type)
+                                 int table_id, const char *line, enum maat_operation op, 
+                                 int update_type)
 {
     void *schema = table_manager_get_schema(tbl_mgr, table_id);
     if (NULL == schema) {
@@ -1267,14 +1344,6 @@ int table_manager_update_runtime(struct table_manager *tbl_mgr, const char *tabl
     }
   
     if (NULL == runtime) {
-        return -1;
-    }
-
-    int valid_column = table_manager_get_valid_column(tbl_mgr, table_id);
-    if (valid_column < 0) {
-        log_fatal(tbl_mgr->logger, MODULE_TABLE, 
-                  "[%s:%d] table:%s has no valid column, can't update runtime",
-                  __FUNCTION__, __LINE__, table_name);
         return -1;
     }
 
@@ -1294,7 +1363,7 @@ int table_manager_update_runtime(struct table_manager *tbl_mgr, const char *tabl
     }
     
     return table_ops[table_type].update_runtime(runtime, schema, table_name, 
-                                                line, valid_column);
+                                                line, op);
 }
 
 void table_commit_updating_runtime(struct table_manager *tbl_mgr, int table_id, 

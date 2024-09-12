@@ -2,7 +2,6 @@
 #include "log/log.h"
 #include "maat_utils.h"
 #include "maat_core.h"
-#include "json2iris.h"
 #include "ip_matcher.h"
 #include "maat_table.h"
 #include "../test_utils.h"

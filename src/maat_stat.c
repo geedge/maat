@@ -272,9 +272,6 @@ static void fs_table_row_refresh(struct maat_stat *stat, int perf_on)
                 plugin_cache_num += plugin_runtime_cached_row_count(runtime);
                 plugin_rule_num += plugin_runtime_rule_count(runtime);
                 break;
-            case TABLE_TYPE_OBJECT2RULE:
-                g2c_not_condition_num += object2rule_runtime_not_condition_count(runtime);
-                break;
             case TABLE_TYPE_OBJECT2OBJECT:
                 g2g_excl_rule_num += object2object_runtime_exclude_rule_count(runtime);
                 break;
@@ -320,11 +317,10 @@ static void fs_table_row_refresh(struct maat_stat *stat, int perf_on)
         fieldstat_easy_counter_set(stat->fs_handle, 0,
                                    stat->fs_column_id[COLUMN_HIT_ITEM_NUM],
                                    &cell_tag, 1, hit_item_num); 
-        if (table_type != TABLE_TYPE_ATTRIBUTE) {
-            total_regv6_num += regex_rule_num;
-            total_regv6_num += ipv6_rule_num;
-            total_rule_num += rule_num;
-        }
+        
+        total_regv6_num += regex_rule_num;
+        total_regv6_num += ipv6_rule_num;
+        total_rule_num += rule_num;
         
         total_scan_times += scan_times;
         total_hit_times += hit_times;

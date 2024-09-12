@@ -8,7 +8,6 @@
 #include "maat_utils.h"
 #include "maat_command.h"
 #include "ip_matcher.h"
-#include "json2iris.h"
 #include "log/log.h"
 #include "maat_config_monitor.h"
 #include "maat_redis_monitor.h"
@@ -5260,7 +5259,7 @@ void maat_read_entry_start_cb(int update_type, void *u_para)
 {
 }
 
-void maat_read_entry_cb(int table_id, const char *table_line, void *u_para)
+void maat_read_entry_cb(int table_id, const char *table_line, enum maat_operation op, void *u_para)
 {
 	char ip_str[16] = {0};
 	int entry_id = -1, seq = -1;
@@ -6530,7 +6529,7 @@ protected:
 struct maat *Policy::_shared_maat_inst;
 struct log_handle *Policy::logger;
 
-void accept_tags_entry_cb(int table_id, const char *table_line, void *u_para)
+void accept_tags_entry_cb(int table_id, const char *table_line, enum maat_operation op, void *u_para)
 {
 	int* callback_times = (int *)u_para;
 	char status[32] = {0};
@@ -6559,7 +6558,7 @@ TEST_F(Policy, PluginRuleTags1) {
 	EXPECT_EQ(callback_times, 5);
 }
 
-void accept_tags_entry2_cb(int table_id, const char *table_line, void *u_para)
+void accept_tags_entry2_cb(int table_id, const char *table_line, enum maat_operation op, void *u_para)
 {
 	int *callback_times = (int *)u_para;
 	(*callback_times)++;
@@ -6973,6 +6972,7 @@ TEST_F(TableInfo, Conjunction) {
     state = NULL;
 }
 
+#if 0 //TODO: change iris rule to json rule
 class FileTest : public testing::Test
 {
 protected:
@@ -7067,6 +7067,7 @@ TEST_F(FileTest, StreamFiles) {
 
     free(name_list);
 }
+#endif
 
 class ObjectHierarchy : public testing::Test
 {
@@ -8293,7 +8294,7 @@ TEST_F(MaatCmd, SetLines) {
         line_rule.table_line = table_line_add[i];
         line_rule.expire_after = 0;
 
-        ret = maat_cmd_set_line(maat_inst, &line_rule);
+        ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_ADD);
         EXPECT_GT(ret, 0);
     }
 
@@ -8304,13 +8305,13 @@ TEST_F(MaatCmd, SetLines) {
         line_rule.table_line = table_line_del[i];
         line_rule.expire_after = 0;
 
-        ret = maat_cmd_set_line(maat_inst, &line_rule);
+        ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_DEL);
         EXPECT_GT(ret, 0);
     }
 }
 
 int g_test_update_paused = 0;
-void pause_update_test_entry_cb(int table_id,const char* table_line,void* u_para)
+void pause_update_test_entry_cb(int table_id,const char* table_line, enum maat_operation op, void* u_para)
 {
 	char status[32] = {0};
 	int entry_id = -1, seq = -1;
@@ -8341,7 +8342,7 @@ TEST_F(MaatCmd, PauseUpdate) {
     line_rule.table_line = line;
     line_rule.expire_after = 0;
 
-    ret = maat_cmd_set_line(maat_inst, &line_rule);
+    ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_ADD);
     EXPECT_EQ(ret, 1);
     free(line);
     
@@ -8394,7 +8395,7 @@ int is_same_file(const char *filename1, const char *filename2)
 int g_test_foregin_read_OK = 0, g_test_foreign_del_OK = 0;
 char file1_to_del[256], file2_to_del[256];
 const char* empty_file_name = "An_empty_file";
-void foreign_key_test_entry_cb(int table_id, const char *table_line, void *u_para)
+void foreign_key_test_entry_cb(int table_id, const char *table_line, enum maat_operation op, void *u_para)
 {
 	int rule_id=-1, not_care=0, tag=0;
 	int is_valid=0;
@@ -8467,7 +8468,7 @@ TEST_F(MaatCmd, SetFile) {
     line_rule.table_line = line;
     line_rule.expire_after = 0;
 
-    ret = maat_cmd_set_line(maat_inst, &line_rule);
+    ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_ADD);
     EXPECT_EQ(ret, 1);
 	sleep(WAIT_FOR_EFFECTIVE_S);//wait for callback triggered.
 	EXPECT_EQ(g_test_foregin_read_OK, 1);
@@ -8486,7 +8487,7 @@ TEST_F(MaatCmd, SetFile) {
              line_rule.rule_id, tag, file1_name, file1_key, file2_name, file2_key);
     line_rule_del.table_line = line;
     line_rule_del.expire_after = 0;
-    ret = maat_cmd_set_line(maat_inst, &line_rule_del);
+    ret = maat_cmd_set_line(maat_inst, &line_rule_del, MAAT_OP_DEL);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
@@ -8508,7 +8509,7 @@ TEST_F(MaatCmd, SetFile) {
 
     g_test_foregin_read_OK = 0;
 
-    ret = maat_cmd_set_line(maat_inst, &line_rule);
+    ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_ADD);
     EXPECT_EQ(ret, 1);
 	sleep(WAIT_FOR_EFFECTIVE_S);//wait for callback triggered.
 	EXPECT_EQ(g_test_foregin_read_OK, 1);
@@ -8631,7 +8632,7 @@ TEST_F(MaatCmd, PluginEXData) {
         line_rule.table_line = table_line_add[i];
         line_rule.expire_after = 0;
 
-        ret = maat_cmd_set_line(maat_inst, &line_rule);
+        ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_ADD);
         EXPECT_GT(ret, 0);
     }
 	
@@ -8662,7 +8663,7 @@ TEST_F(MaatCmd, PluginEXData) {
     line_rule.table_line = table_line_del[1];
     line_rule.expire_after = 0;
 
-	ret = maat_cmd_set_line(maat_inst, &line_rule);
+	ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_DEL);
 	EXPECT_GT(ret, 0);
 
 	sleep(WAIT_FOR_EFFECTIVE_S); //gc_timeout_s == 3 which configured in table_info
@@ -8711,7 +8712,7 @@ TEST_F(MaatCmd, UpdateIPPlugin) {
         line_rule.table_line = table_line_add[i];
         line_rule.expire_after = 0;
 
-        ret = maat_cmd_set_line(maat_inst, &line_rule);
+        ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_ADD);
         EXPECT_GT(ret, 0);
     }
 
@@ -8756,7 +8757,7 @@ TEST_F(MaatCmd, UpdateIPPlugin) {
         line_rule.table_line = table_line_del[i];
         line_rule.expire_after = 0;
 
-        ret = maat_cmd_set_line(maat_inst, &line_rule);
+        ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_DEL);
         EXPECT_GT(ret, 0);
     }
 
@@ -8807,7 +8808,7 @@ TEST_F(MaatCmd, UpdateFQDNPlugin) {
         line_rule.table_line = table_line_add[i];
         line_rule.expire_after = 0;
 
-        ret = maat_cmd_set_line(maat_inst, &line_rule);
+        ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_ADD);
         EXPECT_GT(ret, 0);
     }
 
@@ -8839,7 +8840,7 @@ TEST_F(MaatCmd, UpdateFQDNPlugin) {
         line_rule.table_line = table_line_del[i];
         line_rule.expire_after = 0;
 
-        ret = maat_cmd_set_line(maat_inst, &line_rule);
+        ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_DEL);
         EXPECT_GT(ret, 0);
     }
 
@@ -8889,7 +8890,7 @@ TEST_F(MaatCmd, UpdateBoolPlugin) {
         line_rule.table_line = table_line_add[i];
         line_rule.expire_after = 0;
 
-        ret = maat_cmd_set_line(maat_inst, &line_rule);
+        ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_ADD);
         EXPECT_GT(ret, 0);
     }
 
@@ -8919,7 +8920,7 @@ TEST_F(MaatCmd, UpdateBoolPlugin) {
         line_rule.table_line = table_line_del[i];
         line_rule.expire_after = 0;
 
-        ret = maat_cmd_set_line(maat_inst, &line_rule);
+        ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_DEL);
         EXPECT_GT(ret, 0);
     }
     sleep(WAIT_FOR_EFFECTIVE_S);

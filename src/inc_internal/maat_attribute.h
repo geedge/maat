@@ -54,7 +54,6 @@ void attribute_runtime_hit_item_num_add(struct attribute_runtime *virt_rt,
 
 long long attribute_runtime_hit_item_num(void *attribute_runtime);
 
-int attribute_get_physical_table_id(struct table_manager *tbl_mgr, int attribute_id);
 
 #ifdef __cplusplus
 }
