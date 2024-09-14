@@ -1,6 +1,5 @@
 {
     "rule_table": "RULE_DEFAULT",
-    "object2rule_table": "OBJECT2RULE_DEFAULT",
     "object2object_table": "OBJECT2OBJECT",
     "rules": [
         {
@@ -11,19 +10,21 @@
             "do_log": 1,
             "user_region": "anything",
             "is_valid": "yes",
-            "objects": [
+            "conditions": [
                 {
                     "attribute": "HTTP_URL",
-                    "regions": [
+                    "objects": [
                         {
-                            "table_name": "HTTP_URL",
-                            "table_type": "expr",
-                            "table_content": {
-                                "keywords": "MESA&Maat",
-                                "expr_type": "and",
-                                "match_method": "sub",
-                                "format": "uncase plain"
-                            }
+                            "items": [
+                                {
+                                    "table_name": "HTTP_URL",
+                                    "table_type": "expr",
+                                    "table_content": {
+                                        "keywords": "MESA&Maat",
+                                        "expr_type": "and"
+                                    }
+                                }
+                            ]
                         }
                     ]
                 }

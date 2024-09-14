@@ -88,15 +88,13 @@ int my_scandir(const char *dir, struct dirent ***namelist,
 static void config_load_json_content(const cJSON *json_root, const char *table_name, const char *key, void *u_param,
 									int (*update_fn)(const char *, const char *, void *, enum maat_operation))
 {
-	cJSON *tmp_item = NULL;
 	cJSON *array_item = NULL;
 	int i;
 
-	tmp_item = cJSON_GetObjectItem(json_root, table_name);
 	array_item = cJSON_GetObjectItem(json_root, key);
 	if (array_item != NULL) {
-		for (i = 0; i < cJSON_GetArraySize(tmp_item); i++) {
-			cJSON *rule = cJSON_GetArrayItem(tmp_item, i);
+		for (i = 0; i < cJSON_GetArraySize(array_item); i++) {
+			cJSON *rule = cJSON_GetArrayItem(array_item, i);
 			if (rule == NULL) {
 				continue;
 			}
@@ -106,7 +104,7 @@ static void config_load_json_content(const cJSON *json_root, const char *table_n
 				continue;
 			}
 
-			update_fn(tmp_item->valuestring, rule_str, u_param, MAAT_OP_ADD);
+			update_fn(table_name, rule_str, u_param, MAAT_OP_ADD);
 			FREE(rule_str);
 		}
 	}
@@ -127,17 +125,14 @@ void config_monitor_traverse(long long current_version, const cJSON *json_root,
 	}
 	
 	cJSON *tmp_obj = NULL;
+	cJSON *rule_table = cJSON_GetObjectItem(json_root, "rule_table");
+	cJSON *object2object_table = cJSON_GetObjectItem(json_root, "object2object_table");
 
-	tmp_obj = cJSON_GetObjectItem(json_root, "objects");
+	tmp_obj = cJSON_GetObjectItem(json_root, "items");
 	if (tmp_obj != NULL) {
 		for (i = 0; i < cJSON_GetArraySize(tmp_obj); i++) {
 			cJSON *object = cJSON_GetArrayItem(tmp_obj, i);
 			if (object == NULL) {
-				continue;
-			}
-
-			cJSON *regions = cJSON_GetObjectItem(object, "regions");
-			if (regions == NULL) {
 				continue;
 			}
 
@@ -158,25 +153,107 @@ void config_monitor_traverse(long long current_version, const cJSON *json_root,
 		}
 	}
 	
-	config_load_json_content(json_root, "object2object_table", "object_groups", u_param, update_fn);
-	config_load_json_content(json_root, "rule_table", "rules", u_param, update_fn);
+	config_load_json_content(json_root, object2object_table->valuestring, "object_groups", u_param, update_fn);
+	config_load_json_content(json_root, rule_table->valuestring, "rules", u_param, update_fn);
 
 	if (finish_fn != NULL) {
 		finish_fn(u_param);
 	}
 }
 
-void convert_maat_json_rule(cJSON *json_root, unsigned char *json_buff)
+void convert_maat_json_rule(cJSON **json_root, unsigned char *json_buff)
 {
-	json_root = cJSON_Parse((const char *)json_buff);
-	cJSON *top_objects = cJSON_GetObjectItem(json_root, "objects");
-	//cJSON *object_groups = cJSON_GetObjectItem(json_root, "object_groups");//TODO: object include object in rules
-	cJSON *rules = cJSON_GetObjectItem(json_root, "rules");
-	cJSON *tmp_rule = NULL;
+	*json_root = cJSON_Parse((const char *)json_buff);
+	cJSON *top_items = cJSON_GetObjectItem(*json_root, "items");
+	cJSON *top_objects = cJSON_GetObjectItem(*json_root, "objects");
+	cJSON *rules = cJSON_GetObjectItem(*json_root, "rules");
 	long long item_id = 1;
 	long long object_id = 1;
 	char str[10];
 
+	if (top_items == NULL) {
+		top_items = cJSON_CreateArray();
+		cJSON_AddItemToObject(*json_root, "items", top_items);
+	}
+
+	/*
+	"objects": [																	"items": [
+        {																				{
+            "object_name": "ASN1234",														"table_name": "AS_NUMBER",
+            "object_id": 1,																	"table_content": {
+            "items": [																				"item_id": "1",
+                {																					"object_id": "1",
+                    "table_name": "AS_NUMBER",    -------------------->								"keywords": "^AS1234$",
+                    "table_type": "expr",															"expr_type": "and"
+                    "table_content": {														}
+                        "keywords": "^AS1234$",											}
+                        "expr_type": "and"											]
+                    }
+                }
+            ]
+        }
+	]
+	*/
+	cJSON *tmp_node = NULL;
+	cJSON_ArrayForEach(tmp_node, top_objects) {
+		cJSON *object_id_obj = cJSON_GetObjectItem(tmp_node, "object_id");
+		cJSON *items = cJSON_GetObjectItem(tmp_node, "items");
+		cJSON *tmp_item = NULL;
+		cJSON_ArrayForEach(tmp_item, items) {
+			cJSON *table_name = cJSON_GetObjectItem(tmp_item, "table_name");
+			cJSON *table_content = cJSON_GetObjectItem(tmp_item, "table_content");
+			cJSON *new_item = cJSON_CreateObject();
+			cJSON *new_table_content = cJSON_Duplicate(table_content, 0);
+
+			if (object_id_obj == NULL) {
+				memset(str, 0, sizeof(str));
+				snprintf(str, sizeof(str), "%lld", object_id);
+				cJSON_AddStringToObject(new_table_content, "object_id", str);
+				object_id++;
+			} else {
+				cJSON_AddStringToObject(new_table_content, "object_id", object_id_obj->valuestring);
+			}
+
+			if (cJSON_GetObjectItem(table_content, "item_id") == NULL) {
+				memset(str, 0, sizeof(str));
+				snprintf(str, sizeof(str), "%lld", item_id);
+				cJSON_AddStringToObject(new_table_content, "item_id", str);
+				item_id++;
+			}
+
+			cJSON_AddStringToObject(new_item, "table_name", table_name->valuestring);
+			cJSON_AddItemToObject(new_item, "table_content", new_table_content);
+			cJSON_AddItemToArray(top_items, new_item);
+		}
+	}
+
+	/*
+	"rules": [																		"items":[
+    {																					{
+      "rule_id": "201",																		"table_name": "ATTR_APP_ID",
+      "conditions": [																		"table_content": {
+        {																						"item_id": "1",	
+          "attribute_name": "ATTR_APP_ID",														"object_id": "1",
+          "objects": [																			"interval": "4001"
+            {
+			 "items":[											-------------->     		}
+              "table_name": "APP_ID_DICT",												}
+              "table_type": "interval",												]
+              "interval": "4001"
+			  ]													
+            }																		"rules": [{
+          ]																				"rule_id": "201",
+        }																				"conditions": [
+      ],																					{
+      "misc": "blah, blah"																		"attribute_name": "ATTR_APP_ID",
+    }																							"object_ids": [1]
+  ]																							}		
+																						]
+																						"misc": "blah, blah"
+																					  }
+																					]
+	*/	
+	cJSON *tmp_rule = NULL;
 	cJSON_ArrayForEach(tmp_rule, rules) {
 		cJSON *tmp_condition = NULL;
 		cJSON *condition_array = cJSON_GetObjectItem(tmp_rule, "conditions");
@@ -184,26 +261,42 @@ void convert_maat_json_rule(cJSON *json_root, unsigned char *json_buff)
 			cJSON *tmp_object = NULL;
 			cJSON *object_id_array = cJSON_CreateArray();
 			cJSON *object_array = cJSON_GetObjectItem(tmp_condition, "objects");
+
+			if (object_array == NULL) {
+				continue;
+			}
+
 			cJSON_ArrayForEach(tmp_object, object_array) {
 				//find items, generate item_id and object_id
-				cJSON *table_name = cJSON_GetObjectItem(tmp_object, "table_name");
-				cJSON *tmp_item = cJSON_CreateObject();
-				cJSON_AddItemToObject(tmp_item, "table_name", cJSON_CreateString(table_name->valuestring));
-				cJSON *dup = cJSON_Duplicate(tmp_object, 0);
-				if (cJSON_GetObjectItem(dup, "item_id") == NULL) {
-					memset(str, 0, sizeof(str));
-					snprintf(str, sizeof(str), "%lld", item_id);
-					cJSON_AddItemToObject(dup, "item_id", cJSON_CreateString(str));
-					item_id++;
-				}
-				if (cJSON_GetObjectItem(dup, "object_id") == NULL) {
-					memset(str, 0, sizeof(str));
+				cJSON *object_id_obj = cJSON_GetObjectItem(tmp_object, "object_id");
+				cJSON *items = cJSON_GetObjectItem(tmp_object, "items");
+				cJSON *item = NULL;
+
+				memset(str, 0, sizeof(str));
+				if (object_id_obj != NULL) {
+					snprintf(str, sizeof(str), "%s", object_id_obj->valuestring);
+				} else {
 					snprintf(str, sizeof(str), "%lld", object_id);
-					cJSON_AddItemToObject(dup, "object_id", cJSON_CreateString(str));
 					object_id++;
 				}
-				cJSON_AddItemToObject(tmp_item, "table_content", dup);
-				cJSON_AddItemToArray(top_objects, tmp_item);
+				cJSON_ArrayForEach(item, items) {
+					cJSON *table_name = cJSON_GetObjectItem(item, "table_name");
+					cJSON *tmp_item = cJSON_CreateObject();
+					cJSON_AddItemToObject(tmp_item, "table_name", cJSON_CreateString(table_name->valuestring));
+
+					cJSON *dup = cJSON_Duplicate(cJSON_GetObjectItem(item, "table_content"), 1);
+
+					if (cJSON_GetObjectItem(dup, "item_id") == NULL) {
+						memset(str, 0, sizeof(str));
+						snprintf(str, sizeof(str), "%lld", item_id);
+						cJSON_AddStringToObject(dup, "item_id", str);
+						item_id++;
+					}
+					cJSON_AddStringToObject(dup, "object_id", str);
+
+					cJSON_AddItemToObject(tmp_item, "table_content", dup);
+					cJSON_AddItemToArray(top_items, tmp_item);
+				}
 
 				cJSON_AddItemToArray(object_id_array, cJSON_CreateString(str));
 			}
@@ -216,7 +309,7 @@ void convert_maat_json_rule(cJSON *json_root, unsigned char *json_buff)
 }
 
 int load_maat_json_rule_file(struct maat *maat_inst, const char *json_filename, 
-                        cJSON *json_root, char *err_str, size_t err_str_sz)
+                        cJSON **json_root, char *err_str, size_t err_str_sz)
 {
 	int ret = 0;
 	unsigned char *json_buff = NULL; 

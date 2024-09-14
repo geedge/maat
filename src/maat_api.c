@@ -38,7 +38,6 @@
 #include "maat_ipport_plugin.h"
 #include "maat_fqdn_plugin.h"
 #include "maat_bool_plugin.h"
-#include "maat_attribute.h"
 #include "maat_stat.h"
 #include "uthash/utarray.h"
 

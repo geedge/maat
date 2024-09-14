@@ -108,16 +108,16 @@ void scan_with_old_or_new_cfg(struct maat *maat_inst, int is_old)
 {
     const char *hit_old_data = "Hello world! I'm eve.";
     const char *hit_new_data = "Maat was borned in MESA.";
-    const char *table_name = "HTTP_URL";
+    const char *attribute_name = "HTTP_URL";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_inst, table_name);
-    ASSERT_GT(table_id, 0);
+    int attribute_id = maat_get_attribute_id(maat_inst, attribute_name);
+    ASSERT_GT(attribute_id, 0);
 
-    int ret = maat_scan_string(maat_inst, table_id, hit_old_data,
+    int ret = maat_scan_string(maat_inst, attribute_id, hit_old_data,
                                strlen(hit_old_data), results, ARRAY_SIZE,
                                &n_hit_result, state);
     if (is_old) {
@@ -127,12 +127,12 @@ void scan_with_old_or_new_cfg(struct maat *maat_inst, int is_old)
         EXPECT_EQ(ret, MAAT_SCAN_OK);
     }
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, attribute_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
-    ret = maat_scan_string(maat_inst, table_id, hit_new_data,
+    ret = maat_scan_string(maat_inst, attribute_id, hit_new_data,
                            strlen(hit_new_data), results, ARRAY_SIZE,
                            &n_hit_result, state);
     if (!is_old) {
@@ -142,7 +142,7 @@ void scan_with_old_or_new_cfg(struct maat *maat_inst, int is_old)
         EXPECT_EQ(ret, MAAT_SCAN_OK);
     }
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, attribute_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 

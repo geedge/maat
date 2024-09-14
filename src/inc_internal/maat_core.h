@@ -31,7 +31,6 @@ extern "C"
 #include "maat.h"
 #include "maat_kv.h"
 #include "maat_table.h"
-#include "maat_attribute.h"
 #include "maat_stat.h"
 #include "hiredis/hiredis.h"
 

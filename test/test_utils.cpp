@@ -68,7 +68,7 @@ int write_json_to_redis(const char *json_filename, char *redis_ip, int redis_por
         return -1;
     }
 
-    convert_maat_json_rule(json_root, (unsigned char *)json_buff);
+    convert_maat_json_rule(&json_root, (unsigned char *)json_buff);
 
     redisContext *c = maat_connect_redis(redis_ip, redis_port, redis_db, logger);
     if (NULL == c) {

@@ -336,7 +336,7 @@ void maat_read_full_config(struct maat *maat_inst)
             break;
         case DATA_SOURCE_JSON_FILE:
             ret = load_maat_json_rule_file(maat_inst, maat_inst->opts.json_ctx.json_file,
-                                      json_root, err_str, sizeof(err_str));
+                                      &json_root, err_str, sizeof(err_str));
             if (ret < 0) {
                 log_fatal(maat_inst->logger, MODULE_MAAT_RULE, 
                           "[%s:%d] Maat re-initiate with JSON file %s failed: %s", 
@@ -460,7 +460,7 @@ void *rule_monitor_loop(void *arg)
                     md5_file(maat_inst->opts.json_ctx.json_file, md5_tmp);
                     if (0 != strcmp(md5_tmp, maat_inst->opts.json_ctx.effective_json_md5)) {
                         ret = load_maat_json_rule_file(maat_inst, maat_inst->opts.json_ctx.json_file, 
-                                                    json_root, err_str, sizeof(err_str));
+                                                    &json_root, err_str, sizeof(err_str));
                         if (ret < 0) {
                             log_fatal(maat_inst->logger, MODULE_MAAT_RULE, 
                                         "[%s:%d] Maat re-initiate with JSON file %s (md5=%s)failed: %s\n",

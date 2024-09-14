@@ -28,8 +28,8 @@ void config_monitor_traverse(long long version, const cJSON *json_root,
 							const char *dec_key, struct log_handle *logger);
 
 int load_maat_json_rule_file(struct maat *maat_inst, const char *json_filename, 
-                        cJSON *json_root, char *err_str, size_t err_str_sz);
-void convert_maat_json_rule(cJSON *json_root, unsigned char *json_buff);
+                        cJSON **json_root, char *err_str, size_t err_str_sz);
+void convert_maat_json_rule(cJSON **json_root, unsigned char *json_buff);
 
 #ifdef __cplusplus
 }

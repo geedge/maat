@@ -1,30 +1,31 @@
 {
     "rule_table": "RULE_DEFAULT",
-    "object2rule_table": "OBJECT2RULE_DEFAULT",
     "object2object_table": "OBJECT2OBJECT",
     "rules": [
         {
-            "rule_id": 1,
+            "rule_id": "1",
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
             "user_region": "anything",
             "is_valid": "yes",
-            "objects": [
+            "conditions": [
                 {
                     "object_name": "Untitled",
-                    "attribute": "HTTP_URL",
-                    "regions": [
+                    "attribute_name": "HTTP_URL",
+                    "objects": [
                         {
-                            "table_name": "HTTP_URL",
-                            "table_type": "expr",
-                            "table_content": {
-                                "keywords": "hello&world",
-                                "expr_type": "and",
-                                "match_method": "sub",
-                                "format": "uncase plain"
-                            }
+                            "items": [
+                                {
+                                    "table_name": "HTTP_URL",
+                                    "table_type": "expr",
+                                    "table_content": {
+                                        "keywords": "hello&world",
+                                        "expr_type": "and"
+                                    }
+                                }
+                            ]
                         }
                     ]
                 }

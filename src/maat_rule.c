@@ -279,23 +279,25 @@ static struct maat_rule *maat_rule_new(struct rule_runtime *rule_rt, struct rule
         }
 
         tmp_obj = cJSON_GetObjectItem(condition_obj, "negate_option");
-        if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
-            log_fatal(logger, MODULE_RULE,
-                        "[%s:%d] table: <%s> has no negate_option or not string format",
-                        __FUNCTION__, __LINE__, table_name);
-            goto error;
-        }
+        if (tmp_obj) {
+            if (tmp_obj->type != cJSON_String) {
+                log_fatal(logger, MODULE_RULE,
+                            "[%s:%d] table: <%s> has no negate_option or not string format",
+                            __FUNCTION__, __LINE__, table_name);
+                goto error;
+            }
 
-        if (strncmp(tmp_obj->valuestring, "true", 4) == 0) {
-            condition->negate_option = CONDITION_NEGATE_OPTION_SET;
-        } else if (strncmp(tmp_obj->valuestring, "false", 5) == 0) {
-            condition->negate_option = CONDITION_NEGATE_OPTION_UNSET;
-        } else {
-            log_fatal(logger, MODULE_RULE,
-                        "[%s:%d] table: <%s> negate_option:%s is illegal",
-                        __FUNCTION__, __LINE__, table_name, tmp_obj->valuestring);
-            goto error;
-        }
+            if (strncmp(tmp_obj->valuestring, "true", 4) == 0) {
+                condition->negate_option = CONDITION_NEGATE_OPTION_SET;
+            } else if (strncmp(tmp_obj->valuestring, "false", 5) == 0) {
+                condition->negate_option = CONDITION_NEGATE_OPTION_UNSET;
+            } else {
+                log_fatal(logger, MODULE_RULE,
+                            "[%s:%d] table: <%s> negate_option:%s is illegal",
+                            __FUNCTION__, __LINE__, table_name, tmp_obj->valuestring);
+                goto error;
+            }
+        }        
 
         if (condition->negate_option == CONDITION_NEGATE_OPTION_SET) {
             int ret = validate_table_not_condition(rule_rt, schema->ref_tbl_mgr, condition->attribute_id, MAAT_OP_ADD, logger);
@@ -315,8 +317,8 @@ static struct maat_rule *maat_rule_new(struct rule_runtime *rule_rt, struct rule
 
             for (int j = 0; j < n_object_ids; j++) {
                 cJSON *object_id_obj = cJSON_GetArrayItem(tmp_obj, j);
-                if (object_id_obj && object_id_obj->type == cJSON_Number) {
-                    long long object_id = object_id_obj->valueint;
+                if (object_id_obj && object_id_obj->type == cJSON_String) {
+                    long long object_id = atoll(object_id_obj->valuestring);
                     condition->object_ids[j] = object_id;
                 }
             }

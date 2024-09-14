@@ -27,7 +27,6 @@
 #include "maat_bool_plugin.h"
 #include "maat_fqdn_plugin.h"
 #include "maat_interval.h"
-#include "maat_attribute.h"
 #include "expr_matcher/expr_matcher.h"
 
 #define MODULE_TABLE  module_name_str("maat.table")
@@ -272,22 +271,6 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .rule_count = bool_plugin_runtime_rule_count,
         .update_err_count = bool_plugin_runtime_update_err_count
     },
-#if 0
-    {
-        .type = TABLE_TYPE_ATTRIBUTE,
-        .new_schema = attribute_schema_new,
-        .free_schema = attribute_schema_free,
-        .new_runtime = attribute_runtime_new,
-        .free_runtime = attribute_runtime_free,
-        .update_runtime = NULL,
-        .commit_runtime = NULL,
-        .scan_times = attribute_runtime_scan_times,
-        .scan_bytes = attribute_runtime_scan_bytes,
-        .scan_cpu_time = attribute_runtime_scan_cpu_time,
-        .hit_times = attribute_runtime_hit_times,
-        .hit_item_num = attribute_runtime_hit_item_num
-    },
-#endif
     {
         .type = TABLE_TYPE_RULE,
         .new_schema = rule_schema_new,

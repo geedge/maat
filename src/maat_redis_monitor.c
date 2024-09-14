@@ -22,7 +22,6 @@
 #include "maat_config_monitor.h"
 #include "maat_redis_monitor.h"
 #include "maat_plugin.h"
-#include "maat_attribute.h"
 
 #define MODULE_REDIS_MONITOR	 module_name_str("maat.redis_monitor")
 
