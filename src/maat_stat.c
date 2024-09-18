@@ -243,9 +243,9 @@ static void fs_table_row_output(FILE *fp, struct maat_stat *stat, int perf_on)
     long long total_scan_times = 0, total_hit_times = 0, total_scan_cpu_time = 0;
     long long total_regv6_num = 0, total_hit_item_num = 0, total_hit_pattern_num = 0;
     long long g2c_not_clause_num = 0, g2g_excl_rule_num = 0;
-    struct fieldstat_tag cell_tag = {
+    struct field cell_tag = {
         .key = "TBL",
-        .type = TAG_CSTRING
+        .type = FIELD_VALUE_CSTRING
     };
 
     size_t max_table_count = table_manager_table_size(stat->ref_tbl_mgr);

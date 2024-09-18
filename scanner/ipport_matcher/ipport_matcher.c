@@ -7,6 +7,7 @@
 *   Copyright: (c) Since 2023 Geedge Networks, Ltd. All rights reserved.
 ***********************************************************************************************
 */
+#include <assert.h>
 
 #include "uthash/utarray.h"
 #include "uthash/uthash.h"
@@ -23,13 +24,25 @@ struct port_range {
 
 struct ipport_node {
     int ip_type; //IPV4 or IPV6
-    uint32_t ip_addr[4];
+    uint32_t start_ip_addr[4];
+    uint32_t end_ip_addr[4];
     UT_array *port_range_list; //array to store <struct port_range>
     UT_hash_handle hh;
 };
 
 struct ipport_matcher {
     struct ipport_node *ipport_hash;
+    struct ip_matcher *ip_matcher;
+};
+
+struct ipport_hash_key_ipv4 {
+    uint32_t start_ip_addr;
+    uint32_t end_ip_addr;
+};
+
+struct ipport_hash_key_ipv6 {
+    uint32_t start_ip_addr[4];
+    uint32_t end_ip_addr[4];
 };
 
 UT_icd ut_port_range_icd = {sizeof(struct port_range), NULL, NULL, NULL};
@@ -70,36 +83,39 @@ struct ipport_matcher *ipport_matcher_new(struct ipport_rule *rules, size_t rule
         return NULL;
     }
 
+    struct ip_rule *ip_rules = NULL;
     struct ipport_matcher *matcher = ALLOC(struct ipport_matcher, 1);
     struct ipport_node *node = NULL;
     char *key = NULL;
     size_t key_len = 0;
 
     for (size_t i = 0; i < rule_num; i++) {
-        if (rules[i].ip.ip_type == IPV4) {
-            key = (char *)&rules[i].ip.ipv4;
-            key_len = 4;
+        if (rules[i].ip_type == IPV4) {
+            key = (char *)&rules[i].ipv4;
+            key_len = sizeof(rules[i].ipv4);
         } else {
-            key = (char *)rules[i].ip.ipv6;
-            key_len = 16;
+            key = (char *)&rules[i].ipv6;
+            key_len = sizeof(rules[i].ipv6);
         }
 
         HASH_FIND(hh, matcher->ipport_hash, key, key_len, node);
         if (NULL == node) {
             node = ALLOC(struct ipport_node, 1);
 
-            if (rules[i].ip.ip_type == IPV4) {
+            if (rules[i].ip_type == IPV4) {
                 node->ip_type = IPV4;
-                node->ip_addr[0] = rules[i].ip.ipv4;
+                node->start_ip_addr[0] = rules[i].ipv4.start_ip;
+                node->end_ip_addr[0] = rules[i].ipv4.end_ip;
             } else {
                 node->ip_type = IPV6;
                 for (size_t j = 0; j < 4; j++) {
-                    node->ip_addr[j] = rules[i].ip.ipv6[j];
+                    node->start_ip_addr[j] = rules[i].ipv6.start_ip[j];
+                    node->end_ip_addr[j] = rules[i].ipv6.end_ip[j];
                 }
             }
 
             utarray_new(node->port_range_list, &ut_port_range_icd);
-            HASH_ADD_KEYPTR(hh, matcher->ipport_hash, (char *)node->ip_addr, key_len, node);
+            HASH_ADD_KEYPTR(hh, matcher->ipport_hash, key, key_len, node);
         }
         
         struct port_range range;
@@ -110,10 +126,40 @@ struct ipport_matcher *ipport_matcher_new(struct ipport_rule *rules, size_t rule
         utarray_push_back(node->port_range_list, &range);
     }
 
+    int ip_matcher_cnt = HASH_COUNT(matcher->ipport_hash);
+    int ip_matcher_idx = 0;
+    ip_rules = ALLOC(struct ip_rule, ip_matcher_cnt);
+
     struct ipport_node *tmp_node = NULL;
     HASH_ITER(hh, matcher->ipport_hash, node, tmp_node) {
         utarray_sort(node->port_range_list, compare_port_range_for_sort);
+        struct port_range *range = utarray_front(node->port_range_list);
+        ip_rules[ip_matcher_idx].type = node->ip_type;
+        ip_rules[ip_matcher_idx].rule_id = range->rule_id;
+        ip_rules[ip_matcher_idx].user_tag = node;
+        if (node->ip_type == IPV4) {
+            ip_rules[ip_matcher_idx].ipv4_rule.start_ip = node->start_ip_addr[0];
+            ip_rules[ip_matcher_idx].ipv4_rule.end_ip = node->end_ip_addr[0];
+        } else {
+            for (size_t j = 0; j < 4; j++) {
+                ip_rules[ip_matcher_idx].ipv6_rule.start_ip[j] = node->start_ip_addr[j];
+                ip_rules[ip_matcher_idx].ipv6_rule.end_ip[j] = node->end_ip_addr[j];
+            }
+        }
+        ip_matcher_idx++;
     }
+
+    assert(ip_matcher_idx == ip_matcher_cnt);
+
+    size_t mem_used = 0;
+    struct ip_matcher *ip_matcher = ip_matcher_new(ip_rules, ip_matcher_cnt, &mem_used);
+    if (NULL == ip_matcher) {
+        FREE(ip_rules);
+        ipport_matcher_free(matcher);
+        return NULL;
+    }
+
+    matcher->ip_matcher = ip_matcher;
 
     return matcher;
 }
@@ -125,22 +171,21 @@ int ipport_matcher_match(struct ipport_matcher *matcher, const struct ip_addr *i
         return -1;
     }
 
-    char *key = NULL;
-    size_t key_len = 0;
+    struct scan_result result;
+    struct ip_data ip_data = *(const struct ip_data *)ip_addr;
+	if (ip_data.type == IPv4) {
+		ip_data.ipv4 = ntohl(ip_data.ipv4);
+	} else {
+        memcpy(ip_data.ipv6, ip_data.ipv6, sizeof(ip_data.ipv6));
+	}
 
-    if (ip_addr->ip_type == IPV4) {
-        key = (char *)&ip_addr->ipv4;
-        key_len = 4;
-    } else {
-        key = (char *)ip_addr->ipv6;
-        key_len = 16;
-    }
-
-    struct ipport_node *node = NULL;
-    HASH_FIND(hh, matcher->ipport_hash, key, key_len, node);
-    if (NULL == node) {
+	int n_result = ip_matcher_match(matcher->ip_matcher, &ip_data,
+                                    &result, 1);
+    if (n_result <= 0) {
         return 0;
     }
+
+    struct ipport_node *node = result.tag;
 
     uint16_t host_port = ntohs(port);
     struct port_range range;

@@ -19,10 +19,11 @@ TEST(IPv4PortMatcher, MatchedOneRuleInPortRange) {
     struct ipport_rule rules[MAX_ARRAY_SIZE];
 
     rules[0].rule_id = 100;
-    rules[0].ip.ip_type = IPV4;
+    rules[0].ip_type = IPV4;
     rules[0].min_port = 100;
     rules[0].max_port = 150;
-    inet_pton(AF_INET, ip1_str, &rules[0].ip.ipv4);
+    inet_pton(AF_INET, ip1_str, &rules[0].ipv4.start_ip);
+    inet_pton(AF_INET, ip1_str, &rules[0].ipv4.end_ip);
 
     struct ipport_matcher *matcher = ipport_matcher_new(rules, 1);
     ASSERT_TRUE(matcher != NULL);
@@ -30,6 +31,7 @@ TEST(IPv4PortMatcher, MatchedOneRuleInPortRange) {
     struct ip_addr ip;
     ip.ip_type = IPV4;
     inet_pton(AF_INET, ip1_str, &ip.ipv4);
+    ip.ipv4 = htonl(ip.ipv4);
     uint16_t port = htons(120);
 
     struct ipport_result results[MAX_ARRAY_SIZE];
@@ -46,10 +48,11 @@ TEST(IPv4PortMatcher, MatchedOneRuleOnPortRangeBoundary) {
     struct ipport_rule rules[MAX_ARRAY_SIZE];
 
     rules[0].rule_id = 100;
-    rules[0].ip.ip_type = IPV4;
+    rules[0].ip_type = IPV4;
     rules[0].min_port = 100;
     rules[0].max_port = 150;
-    inet_pton(AF_INET, ip1_str, &rules[0].ip.ipv4);
+    inet_pton(AF_INET, ip1_str, &rules[0].ipv4.start_ip);
+    inet_pton(AF_INET, ip1_str, &rules[0].ipv4.end_ip);
 
     struct ipport_matcher *matcher = ipport_matcher_new(rules, 1);
     ASSERT_TRUE(matcher != NULL);
@@ -57,6 +60,7 @@ TEST(IPv4PortMatcher, MatchedOneRuleOnPortRangeBoundary) {
     struct ip_addr ip;
     ip.ip_type = IPV4;
     inet_pton(AF_INET, ip1_str, &ip.ipv4);
+    ip.ipv4 = htonl(ip.ipv4);
     uint16_t port = htons(100);
 
     struct ipport_result results[MAX_ARRAY_SIZE];
@@ -82,40 +86,46 @@ TEST(IPv4PortMatcher, MatchedMultiRuleInPortRange) {
     memset(rules, 0, sizeof(rules));
 
     rules[0].rule_id = 100;
-    rules[0].ip.ip_type = IPV4;
+    rules[0].ip_type = IPV4;
     rules[0].min_port = 100;
     rules[0].max_port = 150;
-    inet_pton(AF_INET, ip1_str, &rules[0].ip.ipv4);
+    inet_pton(AF_INET, ip1_str, &rules[0].ipv4.start_ip);
+    inet_pton(AF_INET, ip1_str, &rules[0].ipv4.end_ip);
 
     rules[1].rule_id = 200;
-    rules[1].ip.ip_type = IPV4;
+    rules[1].ip_type = IPV4;
     rules[1].min_port = 110;
     rules[1].max_port = 160;
-    inet_pton(AF_INET, ip1_str, &rules[1].ip.ipv4);
+    inet_pton(AF_INET, ip1_str, &rules[1].ipv4.start_ip);
+    inet_pton(AF_INET, ip1_str, &rules[1].ipv4.end_ip);
 
     rules[2].rule_id = 300;
-    rules[2].ip.ip_type = IPV4;
+    rules[2].ip_type = IPV4;
     rules[2].min_port = 120;
     rules[2].max_port = 170;
-    inet_pton(AF_INET, ip1_str, &rules[2].ip.ipv4);
+    inet_pton(AF_INET, ip1_str, &rules[2].ipv4.start_ip);
+    inet_pton(AF_INET, ip1_str, &rules[2].ipv4.end_ip);
 
     rules[3].rule_id = 400;
-    rules[3].ip.ip_type = IPV4;
+    rules[3].ip_type = IPV4;
     rules[3].min_port = 130;
     rules[3].max_port = 180;
-    inet_pton(AF_INET, ip1_str, &rules[3].ip.ipv4);
+    inet_pton(AF_INET, ip1_str, &rules[3].ipv4.start_ip);
+    inet_pton(AF_INET, ip1_str, &rules[3].ipv4.end_ip);
 
     rules[4].rule_id = 500;
-    rules[4].ip.ip_type = IPV4;
+    rules[4].ip_type = IPV4;
     rules[4].min_port = 140;
     rules[4].max_port = 190;
-    inet_pton(AF_INET, ip1_str, &rules[4].ip.ipv4);
+    inet_pton(AF_INET, ip1_str, &rules[4].ipv4.start_ip);
+    inet_pton(AF_INET, ip1_str, &rules[4].ipv4.end_ip);
 
     rules[5].rule_id = 600;
-    rules[5].ip.ip_type = IPV4;
+    rules[5].ip_type = IPV4;
     rules[5].min_port = 150;
     rules[5].max_port = 200;
-    inet_pton(AF_INET, ip1_str, &rules[5].ip.ipv4);
+    inet_pton(AF_INET, ip1_str, &rules[5].ipv4.start_ip);
+    inet_pton(AF_INET, ip1_str, &rules[5].ipv4.end_ip);
 
     struct ipport_matcher *matcher = ipport_matcher_new(rules, MAX_ARRAY_SIZE);
     ASSERT_TRUE(matcher != NULL);
@@ -123,6 +133,7 @@ TEST(IPv4PortMatcher, MatchedMultiRuleInPortRange) {
     struct ip_addr ip;
     ip.ip_type = IPV4;
     inet_pton(AF_INET, ip1_str, &ip.ipv4);
+    ip.ipv4 = htonl(ip.ipv4);
     uint16_t port = htons(90);
 
     //no match rule_id
@@ -226,10 +237,11 @@ TEST(IPv6PortMatcher, MatchedOneRuleInPortRange) {
     struct ipport_rule rules[MAX_ARRAY_SIZE];
 
     rules[0].rule_id = 100;
-    rules[0].ip.ip_type = IPV6;
+    rules[0].ip_type = IPV6;
     rules[0].min_port = 100;
     rules[0].max_port = 150;
-    inet_pton(AF_INET6, ip1_str, rules[0].ip.ipv6);
+    inet_pton(AF_INET6, ip1_str, rules[0].ipv6.start_ip);
+    inet_pton(AF_INET6, ip1_str, rules[0].ipv6.end_ip);
 
     struct ipport_matcher *matcher = ipport_matcher_new(rules, 1);
     ASSERT_TRUE(matcher != NULL);
@@ -253,10 +265,11 @@ TEST(IPv6PortMatcher, MatchedOneRuleOnPortRangeBoundary) {
     struct ipport_rule rules[MAX_ARRAY_SIZE];
 
     rules[0].rule_id = 100;
-    rules[0].ip.ip_type = IPV6;
+    rules[0].ip_type = IPV6;
     rules[0].min_port = 100;
     rules[0].max_port = 150;
-    inet_pton(AF_INET6, ip1_str, rules[0].ip.ipv6);
+    inet_pton(AF_INET6, ip1_str, rules[0].ipv6.start_ip);
+    inet_pton(AF_INET6, ip1_str, rules[0].ipv6.end_ip);
 
     struct ipport_matcher *matcher = ipport_matcher_new(rules, 1);
     ASSERT_TRUE(matcher != NULL);
@@ -289,40 +302,46 @@ TEST(IPv6PortMatcher, MatchedMultiRuleInPortRange) {
     memset(rules, 0, sizeof(rules));
 
     rules[0].rule_id = 100;
-    rules[0].ip.ip_type = IPV6;
+    rules[0].ip_type = IPV6;
     rules[0].min_port = 100;
     rules[0].max_port = 150;
-    inet_pton(AF_INET6, ip1_str, rules[0].ip.ipv6);
+    inet_pton(AF_INET6, ip1_str, rules[0].ipv6.start_ip);
+    inet_pton(AF_INET6, ip1_str, rules[0].ipv6.end_ip);
 
     rules[1].rule_id = 200;
-    rules[1].ip.ip_type = IPV6;
+    rules[1].ip_type = IPV6;
     rules[1].min_port = 110;
     rules[1].max_port = 160;
-    inet_pton(AF_INET6, ip1_str, rules[1].ip.ipv6);
+    inet_pton(AF_INET6, ip1_str, rules[1].ipv6.start_ip);
+    inet_pton(AF_INET6, ip1_str, rules[1].ipv6.end_ip);
 
     rules[2].rule_id = 300;
-    rules[2].ip.ip_type = IPV6;
+    rules[2].ip_type = IPV6;
     rules[2].min_port = 120;
     rules[2].max_port = 170;
-    inet_pton(AF_INET6, ip1_str, rules[2].ip.ipv6);
+    inet_pton(AF_INET6, ip1_str, rules[2].ipv6.start_ip);
+    inet_pton(AF_INET6, ip1_str, rules[2].ipv6.end_ip);
 
     rules[3].rule_id = 400;
-    rules[3].ip.ip_type = IPV6;
+    rules[3].ip_type = IPV6;
     rules[3].min_port = 130;
     rules[3].max_port = 180;
-    inet_pton(AF_INET6, ip1_str, rules[3].ip.ipv6);
+    inet_pton(AF_INET6, ip1_str, rules[3].ipv6.start_ip);
+    inet_pton(AF_INET6, ip1_str, rules[3].ipv6.end_ip);
 
     rules[4].rule_id = 500;
-    rules[4].ip.ip_type = IPV6;
+    rules[4].ip_type = IPV6;
     rules[4].min_port = 140;
     rules[4].max_port = 190;
-    inet_pton(AF_INET6, ip1_str, rules[4].ip.ipv6);
+    inet_pton(AF_INET6, ip1_str, rules[4].ipv6.start_ip);
+    inet_pton(AF_INET6, ip1_str, rules[4].ipv6.end_ip);
 
     rules[5].rule_id = 600;
-    rules[5].ip.ip_type = IPV6;
+    rules[5].ip_type = IPV6;
     rules[5].min_port = 150;
     rules[5].max_port = 200;
-    inet_pton(AF_INET6, ip1_str, rules[5].ip.ipv6);
+    inet_pton(AF_INET6, ip1_str, rules[5].ipv6.start_ip);
+    inet_pton(AF_INET6, ip1_str, rules[5].ipv6.end_ip);
 
     struct ipport_matcher *matcher = ipport_matcher_new(rules, MAX_ARRAY_SIZE);
     ASSERT_TRUE(matcher != NULL);

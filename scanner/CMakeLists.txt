@@ -4,6 +4,7 @@ add_definitions(-fPIC)
 include_directories(${PROJECT_SOURCE_DIR}/deps)
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/src/inc_internal)
+include_directories(${PROJECT_SOURCE_DIR}/scanner/ip_matcher)
 
 add_subdirectory(ip_matcher/IntervalIndex)
 

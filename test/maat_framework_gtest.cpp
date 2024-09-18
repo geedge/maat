@@ -5624,7 +5624,7 @@ void ipport_plugin_ex_new_cb(const char *table_name, int table_id, const char *k
 
 	ud->rule_id = atoll(table_line + column_offset);
 
-	ret = get_column_pos(table_line, 5, &column_offset, &column_len);	
+	ret = get_column_pos(table_line, 6, &column_offset, &column_len);	
 	EXPECT_EQ(ret, 0);
 
 	ud->buffer = ALLOC(char, column_len + 1);
@@ -5684,6 +5684,18 @@ TEST_F(IPPortPluginTable, EX_DATA) {
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(results[0]->rule_id, 103);
 
+    ret = inet_pton(AF_INET, "192.168.100.5", &ipv4.ipv4);
+    EXPECT_EQ(ret, 1);
+
+    port = htons(150);
+
+    memset(results, 0, sizeof(results));
+    ret = maat_ipport_plugin_table_get_ex_data(maat_inst, table_id, &ipv4, port,
+                                               (void **)results, ARRAY_SIZE);
+    EXPECT_EQ(ret, 1);
+    EXPECT_EQ(results[0]->rule_id, 102);
+
+    port = htons(255);
     struct ip_addr ipv6;
     ipv6.ip_type = IPv6;
     inet_pton(AF_INET6, "2001:db8:1234::5210", ipv6.ipv6);
@@ -5694,6 +5706,7 @@ TEST_F(IPPortPluginTable, EX_DATA) {
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(results[0]->rule_id, 104);
 
+    port = htons(255);
     inet_pton(AF_INET6, "240e:97c:4010:104::17", ipv6.ipv6);
     ret = maat_ipport_plugin_table_get_ex_data(maat_inst, table_id, &ipv6, port,
                                               (void**)results, ARRAY_SIZE);

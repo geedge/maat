@@ -25,7 +25,8 @@
 struct ipport_plugin_schema {
     int item_id_column;
     int ip_type_column;
-    int ip_addr_column;
+    int ip1_column;
+    int ip2_column;
     int port1_column;
     int port2_column;
     int gc_timeout_s;
@@ -117,13 +118,24 @@ void *ipport_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "ip_addr");
+    custom_item = cJSON_GetObjectItem(item, "start_ip");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->ip_addr_column = custom_item->valueint;
+        schema->ip1_column = custom_item->valueint;
     } else {
         log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport_plugin table:<%s> schema has no"
-                  " ip_addr column", __FUNCTION__, __LINE__,
+                  " ip1 column", __FUNCTION__, __LINE__,
+                  table_name);
+        goto error;
+    }
+
+    custom_item = cJSON_GetObjectItem(item, "end_ip");
+    if (custom_item != NULL && custom_item->type == cJSON_Number) {
+        schema->ip2_column = custom_item->valueint;
+    } else {
+        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
+                  "[%s:%d] ipport_plugin table:<%s> schema has no"
+                  " ip2 column", __FUNCTION__, __LINE__,
                   table_name);
         goto error;
     }
@@ -273,7 +285,8 @@ ipport_item_new(struct ipport_plugin_schema *schema, const char *table_name,
 {
     size_t column_offset = 0;
     size_t column_len = 0;
-    char ip_str[40] = {0};
+    char ip1_str[40] = {0};
+    char ip2_str[40] = {0};
     struct ipport_item *ipport_item = ALLOC(struct ipport_item, 1);
 
     int ret = get_column_pos(line, schema->item_id_column, &column_offset,
@@ -303,38 +316,67 @@ ipport_item_new(struct ipport_plugin_schema *schema, const char *table_name,
         goto error;
     }
 
-    ret = get_column_pos(line, schema->ip_addr_column, &column_offset,
+    ret = get_column_pos(line, schema->ip1_column, &column_offset,
                          &column_len);
     if (ret < 0) {
         log_fatal(logger, MODULE_IPPORT_PLUGIN, 
-                  "[%s:%d] ipport table:<%s> has no ip_addr in line:%s",
+                  "[%s:%d] ipport table:<%s> has no ip1 in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
-    memcpy(ip_str, (line + column_offset), column_len);
+    memcpy(ip1_str, (line + column_offset), column_len);
+
+    ret = get_column_pos(line, schema->ip2_column, &column_offset,
+                         &column_len);
+    if (ret < 0) {
+        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
+                  "[%s:%d] ipport table:<%s> has no ip2 in line:%s",
+                  __FUNCTION__, __LINE__, table_name, line);
+        goto error;
+    }
+    memcpy(ip2_str, (line + column_offset), column_len);
 
     if (IPV4 == ipport_item->ip_type) {
-        uint32_t ipv4_addr = 0;
-		ret = inet_pton(AF_INET, ip_str, &ipv4_addr);
+        uint32_t ipv4_addr1 = 0;
+        uint32_t ipv4_addr2 = 0;
+		ret = inet_pton(AF_INET, ip1_str, &ipv4_addr1);
         if (ret < 0) {
             log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                       "[%s:%d] ipport table:<%s> ip_format2range(ip4) failed in line:%s",
                       __FUNCTION__, __LINE__, table_name, line);
             goto error;
         }
-        ipport_item->ipv4.min_ip = ipv4_addr;
-        ipport_item->ipv4.max_ip = ipv4_addr;
+        ret = inet_pton(AF_INET, ip2_str, &ipv4_addr2);
+        if (ret < 0) {
+            log_fatal(logger, MODULE_IPPORT_PLUGIN, 
+                      "[%s:%d] ipport table:<%s> ip_format2range(ip4) failed in line:%s",
+                      __FUNCTION__, __LINE__, table_name, line);
+            goto error;
+        }
+
+        ipport_item->ipv4.min_ip = ntohl(ipv4_addr1);
+        ipport_item->ipv4.max_ip = ntohl(ipv4_addr2);
     } else {
         //ipv6
-        uint32_t ipv6_addr[4] = {0};
-		ret = inet_pton(AF_INET6, ip_str, ipv6_addr);
+        uint32_t ipv6_addr1[4] = {0};
+        uint32_t ipv6_addr2[4] = {0};
+		ret = inet_pton(AF_INET6, ip1_str, ipv6_addr1);
         if (ret < 0) {
             log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                       "[%s:%d] ipport table:<%s> ip_format2range(ip6) failed in line:%s",
                       __FUNCTION__, __LINE__, table_name, line);
             goto error;
         }
-        memcpy(ipport_item->ipv6.min_ip, ipv6_addr, sizeof(ipv6_addr));
+        ret = inet_pton(AF_INET6, ip2_str, ipv6_addr2);
+        if (ret < 0) {
+            log_fatal(logger, MODULE_IPPORT_PLUGIN, 
+                      "[%s:%d] ipport table:<%s> ip_format2range(ip6) failed in line:%s",
+                      __FUNCTION__, __LINE__, table_name, line);
+            goto error;
+        }
+
+        memcpy(ipport_item->ipv6.min_ip, ipv6_addr1, sizeof(ipv6_addr1));
+        memcpy(ipport_item->ipv6.max_ip, ipv6_addr2, sizeof(ipv6_addr2));
     }
 
     ret = get_column_pos(line, schema->port1_column, &column_offset,
@@ -485,13 +527,15 @@ static void
 ipport_item_to_ipport_rule(struct ipport_item *item, struct ipport_rule *rule)
 {
     if (IPV4 == item->ip_type) {
-        rule->ip.ip_type= IPV4;
-        rule->ip.ipv4 = item->ipv4.min_ip;
+        rule->ip_type = IPV4;
+        rule->ipv4.start_ip = item->ipv4.min_ip;
+        rule->ipv4.end_ip = item->ipv4.max_ip;
         rule->min_port = item->min_port;
         rule->max_port = item->max_port;
     } else {
-        rule->ip.ip_type = IPV6;
-        memcpy(rule->ip.ipv6, item->ipv6.min_ip, sizeof(item->ipv6.min_ip));
+        rule->ip_type = IPV6;
+        memcpy(rule->ipv6.start_ip, item->ipv6.min_ip, sizeof(item->ipv6.min_ip));
+        memcpy(rule->ipv6.end_ip, item->ipv6.max_ip, sizeof(item->ipv6.max_ip));
         rule->min_port = item->min_port;
         rule->max_port = item->max_port;
     }
