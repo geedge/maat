@@ -5624,7 +5624,7 @@ void ipport_plugin_ex_new_cb(const char *table_name, int table_id, const char *k
 
 	ud->rule_id = atoll(table_line + column_offset);
 
-	ret = get_column_pos(table_line, 6, &column_offset, &column_len);	
+	ret = get_column_pos(table_line, 5, &column_offset, &column_len);	
 	EXPECT_EQ(ret, 0);
 
 	ud->buffer = ALLOC(char, column_len + 1);
@@ -5684,7 +5684,7 @@ TEST_F(IPPortPluginTable, EX_DATA) {
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(results[0]->rule_id, 103);
 
-    ret = inet_pton(AF_INET, "192.168.100.5", &ipv4.ipv4);
+    ret = inet_pton(AF_INET, "192.168.200.5", &ipv4.ipv4);
     EXPECT_EQ(ret, 1);
 
     port = htons(150);
