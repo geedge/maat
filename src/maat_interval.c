@@ -27,8 +27,8 @@ struct interval_schema {
 };
 
 struct interval_item {
-    long long item_id;
-    long long object_id;
+    uuid_t item_uuid;
+    uuid_t object_uuid;
     int low_boundary;
     int up_boundary;
     void *user_data;
@@ -215,23 +215,23 @@ int interval_runtime_set_scan_district(struct interval_runtime *interval_rt,
 
 static struct interval_item *
 interval_item_new(struct interval_schema *schema, const char *table_name,
-                  const cJSON *json, struct interval_runtime *interval_rt, long long item_id)
+                  const cJSON *json, struct interval_runtime *interval_rt, uuid_t item_uuid)
 {
     enum table_type table_type = TABLE_TYPE_INVALID;
     char port_str[16] = {0};
     struct interval_item *item = ALLOC(struct interval_item, 1);
     cJSON *tmp_obj = NULL;
 
-    item->item_id = item_id;
+    uuid_copy(item->item_uuid, item_uuid);
 
-    tmp_obj = cJSON_GetObjectItem(json, "object_id");
+    tmp_obj = cJSON_GetObjectItem(json, "object_uuid");
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
         log_fatal(interval_rt->logger, MODULE_INTERVAL, 
                   "[%s:%d] interval table:<%s> has no object_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
-    item->object_id = atoll(tmp_obj->valuestring);
+    uuid_parse(tmp_obj->valuestring, item->object_uuid);
 
     table_type = table_manager_get_table_type(schema->ref_tbl_mgr, schema->table_id);
     if (table_type == TABLE_TYPE_INTERVAL_PLUS) {
@@ -289,7 +289,7 @@ interval_item_to_interval_rule(struct interval_item *item)
 
     rule.start = item->low_boundary;
     rule.end = item->up_boundary;
-    rule.result.rule_id = item->item_id;
+    uuid_copy(rule.result.rule_uuid, item->item_uuid);
     rule.result.user_tag = item->user_data;
 
     return rule;
@@ -308,10 +308,12 @@ static int interval_runtime_update_row(struct interval_runtime *interval_rt,
         //add
         ret = rcu_hash_add(interval_rt->item_hash, key, key_len, (void *)item);
         if (ret < 0) {
+            char uuid_str[UUID_STR_LEN] = {0};
+            uuid_unparse(item->item_uuid, uuid_str);
             log_debug(interval_rt->logger, MODULE_INTERVAL,
-                      "[%s:%d] interval item(item_id:%lld) add to "
+                      "[%s:%d] interval item(item_id:%s) add to "
                       "interavl_item_hash failed", __FUNCTION__, __LINE__,
-                      item->item_id);
+                      uuid_str);
             return -1;
         }
     }
@@ -342,7 +344,7 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
         goto ERROR;
     }
 
-    tmp_obj = cJSON_GetObjectItem(json, "item_id");
+    tmp_obj = cJSON_GetObjectItem(json, "uuid");
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
         log_fatal(interval_rt->logger, MODULE_INTERVAL,
                   "[%s:%d] interval table:<%s> has no item_id in line:%s",
@@ -351,8 +353,9 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
         goto ERROR;
     }
 
-    long long item_id = atoll(tmp_obj->valuestring);
-    if (item_id < 0) {
+    uuid_t item_uuid;
+    uuid_parse(tmp_obj->valuestring, item_uuid);
+    if (uuid_is_null(item_uuid)) {
         log_fatal(interval_rt->logger, MODULE_INTERVAL,
                   "[%s:%d] interval table:<%s> item_id wrong"
                   " in table_line:%s", __FUNCTION__, __LINE__, table_name,
@@ -364,7 +367,7 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
     struct interval_item *interval_item = NULL;
     if (MAAT_OP_ADD == op) {
         //add
-        interval_item = interval_item_new(schema, table_name, json, interval_rt, item_id);
+        interval_item = interval_item_new(schema, table_name, json, interval_rt, item_uuid);
         if (NULL == interval_item) {
             interval_rt->update_err_cnt++;
             goto ERROR;
@@ -376,7 +379,7 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
         interval_item->user_data = item_district_id;
     }
 
-    int ret = interval_runtime_update_row(interval_rt, (char *)&item_id, sizeof(long long),
+    int ret = interval_runtime_update_row(interval_rt, (char *)&item_uuid, sizeof(uuid_t),
                                           interval_item, op);
     if (ret < 0) {
         if (interval_item != NULL) {
@@ -531,18 +534,17 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
         int tag_district_id = *(int *)(hit_results[i].user_tag);
         if (tag_district_id == state->district_id ||
             tag_district_id == DISTRICT_ANY) {
-            long long item_id = hit_results[i].rule_id;
             struct interval_item *int_item =
                 (struct interval_item *)rcu_hash_find(interval_rt->item_hash, 
-                                                     (char *)&item_id,
-                                                      sizeof(long long));
+                                                     (char *)&hit_results[i].rule_uuid,
+                                                      sizeof(uuid_t));
             if (!int_item) {
                 // item config has been deleted
                 continue;
             }
 
-            hit_maat_items[real_hit_item_cnt].item_id = item_id;
-            hit_maat_items[real_hit_item_cnt].object_id = int_item->object_id;
+            uuid_copy(hit_maat_items[real_hit_item_cnt].item_uuid, int_item->item_uuid);
+            uuid_copy(hit_maat_items[real_hit_item_cnt].object_uuid, int_item->object_uuid);
             real_hit_item_cnt++;
         }
     }

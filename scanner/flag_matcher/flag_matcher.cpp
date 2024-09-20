@@ -71,7 +71,7 @@ int flag_matcher_match(struct flag_matcher *flag_matcher, uint64_t flag, struct 
     {
         if (!((flag ^ flag_matcher->rule_table[i].flag) & flag_matcher->rule_table[i].mask))
         {
-            result[result_number].rule_id = flag_matcher->rule_table[i].rule_id;
+            uuid_copy(result[result_number].rule_uuid, flag_matcher->rule_table[i].rule_uuid);
             result[result_number ++].user_tag = flag_matcher->rule_table[i].user_tag;
 
             if (result_number >= n_result)

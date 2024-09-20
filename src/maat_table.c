@@ -59,7 +59,7 @@ struct table_manager {
 
     enum expr_engine_type engine_type;
     int default_rule_table_id;
-    int g2g_table_id;
+    int o2o_table_id;
     struct maat_kv_store *tbl_name2id_map;
     struct maat_kv_store *conj_tbl_name2id_map;
     struct maat_kv_store *attr_name2id_map;
@@ -929,7 +929,7 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
     }
 
     int default_rule_table_id = -1;
-    int g2g_table_id = -1;
+    int o2o_table_id = -1;
     struct maat_kv_store *reserved_word_map = maat_kv_store_new();
     register_reserved_word(reserved_word_map);
 
@@ -967,7 +967,7 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
             }
 
             if (maat_tbl->table_type == TABLE_TYPE_OBJECT2OBJECT) { 
-                g2g_table_id = maat_tbl->table_id;
+                o2o_table_id = maat_tbl->table_id;
             }
 
             if (maat_tbl->table_type >= TABLE_TYPE_FLAG && maat_tbl->table_type <= TABLE_TYPE_INTERVAL_PLUS) {
@@ -984,10 +984,10 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
     }
 
     tbl_mgr->default_rule_table_id = default_rule_table_id;
-    tbl_mgr->g2g_table_id = g2g_table_id;
+    tbl_mgr->o2o_table_id = o2o_table_id;
 
     log_info(logger, MODULE_TABLE, "default rule table id: %d", default_rule_table_id);
-    log_info(logger, MODULE_TABLE, "object2object table id: %d", g2g_table_id);
+    log_info(logger, MODULE_TABLE, "object2object table id: %d", o2o_table_id);
 next:
     FREE(json_buff);
     maat_kv_store_free(reserved_word_map);
@@ -1241,7 +1241,7 @@ int table_manager_get_object2object_table_id(struct table_manager *tbl_mgr)
         return -1;
     }
 
-    return tbl_mgr->g2g_table_id;
+    return tbl_mgr->o2o_table_id;
 }
 
 void *table_manager_get_schema(struct table_manager *tbl_mgr, int table_id)

@@ -8,6 +8,7 @@
 #define INTERVAL_MATCHER_H
 #include <stdint.h>
 #include <stddef.h>
+#include <uuid/uuid.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -17,7 +18,7 @@ extern "C"
 // if matched, return id and tag;
 struct interval_result
 {
-    uint64_t rule_id; 
+    uuid_t rule_uuid; 
 
     /* A transparent user tag for convenient accessing, 
     the caller is responsible for its memory management. */

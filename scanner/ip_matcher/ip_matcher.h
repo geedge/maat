@@ -19,6 +19,7 @@
 #define H_IP_MATCHER_H
 
 #include <stddef.h>
+#include <uuid/uuid.h>
 
 #include "../../deps/log/log.h"
 
@@ -45,7 +46,7 @@ struct ipv6_range {
 /* common type for ip rule */
 struct ip_rule {
     enum IP_TYPE type; /* IPv4 or IPv6 */
-    long long rule_id; /* rule id */
+    uuid_t rule_uuid; /* rule id */
     void *user_tag;    /* point to user-defined data which will return with hit results */
     union {
         struct ipv4_range ipv4_rule;
@@ -64,7 +65,7 @@ struct ip_data {
 
 /* data type for scan result */
 struct scan_result {
-    long long rule_id; /* rule id */
+    uuid_t rule_uuid; /* rule id */
     void *tag;         /* point to the same address as user_tag in struct ip_rule which has same rule_id */
 };
 

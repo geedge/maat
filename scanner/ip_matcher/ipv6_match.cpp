@@ -75,7 +75,7 @@ long long CIPv6Match::initialize(const map<long long, struct ip_rule>& rules)
 	for (map<long long, struct ip_rule>::const_iterator it = rules.begin(); it != rules.end(); ++it) {
 		struct ipv6_range arule = it->second.ipv6_rule;;
 		m_rules[i].rule = arule;
-		m_rules[i].rule_id = it->first;
+		uuid_copy(m_rules[i].rule_uuid, it->second.rule_uuid);
 		m_rules[i++].tag = it->second.user_tag;
 	}
 
@@ -119,7 +119,7 @@ int CIPv6Match::search_rule(const struct ip_data * data, struct scan_result * pr
 		if(hit_num == size)
 			return hit_num;
 		unsigned int index = m_v[i];
-		presult[hit_num].rule_id = m_rules[index].rule_id;
+		uuid_copy(presult[hit_num].rule_uuid, m_rules[index].rule_uuid);
 		presult[hit_num++].tag = m_rules[index].tag;
 	}
 

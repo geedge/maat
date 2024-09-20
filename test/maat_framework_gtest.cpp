@@ -671,7 +671,7 @@ TEST_F(HsStringScan, BackslashR_N_Escape_IncUpdate) {
     maat_state_reset(state);
 
     const char *rule_table_name = "RULE_DEFAULT";
-    const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 
     /* rule table add line */
     long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
@@ -681,7 +681,7 @@ TEST_F(HsStringScan, BackslashR_N_Escape_IncUpdate) {
 
     /* object2rule table add line */
     long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -1444,7 +1444,7 @@ TEST_F(HsStringScan, dynamic_config) {
     maat_state_reset(state);
 
     const char *rule_table_name = "RULE_DEFAULT";
-    const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 
     /* rule table add line */
     long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
@@ -1454,7 +1454,7 @@ TEST_F(HsStringScan, dynamic_config) {
 
     /* object2rule table add line */
     long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -1487,7 +1487,7 @@ TEST_F(HsStringScan, dynamic_config) {
     EXPECT_EQ(ret, 1);
 
     /* object2rule table del line */
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL,
                                        object_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -1709,7 +1709,7 @@ TEST_F(RsStringScan, BackslashR_N_Escape_IncUpdate) {
     maat_state_reset(state);
 
     const char *rule_table_name = "RULE_DEFAULT";
-    const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 
     /* rule table add line */
     long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
@@ -1719,7 +1719,7 @@ TEST_F(RsStringScan, BackslashR_N_Escape_IncUpdate) {
 
     /* object2rule table add line */
     long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -2489,7 +2489,7 @@ TEST_F(RsStringScan, dynamic_config) {
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     const char *rule_table_name = "RULE_DEFAULT";
-    const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 
     /* rule table add line */
     long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
@@ -2499,7 +2499,7 @@ TEST_F(RsStringScan, dynamic_config) {
 
     /* object2rule table add line */
     long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -2532,7 +2532,7 @@ TEST_F(RsStringScan, dynamic_config) {
     EXPECT_EQ(ret, 1);
 
     /* object2rule table del line */
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL,
                                        object_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -3183,7 +3183,7 @@ TEST_F(IPScan, RuleUpdates) {
     maat_state_reset(state);
 
     const char *rule_table_name = "RULE_DEFAULT";
-    const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 
      /* rule table add line */
     long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
@@ -3193,7 +3193,7 @@ TEST_F(IPScan, RuleUpdates) {
 
     /* object2rule table add line */
     long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD, 
                                        object_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -3223,7 +3223,7 @@ TEST_F(IPScan, RuleUpdates) {
     EXPECT_EQ(ret, 1);
 
     /* object2rule table del line */
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL,
                                        object_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -3256,7 +3256,7 @@ TEST_F(IPScan, RuleChangeConditionId) {
     int ret;
 
     const char *rule_table_name = "RULE_DEFAULT";
-    const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 
      /* rule table add line */
     long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
@@ -3266,7 +3266,7 @@ TEST_F(IPScan, RuleChangeConditionId) {
 
     /* object2rule table add line */
     long long object_id1 = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD, 
                                        object_id1, rule_id, 0, src_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -3278,7 +3278,7 @@ TEST_F(IPScan, RuleChangeConditionId) {
 
     /* object2rule table add line */
     long long object_id2 = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD, 
                                        object_id2, rule_id, 0, dst_table_name, 2, 0);
     EXPECT_EQ(ret, 1);
 
@@ -3327,15 +3327,15 @@ TEST_F(IPScan, RuleChangeConditionId) {
 
 
     /* object2rule table del line */
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL,
                                        object_id1, rule_id, 0, src_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL,
                                        object_id2, rule_id, 0, dst_table_name, 2, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object_id1, rule_id, 0, src_table_name, 2, 0);
     EXPECT_EQ(ret, 1); 
 
@@ -3343,7 +3343,7 @@ TEST_F(IPScan, RuleChangeConditionId) {
     int app_id_table_id = maat_get_table_id(maat_inst, app_id_table_name);
     /* object2rule table add line */
     long long object_id3 = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD, 
                                        object_id3, rule_id, 0, app_id_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
     
@@ -6198,7 +6198,7 @@ TEST_F(TableSchemaTag, RuleTable) {
     const char *rule1_table_name = "RULE_DEFAULT";
     const char *rule2_table_name = "RULE_ALIAS";
     const char *rule3_table_name = "RULE_CONJUNCTION";
-    const char *g2c_table_name = "OBJECT2RULE";
+    const char *o2r_table_name = "OBJECT2RULE";
     struct maat *maat_inst = TableSchemaTag::_shared_maat_inst;
 
     //RULE_DEFAULT
@@ -6229,10 +6229,10 @@ TEST_F(TableSchemaTag, RuleTable) {
     EXPECT_EQ(ret, 0);
 
     //OBJECT2RULE
-    int g2c_table_id = maat_get_table_id(maat_inst, g2c_table_name);
-    EXPECT_EQ(g2c_table_id, 3);
+    int o2r_table_id = maat_get_table_id(maat_inst, o2r_table_name);
+    EXPECT_EQ(o2r_table_id, 3);
 
-    const char *tag4 = maat_get_table_schema_tag(maat_inst, g2c_table_id);
+    const char *tag4 = maat_get_table_schema_tag(maat_inst, o2r_table_id);
     EXPECT_TRUE(tag4 != NULL);
 
     ret = strcmp(tag4, "{\"object2rule\": \"object2rule\"}");
@@ -7484,7 +7484,7 @@ TEST_F(MaatCmd, SetIP) {
     int thread_id = 0;
 	const char *ip_table_name = "IP_CONFIG";
 	const char *rule_table_name = "RULE_DEFAULT";
-    const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
     maat_reload_log_level(maat_inst, LOG_LEVEL_INFO);
@@ -7497,7 +7497,7 @@ TEST_F(MaatCmd, SetIP) {
 
     /* object2rule table add line */
     long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object_id, rule_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -7609,7 +7609,7 @@ TEST_F(MaatCmd, SetExpr8) {
 	const char *scan_data7 = "string1, string2, string3, string4, string5, string6, string7";
 	
 	const char *rule_table_name = "RULE_DEFAULT";
-    const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char *table_name = "KEYWORDS_TABLE";
 	
 	const char *keywords8 = "string1&string2&string3&string4&string5&string6&string7&string8";
@@ -7629,7 +7629,7 @@ TEST_F(MaatCmd, SetExpr8) {
 
     /* object2rule table add line */
     long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -7686,7 +7686,7 @@ TEST_F(MaatCmd, ObjectScan) {
     int thread_id = 0;
 	const char *table_name = "HTTP_URL";
 	const char *rule_table_name = "RULE_DEFAULT";
-    const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -7701,7 +7701,7 @@ TEST_F(MaatCmd, ObjectScan) {
 
     /* object2rule table add line */
     long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object_id, rule_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -7729,7 +7729,7 @@ TEST_F(MaatCmd, SameFilterRefByOneRule) {
     const char *scan_data = "http://filtermenot.com";
     const char *keywords = "menot.com";
     const char *rule_table_name = "RULE_DEFAULT";
-    const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
@@ -7746,11 +7746,11 @@ TEST_F(MaatCmd, SameFilterRefByOneRule) {
 
     //condition1 & condition2 has same filter => {attribute_id, object_id}
     long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD, 
                                        object_id, rule_id, 0, attribute_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object_id, rule_id, 0, attribute_name, 2, 0);
     EXPECT_EQ(ret, 1);
 
@@ -7881,8 +7881,8 @@ TEST_F(MaatCmd, ReturnRuleIDWithDescendingOrder) {
 TEST_F(MaatCmd, SubObject) {
     const char *table_name = "HTTP_URL";
     const char *rule_table_name = "RULE_DEFAULT";
-	const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
-	const char *g2g_table_name = "OBJECT2OBJECT";
+	const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
+	const char *o2o_table_name = "OBJECT2OBJECT";
 	const char *scan_data1 = "www.v2ex.com/t/573028#程序员的核心竞争力是什么";
 	const char *keyword1 = "程序员&核心竞争力";
 	const char *scan_data2 = "https://ask.leju.com/bj/detail/12189672562229248/?bi=tg&type=sina-pc"
@@ -7912,18 +7912,18 @@ TEST_F(MaatCmd, SubObject) {
     /* object2rule table add line */
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD, 
                                        object1_id, rule1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     //object1 -> rule2
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD, 
                                        object1_id, rule2_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     //object2 -> object1 -> rule1
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2object_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
+    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
                                      object1_id, object2_id, 0);
     EXPECT_EQ(ret, 1);
 
@@ -7956,7 +7956,7 @@ TEST_F(MaatCmd, SubObject) {
                           \
                            \_ X -> rule2
     */
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL,
                                        object1_id, rule2_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -7977,14 +7977,14 @@ TEST_F(MaatCmd, SubObject) {
                   \
                    \_ -> rule2
     */
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL,
                                        object1_id, rule1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
                                  rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object2_id, rule2_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -8007,7 +8007,7 @@ TEST_F(MaatCmd, SubObject) {
         item2 -> object3
     */
     long long object3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2object_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
+    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
                                      object1_id, object3_id, 0);
     EXPECT_EQ(ret, 1);
 
@@ -8033,14 +8033,14 @@ TEST_F(MaatCmd, SubObject) {
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
                                  rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object1_id, rule1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
                                  rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL,
                                        object1_id, rule1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -8062,7 +8062,7 @@ TEST_F(MaatCmd, SubObject) {
 TEST_F(MaatCmd, RefObject) {
     const char *table_name = "HTTP_URL";
     const char* rule_table_name = "RULE_DEFAULT";
-	const char* g2c_table_name = "OBJECT2RULE_DEFAULT";
+	const char* o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char* scan_data1 = "m.facebook.com/help/2297503110373101?helpref=hc_nav&refid=69";
 	const char* keyword1 = "something-should-not-hit";
 	const char* keyword2 = "facebook.com/help/2297503110373101";
@@ -8081,7 +8081,7 @@ TEST_F(MaatCmd, RefObject) {
 
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object1_id, rule1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -8099,7 +8099,7 @@ TEST_F(MaatCmd, RefObject) {
                 item2 -> object2
     */
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object2_id, rule1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -8114,10 +8114,10 @@ TEST_F(MaatCmd, RefObject) {
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
                                  rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL, 
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL, 
                                        object1_id, rule1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD, 
                                        object2_id, rule1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -8141,7 +8141,7 @@ TEST_F(MaatCmd, RefObject) {
 
 TEST_F(MaatCmd, Attribute) {
     const char* rule_table_name = "RULE_DEFAULT";
-    const char* g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char* o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char* table_name="HTTP_SIGNATURE";
     int thread_id = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
@@ -8154,7 +8154,7 @@ TEST_F(MaatCmd, Attribute) {
 
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object1_id, rule1_id, 0,
                                        "HTTP_REQUEST_HEADER", 1, 0);
     EXPECT_EQ(ret, 1);
@@ -8170,7 +8170,7 @@ TEST_F(MaatCmd, Attribute) {
                       object2_/
     */
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object2_id, rule1_id, 0,
                                        "HTTP_RESPONSE_HEADER", 2, 0);
     EXPECT_EQ(ret, 1);
@@ -8231,7 +8231,7 @@ TEST_F(MaatCmd, Attribute) {
     maat_state_reset(state);
 
     //delete object1
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL,
                                        object1_id, rule1_id, 0,
                                        "HTTP_REQUEST_HEADER", 1, 0);
     EXPECT_EQ(ret, 1);
@@ -8936,7 +8936,7 @@ TEST_F(MaatCmd, UpdateBoolPlugin) {
 
 #define RULE_ID_NUMS 1000
 TEST_F(MaatCmd, ObjectInMassRules) {
-    const char* g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char* o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char* rule_table_name = "RULE_DEFAULT";
 	const char* table_url = "HTTP_URL";
 	const char* table_appid = "APP_ID";
@@ -8979,11 +8979,11 @@ TEST_F(MaatCmd, ObjectInMassRules) {
     }
 
     for (i = 0; i < RULE_ID_NUMS; i++) {
-        ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+        ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                            object1_id, rule_id[i], 0, table_url, 0, 0);
         EXPECT_EQ(ret, 1);
 
-        ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+        ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                            object3_id, rule_id[i], 0, table_appid, 2, 0);
         EXPECT_EQ(ret, 1);
     }
@@ -8996,10 +8996,10 @@ TEST_F(MaatCmd, ObjectInMassRules) {
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
                                  target_rule_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object2_id, target_rule_id, 0, table_url, 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object3_id, target_rule_id, 0, table_appid, 2, 0);
     EXPECT_EQ(ret, 1);
 
@@ -9060,8 +9060,8 @@ TEST_F(MaatCmd, ObjectInMassRules) {
 
 TEST_F(MaatCmd, HitObject) {
    const char *rule_table_name = "RULE_DEFAULT";
-	const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
-    const char *g2g_table_name = "OBJECT2OBJECT";
+	const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2o_table_name = "OBJECT2OBJECT";
 	const char *http_sig_table_name = "HTTP_SIGNATURE";
 	const char *ip_table_name = "IP_CONFIG";
 	const char *keywords_table_name = "KEYWORDS_TABLE";
@@ -9077,7 +9077,7 @@ TEST_F(MaatCmd, HitObject) {
 
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object1_id, rule1_id, 0,
                                        "HTTP_REQUEST_HEADER", 1, 0);
     EXPECT_EQ(ret, 1);
@@ -9094,7 +9094,7 @@ TEST_F(MaatCmd, HitObject) {
                     object21_/
     */
     long long object21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object21_id, rule1_id, 0,
                                        "HTTP_RESPONSE_HEADER", 2, 0);
     EXPECT_EQ(ret, 1);
@@ -9104,7 +9104,7 @@ TEST_F(MaatCmd, HitObject) {
         object2 -> object21 _/
     */
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2object_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
+    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
                                      object21_id, object2_id, 0);
     EXPECT_EQ(ret, 1);
 
@@ -9126,7 +9126,7 @@ TEST_F(MaatCmd, HitObject) {
      item2 -> object2 -> object21 _/             
     */
     long long object11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2object_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
+    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
                                      object11_id, object1_id, 0);
     EXPECT_EQ(ret, 1);
     
@@ -9338,8 +9338,8 @@ TEST_F(MaatCmd, HitObject) {
 }
 
 TEST_F(MaatCmd, HitPathBasic) {
-    const char *g2g_table_name = "OBJECT2OBJECT";
-	const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2o_table_name = "OBJECT2OBJECT";
+	const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *http_sig_table_name = "HTTP_SIGNATURE";
 	const char *ip_table_name = "IP_CONFIG";
@@ -9356,7 +9356,7 @@ TEST_F(MaatCmd, HitPathBasic) {
 
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object1_id, rule1_id, 0,
                                        "HTTP_REQUEST_HEADER", 1, 0);
     EXPECT_EQ(ret, 1);
@@ -9373,7 +9373,7 @@ TEST_F(MaatCmd, HitPathBasic) {
                     object21_/
     */
     long long object21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object21_id, rule1_id, 0,
                                        "HTTP_RESPONSE_HEADER", 2, 0);
     EXPECT_EQ(ret, 1);
@@ -9383,7 +9383,7 @@ TEST_F(MaatCmd, HitPathBasic) {
         object2 -> object21 _/
     */
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2object_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
+    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
                                      object21_id, object2_id, 0);
     EXPECT_EQ(ret, 1);
 
@@ -9405,7 +9405,7 @@ TEST_F(MaatCmd, HitPathBasic) {
      item2 -> object2 -> object21 _/             
     */
     long long object11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2object_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
+    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
                                      object11_id, object1_id, 0);
     EXPECT_EQ(ret, 1);
     
@@ -9639,8 +9639,8 @@ that the edges be all directed in the same direction.";
     item4 -> object4 -/   
 */
 TEST_F(MaatCmd, HitPathAdvanced) {
-    const char *g2g_table_name = "OBJECT2OBJECT";
-	const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2o_table_name = "OBJECT2OBJECT";
+	const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *ip_table_name = "IP_CONFIG";
 	const char *keywords_table_name = "KEYWORDS_TABLE";
@@ -9656,7 +9656,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object1_id, rule1_id, 0,
                                        "KEYWORDS_TABLE", 1, 0); //condition_index:1
     EXPECT_EQ(ret, 1);
@@ -9673,7 +9673,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
                     object21_/
     */
     long long object21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object21_id, rule1_id, 0,
                                        "KEYWORDS_TABLE", 2, 0); //condition_index:2
     EXPECT_EQ(ret, 1);
@@ -9683,7 +9683,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
         object2 -> object21 _/
     */
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2object_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
+    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
                                      object21_id, object2_id, 0);
     EXPECT_EQ(ret, 1);
 
@@ -9710,7 +9710,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
                               \
                             rule2    
     */
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object21_id, rule2_id, 0,
                                        "KEYWORDS_TABLE", 3, 0); //condition_index:3
     EXPECT_EQ(ret, 1); 
@@ -9728,7 +9728,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
                             object3_id, "220.181.38.168-220.181.38.169", 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object3_id, rule2_id, 0,
                                        "IP_CONFIG", 4, 0); //condition_index:4
     EXPECT_EQ(ret, 1); 
@@ -9747,7 +9747,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
                                      rule3_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object3_id, rule3_id, 0,
                                        "IP_CONFIG", 5, 0); //condition_index:5
     EXPECT_EQ(ret, 1); 
@@ -9774,7 +9774,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
                               NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object4_id, rule3_id, 0,
                                        "KEYWORDS_TABLE", 6, 0); //condition_index:6
     EXPECT_EQ(ret, 1); 
@@ -9998,8 +9998,8 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 }
 
 TEST_F(MaatCmd, HitPathHasNotObject) {
-    const char *g2g_table_name = "OBJECT2OBJECT";
-	const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2o_table_name = "OBJECT2OBJECT";
+	const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *http_sig_table_name = "HTTP_SIGNATURE";
 	const char *ip_table_name = "IP_CONFIG";
@@ -10016,7 +10016,7 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
 
     // !object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object1_id, rule1_id, 1,
                                        "HTTP_REQUEST_HEADER", 1, 0);
     EXPECT_EQ(ret, 1);
@@ -10032,7 +10032,7 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
                     object21_/
     */
     long long object21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object21_id, rule1_id, 0,
                                        "HTTP_RESPONSE_HEADER", 2, 0);
     EXPECT_EQ(ret, 1);
@@ -10042,7 +10042,7 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
         object2 -> object21 _/
     */
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2object_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
+    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
                                      object21_id, object2_id, 0);
     EXPECT_EQ(ret, 1);
 
@@ -10064,7 +10064,7 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
      item2 -> object2 -> object21 _/
     */
     long long object11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2object_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
+    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
                                      object11_id, object1_id, 0);
     EXPECT_EQ(ret, 1);
     
@@ -10291,8 +10291,8 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
 
 TEST_F(MaatCmd, SameSuperObjectRefByMultiRule) {
     int thread_id = 0;
-    const char *g2g_table_name = "OBJECT2OBJECT";
-	const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2o_table_name = "OBJECT2OBJECT";
+	const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *http_sig_table_name = "HTTP_SIGNATURE";
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
@@ -10310,7 +10310,7 @@ TEST_F(MaatCmd, SameSuperObjectRefByMultiRule) {
     EXPECT_EQ(ret, 1);
 
     long long object52_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2object_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
+    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
                                      object52_id, object5_id, 0);
     EXPECT_EQ(ret, 1);
 
@@ -10319,7 +10319,7 @@ TEST_F(MaatCmd, SameSuperObjectRefByMultiRule) {
                                  rule2_id, "HTTP_RESPONSE_HEADER", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object52_id, rule2_id, 0,
                                        "HTTP_RESPONSE_HEADER", 0, 0);
     EXPECT_EQ(ret, 1);
@@ -10329,7 +10329,7 @@ TEST_F(MaatCmd, SameSuperObjectRefByMultiRule) {
                                  rule3_id, "HTTP_RESPONSE_HEADER", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object52_id, rule3_id, 0,
                                        "HTTP_RESPONSE_HEADER", 0, 0);
     EXPECT_EQ(ret, 1);
@@ -10390,7 +10390,7 @@ TEST_F(MaatCmd, SameSuperObjectRefByMultiRule) {
 }
 
 TEST_F(MaatCmd, SameScanStatusWhenConditionUpdate_TSG6419) {
-    const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char* rule_table_name = "RULE_DEFAULT";
 	const char* ip_table_name = "IP_PLUS_CONFIG";
     const char *app_id_table_name = "APP_ID";
@@ -10408,7 +10408,7 @@ TEST_F(MaatCmd, SameScanStatusWhenConditionUpdate_TSG6419) {
            item21 -> object21 -> condition2 _/
     */
     long long object11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object11_id, rule1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -10418,7 +10418,7 @@ TEST_F(MaatCmd, SameScanStatusWhenConditionUpdate_TSG6419) {
     EXPECT_EQ(ret, 1);
 
     long long object21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object21_id, rule1_id, 0, app_id_table_name, 2, 0);
     EXPECT_EQ(ret, 1);
 
@@ -10465,7 +10465,7 @@ TEST_F(MaatCmd, SameScanStatusWhenConditionUpdate_TSG6419) {
     EXPECT_EQ(ret, 1);
 
     long long object22_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object22_id, rule1_id, 0, app_id_table_name, 3, 0);
     EXPECT_EQ(ret, 1);
 
@@ -10500,7 +10500,7 @@ TEST_F(MaatCmd, SameScanStatusWhenConditionUpdate_TSG6419) {
 }
 
 TEST_F(MaatCmd, ObjectEdit) {
-    const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *ip_table_name = "IP_PLUS_CONFIG"; 
     const char *app_id_table_name = "APP_ID";
@@ -10517,7 +10517,7 @@ TEST_F(MaatCmd, ObjectEdit) {
            item21 -> object21 -> condition2 _/
     */
     long long object11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object11_id, rule1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -10527,7 +10527,7 @@ TEST_F(MaatCmd, ObjectEdit) {
     EXPECT_EQ(ret, 1);
 
     long long object21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object21_id, rule1_id, 0, app_id_table_name, 2, 0);
     EXPECT_EQ(ret, 1);
 
@@ -10642,7 +10642,7 @@ TEST_F(MaatCmd, ObjectEdit) {
 }
 
 TEST_F(MaatCmd, RuleDelete_TSG6548) {
-    const char* g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char* o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char* rule_table_name = "RULE_DEFAULT";
 	const char* ip_table_name = "IP_PLUS_CONFIG";
     int thread_id = 0;
@@ -10656,7 +10656,7 @@ TEST_F(MaatCmd, RuleDelete_TSG6548) {
 
     //item11 -> object11 -> condition1 -> rule1
     long long object11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object11_id, rule1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -10690,7 +10690,7 @@ TEST_F(MaatCmd, RuleDelete_TSG6548) {
                                  rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL,
                                        object11_id, rule1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -10717,7 +10717,7 @@ TEST_F(MaatCmd, RuleDelete_TSG6548) {
 }
 
 TEST_F(MaatCmd, UpdateDeadLockDetection) {
-    const char* g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char* o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char* rule_table_name = "RULE_DEFAULT";
 	const char* table_http_url = "HTTP_URL";
     int thread_id = 0;
@@ -10731,7 +10731,7 @@ TEST_F(MaatCmd, UpdateDeadLockDetection) {
 
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object1_id, rule1_id, 0, table_http_url, 0, 0);
     EXPECT_EQ(ret, 1);
 
@@ -10769,7 +10769,7 @@ TEST_F(MaatCmd, UpdateDeadLockDetection) {
 
     //object2 -> rule2
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object2_id, rule2_id, 0, table_http_url, 0, 0);
     EXPECT_EQ(ret, 1);
 
@@ -10802,7 +10802,7 @@ TEST_F(MaatCmd, UpdateDeadLockDetection) {
 }
 
 TEST_F(MaatCmd, StreamScanWhenExprTableIncUpdate) {
-    const char* g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char* o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char* rule_table_name = "RULE_DEFAULT";
 	const char* scan_table_name = "KEYWORDS_TABLE";
     int thread_id = 0;
@@ -10816,7 +10816,7 @@ TEST_F(MaatCmd, StreamScanWhenExprTableIncUpdate) {
 
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object1_id, rule1_id, 0, scan_table_name, 0, 0);
     EXPECT_EQ(ret, 1);
 
@@ -10877,7 +10877,7 @@ TEST_F(MaatCmd, StreamScanWhenExprTableIncUpdate) {
 }
 
 TEST_F(MaatCmd, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
-    const char* g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char* o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char* rule_table_name = "RULE_DEFAULT";
 	const char* scan_table_name = "KEYWORDS_TABLE";
     int thread_id = 0;
@@ -10891,7 +10891,7 @@ TEST_F(MaatCmd, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
 
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object1_id, rule1_id, 0, scan_table_name, 0, 0);
     EXPECT_EQ(ret, 1);
 
@@ -10944,7 +10944,7 @@ TEST_F(MaatCmd, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
 }
 
 TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
-    const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *expr_table_name = "KEYWORDS_TABLE";
     const char *ip_table_name = "IP_PLUS_CONFIG";
@@ -10959,7 +10959,7 @@ TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
 
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object1_id, rule1_id, 0, expr_table_name, 0, 0);
     EXPECT_EQ(ret, 1);
 
@@ -10979,7 +10979,7 @@ TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
                             object2_id, "100.100.100.1", 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object2_id, rule1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -11045,7 +11045,7 @@ TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
 }
 
 TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
-    const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *ip_table_name = "IP_PLUS_CONFIG";
     const char *expr_table_name = "KEYWORDS_TABLE";
@@ -11060,7 +11060,7 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
 
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object1_id, rule1_id, 0, expr_table_name, 0, 0);
     EXPECT_EQ(ret, 1);
 
@@ -11081,7 +11081,7 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
                             item2_id, object2_id, "100.100.100.2", 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object2_id, rule1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -11145,7 +11145,7 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
 }
 
 TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
-     const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+     const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *expr_table_name = "HTTP_URL";
     const char *ip_table_name = "IP_PLUS_CONFIG";
@@ -11161,7 +11161,7 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
 
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object1_id, rule1_id, 0, expr_table_name, 0, 0);
     EXPECT_EQ(ret, 1);
 
@@ -11181,7 +11181,7 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
                             object2_id, "100.100.100.1", 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object2_id, rule1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -11245,7 +11245,7 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
 }
 
 TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
-    const char *g2c_table_name = "OBJECT2RULE_DEFAULT";
+    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
     const char *rule_table_name = "RULE_DEFAULT";
     const char *ip_table_name = "IP_PLUS_CONFIG";
     const char *expr_table_name = "HTTP_URL";
@@ -11261,7 +11261,7 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
 
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object1_id, rule1_id, 0, expr_table_name, 0, 0);
     EXPECT_EQ(ret, 1);
 
@@ -11281,7 +11281,7 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
                             object2_id, "100.100.100.3", 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
                                        object2_id, rule1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 

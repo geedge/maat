@@ -15,7 +15,7 @@
 #include "ipport_matcher.h"
 
 struct port_range {
-    long long rule_id;
+    uuid_t rule_uuid;
     void *tag;
     uint16_t min_port; /* host order */
     uint16_t max_port; /* host order */
@@ -105,7 +105,7 @@ struct ipport_matcher *ipport_matcher_new(struct ipport_rule *rules, size_t rule
         struct port_range range;
         range.min_port = rules[i].min_port;
         range.max_port = rules[i].max_port;
-        range.rule_id = rules[i].rule_id;
+        uuid_copy(range.rule_uuid, rules[i].rule_uuid);
         range.tag = rules[i].user_tag;
         utarray_push_back(node->port_range_list, &range);
     }
@@ -151,7 +151,7 @@ int ipport_matcher_match(struct ipport_matcher *matcher, const struct ip_addr *i
     tmp_range = (struct port_range *)utarray_find(node->port_range_list,
                                                   &range, compare_port_range_for_find);
     if (tmp_range != NULL) {
-        result_array[0].rule_id = tmp_range->rule_id;
+        uuid_copy(result_array[0].rule_uuid, tmp_range->rule_uuid);
         result_array[0].tag = tmp_range->tag;
         return 1;
     }

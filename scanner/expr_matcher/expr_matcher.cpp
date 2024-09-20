@@ -144,10 +144,12 @@ static int expr_rule_pattern_count(struct expr_rule *rules, size_t n_rule,
 
     for (size_t i = 0; i < n_rule; i++) {
         if (rules[i].n_patterns > MAX_EXPR_PATTERN_NUM) {
+            char uuid_str[37];
+            uuid_unparse(rules[i].expr_uuid, uuid_str);
             log_fatal(logger, MODULE_EXPR_MATCHER,
-                      "[%s:%d] the number of patterns in expr_rule(rule_id:%lld)"
+                      "[%s:%d] the number of patterns in expr_rule(rule_id:%s)"
                       " should less than %d", __FUNCTION__, __LINE__,
-                      rules[i].expr_id, MAX_EXPR_PATTERN_NUM);
+                      uuid_str, MAX_EXPR_PATTERN_NUM);
             return -1;
         }
 
@@ -224,7 +226,7 @@ static struct bool_expr *bool_exprs_new(struct expr_rule *rules, size_t n_rule,
             bool_exprs[i].items[j].negate_option = 0;
         }
         
-        bool_exprs[i].expr_id = rules[i].expr_id;
+        uuid_copy(bool_exprs[i].expr_uuid, rules[i].expr_uuid);
         bool_exprs[i].item_num = rules[i].n_patterns;
         bool_exprs[i].user_tag = rules[i].tag;
     }
@@ -432,7 +434,7 @@ static int expr_matcher_bool_matcher_match(struct bool_matcher *bm, struct bool_
     }
 
     for (int index = 0; index < bool_matcher_ret; index++) {
-        result_array[index].rule_id = match_buff[index].expr_id;
+        uuid_copy(result_array[index].rule_uuid, match_buff[index].expr_uuid);
         result_array[index].user_tag = match_buff[index].user_tag;
     }
     *n_hit_result = bool_matcher_ret;

@@ -26,7 +26,7 @@ typedef struct _ipv4_rule_t{
 
 	struct ipv4_range 	rule;
 	void *				tag;
-	long long 		    rule_id;
+	uuid_t 		    rule_uuid;
 }ipv4_rule_t;
 
 class CIPv4Match : public CRuleMatch

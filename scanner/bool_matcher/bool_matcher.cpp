@@ -46,7 +46,7 @@ struct bool_matcher * bool_matcher_new(struct bool_expr * exprs, size_t expr_num
 	mem_bytes+=(unsigned int)expr_num*(sizeof(struct bool_expr_match)+sizeof(struct bool_expr_item));
 	for(unsigned int i=0; i<expr_num; i++)
 	{
-		matcher->bool_expr_ids[i].expr_id   =exprs[i].expr_id;
+		uuid_copy(matcher->bool_expr_ids[i].expr_uuid, exprs[i].expr_uuid);
 		matcher->bool_expr_ids[i].user_tag  =exprs[i].user_tag;
 		matcher->bool_expr_items[i].item_num=exprs[i].item_num;
 		matcher->bool_expr_items[i].items=new struct bool_item[exprs[i].item_num];
@@ -121,7 +121,7 @@ int res_comp(const void * lhs, const void * rhs)
 {
 	bool_expr_match * _lhs=(bool_expr_match *)lhs;
 	bool_expr_match * _rhs=(bool_expr_match *)rhs;
-	return (_lhs->expr_id<_rhs->expr_id) ? 1 : -1;
+	return (uuid_compare(_lhs->expr_uuid, _rhs->expr_uuid) < 0) ? 1 : -1;
 }
 
 int do_match(struct bool_expr_item * expr, unsigned long long * item_ids, size_t item_num)

@@ -51,7 +51,7 @@ long long rule_runtime_rule_count(void *rule_runtime);
 
 long long rule_runtime_update_err_count(void *rule_runtime);
 
-int rule_runtime_match(struct rule_runtime *rule_rt, long long *rule_ids,
+int rule_runtime_match(struct rule_runtime *rule_rt, uuid_t *rule_uuids,
                           size_t rule_ids_size, struct maat_state *state);
 
 size_t rule_runtime_get_hit_paths(struct rule_runtime *rule_rt, int thread_id,
@@ -81,7 +81,7 @@ void rule_compile_state_not_logic_update(struct rule_compile_state *rule_compile
 
 size_t rule_compile_state_get_internal_hit_paths(struct rule_compile_state *rule_compile_state,
                                             struct rule_runtime *rule_rt,
-                                            struct object2object_runtime *g2g_rt,
+                                            struct object2object_runtime *o2o_rt,
                                             struct maat_hit_path *hit_path_array, 
                                             size_t array_size);
 

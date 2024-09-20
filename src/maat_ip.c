@@ -39,8 +39,8 @@ struct ipv6_item_rule {
 };
 
 struct ip_item {
-    long long item_id;
-    long long object_id;
+    uuid_t item_uuid;
+    uuid_t object_uuid;
     int addr_type;
     union {
         struct ipv4_item_rule ipv4;
@@ -98,23 +98,23 @@ void ip_schema_free(void *ip_schema)
 
 static struct ip_item *
 ip_item_new(struct ip_schema *ip_schema, const char *table_name,
-            const cJSON *json, struct log_handle *logger, long long item_id)
+            const cJSON *json, struct log_handle *logger, uuid_t item_uuid)
 {
     char ip_str[128] = {0};
     struct ip_item *ip_item = ALLOC(struct ip_item, 1);
     cJSON *tmp_obj = NULL;
     int ret = 0;
     
-    ip_item->item_id = item_id;
+    uuid_copy(ip_item->item_uuid, item_uuid);
 
-    tmp_obj = cJSON_GetObjectItem(json, "object_id");
+    tmp_obj = cJSON_GetObjectItem(json, "object_uuid");
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
         log_fatal(logger, MODULE_IP, 
                   "[%s:%d] ip table:<%s> has no object_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
-    ip_item->object_id = atoll(tmp_obj->valuestring);
+    uuid_parse(tmp_obj->valuestring, ip_item->object_uuid);
 
     tmp_obj = cJSON_GetObjectItem(json, "ip");
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
@@ -268,7 +268,7 @@ static void ip_item_to_ip_rule(struct ip_item *item, struct ip_rule *rule)
         memcpy(rule->ipv6_rule.end_ip, item->ipv6.max_ip, 
                sizeof(item->ipv6.max_ip));
     }
-    rule->rule_id = item->item_id;
+    uuid_copy(rule->rule_uuid, item->item_uuid);
 }
 
 static int ip_runtime_update_row(struct ip_runtime *ip_rt, char *key, size_t key_len, 
@@ -283,9 +283,11 @@ static int ip_runtime_update_row(struct ip_runtime *ip_rt, char *key, size_t key
         // add
         ret = rcu_hash_add(ip_rt->item_hash, key, key_len, (void *)item);
         if (ret < 0) {
+            char uuid_str[37] = {0};
+            uuid_unparse(item->item_uuid, uuid_str);
             log_debug(ip_rt->logger, MODULE_IP,
-                      "[%s:%d] ip item(item_id:%lld) add to ip runtime htable failed", 
-                      __FUNCTION__, __LINE__, item->item_id);
+                      "[%s:%d] ip item(item_id:%s) add to ip runtime htable failed", 
+                      __FUNCTION__, __LINE__, uuid_str);
             return -1;
         }
     }
@@ -315,7 +317,7 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
         goto ERROR;
     }
 
-    tmp_obj = cJSON_GetObjectItem(json, "item_id");
+    tmp_obj = cJSON_GetObjectItem(json, "uuid");
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
         log_fatal(ip_rt->logger, MODULE_IP,
                   "[%s:%d] ip table:<%s> has no item_id in line:%s",
@@ -323,19 +325,21 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
         ip_rt->update_err_cnt++;
         goto ERROR;
     }
-    long long item_id = atoll(tmp_obj->valuestring);
+
+    uuid_t item_uuid;
+    uuid_parse(tmp_obj->valuestring, item_uuid);
     
     struct ip_item *ip_item = NULL;
     if (MAAT_OP_ADD == op) {
         //add
-        ip_item = ip_item_new(schema, table_name, json, ip_rt->logger, item_id);
+        ip_item = ip_item_new(schema, table_name, json, ip_rt->logger, item_uuid);
         if (NULL == ip_item) {
             ip_rt->update_err_cnt++;
             goto ERROR;
         }
     }
     
-    int ret = ip_runtime_update_row(ip_rt, (char *)&item_id, sizeof(long long),
+    int ret = ip_runtime_update_row(ip_rt, (char *)&item_uuid, sizeof(uuid_t),
                                     ip_item, op);
     if (ret < 0) {
         if (ip_item != NULL) {
@@ -505,10 +509,9 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
     }
 
     for (size_t i = 0; i < n_hit_ip_item; i++) {
-        long long item_id = ip_results[i].rule_id;
         struct ip_item *ip_item = (struct ip_item *)rcu_hash_find(ip_rt->item_hash,
-                                                                 (char *)&item_id,
-                                                                 sizeof(long long));
+                                                                 (char *)&ip_results[i].rule_uuid,
+                                                                 sizeof(uuid_t));
         if (!ip_item) {
             // item config has been deleted
             continue;
@@ -524,8 +527,8 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
             continue;
         }
         
-        hit_maat_items[real_hit_item_cnt].item_id = ip_results[i].rule_id;
-        hit_maat_items[real_hit_item_cnt].object_id = ip_item->object_id;
+        uuid_copy(hit_maat_items[real_hit_item_cnt].item_uuid, ip_item->item_uuid);
+        uuid_copy(hit_maat_items[real_hit_item_cnt].object_uuid, ip_item->object_uuid);
         real_hit_item_cnt++;
     }
 

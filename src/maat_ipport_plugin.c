@@ -42,7 +42,7 @@ struct ipv6_item {
 };
 
 struct ipport_item {
-    long long item_id;
+    uuid_t item_uuid;
     int ip_type; //IPV4 or IPV6
     union {
         struct ipv4_item ipv4;
@@ -237,7 +237,7 @@ ipport_item_new(struct ipport_plugin_schema *schema, const char *table_name,
                   __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
-    ipport_item->item_id = atoll(tmp_obj->valuestring);
+    uuid_parse(tmp_obj->valuestring, ipport_item->item_uuid);
 
     tmp_obj = cJSON_GetObjectItem(json, "ip");
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
@@ -442,7 +442,7 @@ ipport_item_to_ipport_rule(struct ipport_item *item, struct ipport_rule *rule)
         rule->min_port = item->min_port;
         rule->max_port = item->max_port;
     }
-    rule->rule_id = item->item_id;
+    uuid_copy(rule->rule_uuid, item->item_uuid);
 }
 
 static void 

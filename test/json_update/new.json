@@ -3,7 +3,7 @@
     "object2object_table": "OBJECT2OBJECT",
     "rules": [
         {
-            "rule_id": 2,
+            "rule_id": "2",
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -12,7 +12,7 @@
             "is_valid": "yes",
             "conditions": [
                 {
-                    "attribute": "HTTP_URL",
+                    "attribute_name": "HTTP_URL",
                     "objects": [
                         {
                             "items": [

@@ -23,10 +23,11 @@ extern "C" {
 #endif
 
     #include <stddef.h>
+    #include <uuid/uuid.h>
 
     struct FQDN_rule
     {
-              unsigned int id;
+              uuid_t uuid;
               int is_suffix_match; /* is_suffix_match==0: exact match; is_suffix_match==1: longest suffix matching. */
               size_t len;
               char * FQDN;         /* Non-ASCII character is allowed. */
@@ -39,7 +40,7 @@ extern "C" {
 
     struct FQDN_match
     {
-              unsigned int id;
+              uuid_t uuid;
               unsigned int offset;  /* offset==0 for exact matching; offset>0 for longest suffix matching. */
               void * user_tag;
     };

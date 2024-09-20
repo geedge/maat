@@ -1137,7 +1137,7 @@
 			"is_valid": "yes",
 			"conditions": [
 				{
-					"g2c_table_name": "OBJECT2RULE_ALIAS",
+					"o2r_table_name": "OBJECT2RULE_ALIAS",
 					"attribute": "HTTP_URL",
 					"objects": [
 						{
@@ -3050,7 +3050,7 @@
 			"is_valid": "yes",
 			"conditions": [
 				{
-					"g2c_table_name": "OBJECT2RULE_FIREWALL",
+					"o2r_table_name": "OBJECT2RULE_FIREWALL",
 					"attribute": "HTTP_URL",
 					"objects": [
 						{

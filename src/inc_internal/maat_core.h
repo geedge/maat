@@ -53,8 +53,8 @@ enum tag_match {
 };
 
 struct maat_item {
-	long long item_id;
-	long long object_id;
+	uuid_t item_uuid;
+	uuid_t object_uuid;
 };
 
 struct maat_runtime {

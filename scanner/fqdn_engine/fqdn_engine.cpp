@@ -84,7 +84,7 @@ static void aligned_free(void * aligned_ptr)
 /*************************************************************************************/
 struct domain_impl_t
 {
-	unsigned int       id;
+	uuid_t       uuid;
 	int                suf_match;
 	unsigned int       len;
 	unsigned long long hash; /*��64λ��ϣֵΨһ��ʾһ������*/
@@ -170,7 +170,7 @@ int CHashTrieFQDN::initialize(const struct FQDN_rule * rules, size_t n_rule)
 
 	FOR(k, m_num)
 	{
-		m_domains[k].id =rules[k].id;
+		uuid_copy(m_domains[k].uuid, rules[k].uuid);
 		m_domains[k].suf_match=rules[k].is_suffix_match;
 		m_domains[k].len=rules[k].len;
 		m_domains[k].next=NULL;
@@ -307,7 +307,7 @@ int CHashTrieFQDN::search(const char * FQDN, size_t FQDN_len, struct FQDN_match 
 				if(pt->len+P[t]==FQDN_len && pt->hash==HASH[t])
 				{
 					//if(match_num>0 && P[t]!=results[match_num-1].offset) return match_num;
-					results[match_num].id=pt->id;
+					uuid_copy(results[match_num].uuid, pt->uuid);
 					results[match_num].offset=P[t];
 					results[match_num].user_tag=pt->utag;
 					++match_num;

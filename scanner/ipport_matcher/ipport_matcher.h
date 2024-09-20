@@ -21,7 +21,7 @@ extern "C"
 #include "maat.h"
 
 struct ipport_rule {
-    long long rule_id; /* rule id */
+    uuid_t rule_uuid; /* rule id */
     void *user_tag;    /* point to user-defined data which will return with hit results */
     struct ip_addr ip;
     uint16_t min_port; /* host order */
@@ -29,7 +29,7 @@ struct ipport_rule {
 };
 
 struct ipport_result {
-    long long rule_id; /* matched rule id */
+    uuid_t rule_uuid; /* matched rule id */
     void *tag;         /* point to the same address as user_tag in struct ipport_rule which has same rule_id */
 };
 

@@ -314,7 +314,7 @@ bool_plugin_expr_new(struct bool_plugin_schema *schema, const char *table_name,
                   __LINE__, table_name, schema->key_name, cJSON_Print(json));
         goto error;
     }
-    bool_expr->expr_id = atoll(tmp_obj->valuestring);
+    uuid_parse(tmp_obj->valuestring, bool_expr->expr_uuid);
 
     tmp_obj = cJSON_GetObjectItem(json, "bool_expr");
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {

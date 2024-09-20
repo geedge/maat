@@ -10,6 +10,7 @@
 #define FLAG_MATCHER_H
 #include <stdint.h>
 #include <stddef.h>
+#include <uuid/uuid.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -20,7 +21,7 @@ struct flag_rule
 {
     uint64_t flag;
     uint64_t mask;
-    uint64_t rule_id; // unique for a rule;
+    uuid_t rule_uuid; // unique for a rule;
 
     /* A transparent user tag for convenient accessing, 
     the caller is responsible for its memory management. */
@@ -31,7 +32,7 @@ struct flag_rule
 // if matched, return id and tag;
 struct flag_result
 {
-    uint64_t rule_id; // unique for a rule;
+    uuid_t rule_uuid; // unique for a rule;
     void    *user_tag;    
 };
 

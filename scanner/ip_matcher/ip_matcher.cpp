@@ -57,11 +57,10 @@ struct ip_matcher *ip_matcher_new(struct ip_rule *rules, size_t rule_num,
 	map<long long, struct ip_rule> ipv4_rules;
 	map<long long, struct ip_rule> ipv6_rules;
 	for (size_t i = 0; i < rule_num; i++) {
-		long long id = rules[i].rule_id;
 		if(rules[i].type == IPv4)
-			ipv4_rules[id] = rules[i];
+			ipv4_rules[i] = rules[i];
 		if(rules[i].type == IPv6 )
-			ipv6_rules[id] = rules[i];
+			ipv6_rules[i] = rules[i];
 	}
 
 	//����ipv4ɨ����

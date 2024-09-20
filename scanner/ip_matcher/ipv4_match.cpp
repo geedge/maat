@@ -66,7 +66,7 @@ long long CIPv4Match::initialize(const map<long long, struct ip_rule>& rules)
 	{
 		struct ipv4_range arule = it->second.ipv4_rule;
 		m_rules[i].rule = arule;
-		m_rules[i].rule_id = it->first;
+		uuid_copy(m_rules[i].rule_uuid, it->second.rule_uuid);
 		m_rules[i++].tag = it->second.user_tag;
 	}
 
@@ -106,7 +106,7 @@ int CIPv4Match::search_rule(const struct ip_data * data, struct scan_result * pr
 			return hit_num;
 
 		unsigned int index = m_v[i];
-		presult[hit_num].rule_id = m_rules[index].rule_id;
+		uuid_copy(presult[hit_num].rule_uuid, m_rules[index].rule_uuid);
 		presult[hit_num++].tag = m_rules[index].tag;
 	}
 

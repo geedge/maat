@@ -57,8 +57,8 @@ enum match_method {
 };
 
 struct expr_item {
-    long long item_id;
-    long long object_id;
+    uuid_t item_uuid;
+    uuid_t object_uuid;
     char keywords[MAX_KEYWORDS_STR_LEN + 1];
     enum expr_type expr_type;
     void *user_data;
@@ -152,7 +152,7 @@ int expr_runtime_set_scan_district(struct expr_runtime *expr_rt, const char *dis
 
 static struct expr_item *
 expr_item_new(struct expr_schema *expr_schema, const char *table_name,
-              const cJSON *json, struct expr_runtime *expr_rt, long long item_id)
+              const cJSON *json, struct expr_runtime *expr_rt, uuid_t item_uuid)
 {
     int expr_type = -1;
     enum table_type table_type = TABLE_TYPE_INVALID;
@@ -161,18 +161,16 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
     size_t len = 0;
     int ret;
 
-    expr_item->item_id = item_id;
+    uuid_copy(expr_item->item_uuid, item_uuid);
 
-    tmp_obj = cJSON_GetObjectItem(json, "object_id");
-    if (tmp_obj != NULL && tmp_obj->type == cJSON_String) {
-        expr_item->object_id = tmp_obj->valueint;
-    } else {
+    tmp_obj = cJSON_GetObjectItem(json, "object_uuid");
+    if (tmp_obj == NULL && tmp_obj->type != cJSON_String) {
         log_fatal(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> has no object_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
-    expr_item->object_id = atoll(tmp_obj->valuestring);
+    uuid_parse(tmp_obj->valuestring, expr_item->object_uuid);
 
     tmp_obj = cJSON_GetObjectItem(json, "keywords");
     if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
@@ -209,10 +207,12 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
     } else if (expr_item->expr_type == EXPR_TYPE_REGEX) {
         ret = expr_matcher_verify_regex_expression(expr_item->keywords, expr_rt->logger);
         if (0 == ret) {
+            char uuid_str[UUID_STR_LEN] = {0};
+            uuid_unparse(item_uuid, uuid_str);
             log_fatal(expr_rt->logger, MODULE_EXPR,
-                      "[%s:%d] expr table:<%s> regex expression(item_id:%lld):%s illegal,"
+                      "[%s:%d] expr table:<%s> regex expression(item_id:%s):%s illegal,"
                       " will be dropped", __FUNCTION__, __LINE__, table_name,
-                      expr_item->item_id, expr_item->keywords);
+                      uuid_str, expr_item->keywords);
             goto error;
         }
     }
@@ -432,9 +432,11 @@ static int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key,
         //add
         ret = rcu_hash_add(expr_rt->item_hash, key, key_len, (void *)item);
         if (ret < 0) {
+            char uuid_str[UUID_STR_LEN] = {0};
+            uuid_unparse(item->item_uuid, uuid_str);
             log_debug(expr_rt->logger, MODULE_EXPR,
-                      "[%s:%d] expr item(item_id:%lld) add to item_hash failed", 
-                      __FUNCTION__, __LINE__, item->item_id);
+                      "[%s:%d] expr item(item_id:%s) add to item_hash failed", 
+                      __FUNCTION__, __LINE__, uuid_str);
             return -1;
         }
     }
@@ -602,6 +604,9 @@ static int expr_item_to_expr_rule(struct expr_item *expr_item,
     char *tmp = NULL;
     char *saveptr = NULL;
     char tmp_keywords[MAX_KEYWORDS_STR_LEN + 1];
+    char uuid_str[UUID_STR_LEN] = {0};
+    
+    uuid_unparse(expr_item->item_uuid, uuid_str);
 
     memcpy(tmp_keywords, expr_item->keywords, MAX_KEYWORDS_STR_LEN + 1);
 
@@ -615,17 +620,17 @@ static int expr_item_to_expr_rule(struct expr_item *expr_item,
 
                 if (i >= MAAT_MAX_EXPR_ITEM_NUM) {
                     log_fatal(logger, MODULE_EXPR,
-                            "[%s:%d]abandon config expr_item(item_id:%d) "
+                            "[%s:%d]abandon config expr_item(item_id:%s) "
                             "too many patterns", __FUNCTION__, __LINE__,
-                            expr_item->item_id);
+                            uuid_str);
                     return -1;
                 }
 
                 if (expr_keywords_to_expr_pattern(tmp, &expr_rule->patterns[i], logger) < 0) {
                     log_fatal(logger, MODULE_EXPR,
-                            "[%s:%d]abandon config expr_item(item_id:%d) "
+                            "[%s:%d]abandon config expr_item(item_id:%s) "
                             "has invalid pattern %s", __FUNCTION__, __LINE__,
-                            expr_item->item_id, tmp);
+                            uuid_str, tmp);
                     return -1;
                 }
                 expr_rule->patterns[i].type = EXPR_PATTERN_TYPE_STR;
@@ -646,13 +651,13 @@ static int expr_item_to_expr_rule(struct expr_item *expr_item,
             break;
         default:
             log_fatal(logger, MODULE_EXPR, 
-                    "[%s:%d]abandon config expr_item(item_id:%lld) has "
+                    "[%s:%d]abandon config expr_item(item_id:%s) has "
                     "invalid expr type=%d", __FUNCTION__, __LINE__,
-                    expr_item->item_id, expr_item->expr_type);
+                    uuid_str, expr_item->expr_type);
             return -1;
     }
 
-    expr_rule->expr_id = expr_item->item_id;
+    uuid_copy(expr_rule->expr_uuid, expr_item->item_uuid);
     expr_rule->tag = expr_item->user_data;
     expr_rule->n_patterns = sub_expr_cnt;
     
@@ -681,7 +686,7 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
         return -1;
     }
 
-    tmp_obj = cJSON_GetObjectItem(json, "item_id");
+    tmp_obj = cJSON_GetObjectItem(json, "uuid");
     if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
         log_fatal(expr_rt->logger, MODULE_EXPR,
                   "[%s:%d] expr table:<%s> has no item_id in line:%s",
@@ -690,8 +695,9 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
         goto ERROR;
     }
 
-    long long item_id = atoll(tmp_obj->valuestring);
-    if (item_id < 0) {
+    uuid_t item_uuid;
+    uuid_parse(tmp_obj->valuestring, item_uuid);
+    if (uuid_is_null(item_uuid)) {
         log_fatal(expr_rt->logger, MODULE_EXPR,
                   "[%s:%d] expr table:<%s> item_id wrong"
                   " in table_line:%s", __FUNCTION__, __LINE__, table_name,
@@ -703,7 +709,7 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
     struct expr_item *expr_item = NULL;
     if (MAAT_OP_ADD == op) {
         //add
-        expr_item = expr_item_new(schema, table_name, json, expr_rt, item_id);
+        expr_item = expr_item_new(schema, table_name, json, expr_rt, item_uuid);
         if (NULL == expr_item) {
             expr_rt->update_err_cnt++;
             goto ERROR;
@@ -715,7 +721,7 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
         expr_item->user_data = item_district_id;
     }
 
-    int ret = expr_runtime_update_row(expr_rt, (char *)&item_id, sizeof(long long),
+    int ret = expr_runtime_update_row(expr_rt, (char *)&item_uuid, sizeof(item_uuid),
                                       expr_item, op);
     if (ret < 0) {
         if (expr_item != NULL) {
@@ -939,17 +945,16 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
     for (size_t i = 0; i < n_hit_item; i++) {
         int tag_district_id = *(int *)(hit_results[i].user_tag);
         if (tag_district_id == state->district_id || tag_district_id == DISTRICT_ANY) {
-            long long item_id = hit_results[i].rule_id;
             struct expr_item *expr_item = (struct expr_item *)rcu_hash_find(expr_rt->item_hash, 
-                                                                            (char *)&item_id,
-                                                                            sizeof(long long));
+                                                                            (char *)&hit_results[i].rule_uuid,
+                                                                            sizeof(uuid_t));
             if (!expr_item) {
                 // item config has been deleted
                 continue;
             }
 
-            hit_maat_items[real_hit_item_num].item_id = item_id;
-            hit_maat_items[real_hit_item_num].object_id = expr_item->object_id;
+            uuid_copy(hit_maat_items[real_hit_item_num].item_uuid, expr_item->item_uuid);
+            uuid_copy(hit_maat_items[real_hit_item_num].object_uuid, expr_item->object_uuid);
             real_hit_item_num++;
         }
     }
@@ -1034,17 +1039,16 @@ int expr_runtime_stream_scan(struct expr_runtime_stream *expr_rt_stream,
     }
 
     for (size_t i = 0; i < n_hit_item; i++) {
-        long long item_id = hit_results[i].rule_id;
         expr_item = (struct expr_item *)rcu_hash_find(expr_rt->item_hash,
-                                                      (char *)&item_id,
-                                                      sizeof(long long));
+                                                      (char *)&hit_results[i].rule_uuid,
+                                                      sizeof(uuid_t));
         if (!expr_item) {
             // item config has been deleted
             continue;
         }
 
-        hit_maat_items[real_hit_item_cnt].item_id = item_id;
-        hit_maat_items[real_hit_item_cnt].object_id = expr_item->object_id;
+        uuid_copy(hit_maat_items[real_hit_item_cnt].item_uuid, expr_item->item_uuid);
+        uuid_copy(hit_maat_items[real_hit_item_cnt].object_uuid, expr_item->object_uuid);
         real_hit_item_cnt++;
     }
 

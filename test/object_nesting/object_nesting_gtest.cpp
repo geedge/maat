@@ -13,7 +13,7 @@
 #define MAX_IDS_STR_LEN 64
 #define MAX_ITEM_NUM 64
 #define WAIT_FOR_EFFECTIVE_S 2
-#define MAX_G2G_SCAN_TIMES (1000 * 1000)
+#define MAX_O2O_SCAN_TIMES (1000 * 1000)
 
 const char *g_table_info_path = "./object_exclude_table_info.json";
 const char *log_file = "./object_exclude_gtest.log";
@@ -140,11 +140,11 @@ protected:
             assert(0);
 	    }
 
-	    g2g_schema = object2object_schema_new(root, NULL, "EXCLUDE_OBJECT2OBJECT", logger);
+	    o2o_schema = object2object_schema_new(root, NULL, "EXCLUDE_OBJECT2OBJECT", logger);
         FREE(json_buff);
         cJSON_Delete(root);
 
-        if (NULL == g2g_schema) {
+        if (NULL == o2o_schema) {
             log_fatal(logger, MODULE_OBJECT_NESTING_GTEST, "object2object_schema_new failed.");
             assert(0);
         }
@@ -153,15 +153,15 @@ protected:
     static void TearDownTestCase() {
         log_handle_destroy(logger);
         maat_garbage_bin_free(garbage_bin);
-        object2object_schema_free(g2g_schema);
+        object2object_schema_free(o2o_schema);
     }
 
-    static void *g2g_schema;
+    static void *o2o_schema;
     static struct log_handle *logger;
     static struct maat_garbage_bin *garbage_bin;
 };
 
-void *MaatObjectExclude::g2g_schema;
+void *MaatObjectExclude::o2o_schema;
 struct log_handle *MaatObjectExclude::logger;
 struct maat_garbage_bin *MaatObjectExclude::garbage_bin;
 
@@ -170,8 +170,8 @@ TEST_F(MaatObjectExclude, level_3_function) {
     struct object2object_rule rules;
     const char *table_name = "EXCLUDE_OBJECT2OBJECT";
 
-    void *g2g_runtime = object2object_runtime_new(g2g_schema, 1, garbage_bin, logger);
-    if (NULL == g2g_runtime) {
+    void *o2o_runtime = object2object_runtime_new(o2o_schema, 1, garbage_bin, logger);
+    if (NULL == o2o_runtime) {
         log_fatal(logger, MODULE_OBJECT_NESTING_GTEST, "object2object_runtime_new failed.");
         assert(0);
     }
@@ -185,14 +185,14 @@ TEST_F(MaatObjectExclude, level_3_function) {
 
         sprintf(table_line, "%lld\t%s\t%s\t%d", rules.add_items[i].object_id,
                 rules.add_items[i].incl_sub_ids_str, rules.add_items[i].excl_sub_ids_str, 1);
-        object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_ADD);
+        object2object_runtime_update(o2o_runtime, o2o_schema, table_name, table_line, MAAT_OP_ADD);
     }
 
-    object2object_runtime_commit(g2g_runtime, table_name, 1);
+    object2object_runtime_commit(o2o_runtime, table_name, 1);
 
     long long hit_object_ids[2] = {11, 13};
     long long super_object_ids[MAX_ITEM_NUM];
-    size_t super_object_cnt = object2object_runtime_get_super_objects(g2g_runtime, hit_object_ids, 2,
+    size_t super_object_cnt = object2object_runtime_get_super_objects(o2o_runtime, hit_object_ids, 2,
                                                                   super_object_ids, MAX_ITEM_NUM);
     EXPECT_EQ(super_object_cnt, 2);
     EXPECT_EQ(super_object_ids[0], 2);
@@ -202,10 +202,10 @@ TEST_F(MaatObjectExclude, level_3_function) {
     memset(table_line, 0, sizeof(table_line));
     sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[0].object_id,
             rules.del_items[0].incl_sub_ids_str, rules.del_items[0].excl_sub_ids_str, 0);
-    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_DEL);
-    object2object_runtime_commit(g2g_runtime, table_name, 2);
+    object2object_runtime_update(o2o_runtime, o2o_schema, table_name, table_line, MAAT_OP_DEL);
+    object2object_runtime_commit(o2o_runtime, table_name, 2);
 
-    super_object_cnt = object2object_runtime_get_super_objects(g2g_runtime, hit_object_ids, 2,
+    super_object_cnt = object2object_runtime_get_super_objects(o2o_runtime, hit_object_ids, 2,
                                                             super_object_ids, MAX_ITEM_NUM);
     EXPECT_EQ(super_object_cnt, 3);
     EXPECT_EQ(super_object_ids[0], 1);
@@ -216,10 +216,10 @@ TEST_F(MaatObjectExclude, level_3_function) {
     memset(table_line, 0, sizeof(table_line));
     sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[1].object_id,
             rules.del_items[1].incl_sub_ids_str, rules.del_items[1].excl_sub_ids_str, 0);
-    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_DEL);
-    object2object_runtime_commit(g2g_runtime, table_name, 3);
+    object2object_runtime_update(o2o_runtime, o2o_schema, table_name, table_line, MAAT_OP_DEL);
+    object2object_runtime_commit(o2o_runtime, table_name, 3);
 
-    super_object_cnt = object2object_runtime_get_super_objects(g2g_runtime, hit_object_ids, 2,
+    super_object_cnt = object2object_runtime_get_super_objects(o2o_runtime, hit_object_ids, 2,
                                                             super_object_ids, MAX_ITEM_NUM);
     EXPECT_EQ(super_object_cnt, 4);
     EXPECT_EQ(super_object_ids[0], 1);
@@ -227,7 +227,7 @@ TEST_F(MaatObjectExclude, level_3_function) {
     EXPECT_EQ(super_object_ids[2], 6);
     EXPECT_EQ(super_object_ids[3], 7);
 
-    object2object_runtime_free(g2g_runtime);
+    object2object_runtime_free(o2o_runtime);
 }
 
 TEST_F(MaatObjectExclude, level_3_perf) {
@@ -235,8 +235,8 @@ TEST_F(MaatObjectExclude, level_3_perf) {
     struct object2object_rule rules;
     const char *table_name = "EXCLUDE_OBJECT2OBJECT";
 
-    void *g2g_runtime = object2object_runtime_new(g2g_schema, 1, garbage_bin, logger);
-    if (NULL == g2g_runtime) {
+    void *o2o_runtime = object2object_runtime_new(o2o_schema, 1, garbage_bin, logger);
+    if (NULL == o2o_runtime) {
         log_fatal(logger, MODULE_OBJECT_NESTING_GTEST, "object2object_runtime_new failed.");
         assert(0);
     }
@@ -250,10 +250,10 @@ TEST_F(MaatObjectExclude, level_3_perf) {
 
         sprintf(table_line, "%lld\t%s\t%s\t%d", rules.add_items[i].object_id,
                 rules.add_items[i].incl_sub_ids_str, rules.add_items[i].excl_sub_ids_str, 1);
-        object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_ADD);
+        object2object_runtime_update(o2o_runtime, o2o_schema, table_name, table_line, MAAT_OP_ADD);
     }
 
-    object2object_runtime_commit(g2g_runtime, table_name, 4);
+    object2object_runtime_commit(o2o_runtime, table_name, 4);
 
     long long hit_object_ids[2] = {11, 13};
     long long super_object_ids[MAX_ITEM_NUM];
@@ -261,8 +261,8 @@ TEST_F(MaatObjectExclude, level_3_perf) {
     struct log_handle *logger = MaatObjectExclude::logger;
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < MAX_G2G_SCAN_TIMES; i++) {
-        object2object_runtime_get_super_objects(g2g_runtime, hit_object_ids, 2,
+    for (int i = 0; i < MAX_O2O_SCAN_TIMES; i++) {
+        object2object_runtime_get_super_objects(o2o_runtime, hit_object_ids, 2,
                                              super_object_ids, MAX_ITEM_NUM);
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
@@ -274,12 +274,12 @@ TEST_F(MaatObjectExclude, level_3_perf) {
     memset(table_line, 0, sizeof(table_line));
     sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[0].object_id,
             rules.del_items[0].incl_sub_ids_str, rules.del_items[0].excl_sub_ids_str, 0);
-    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_DEL);
-    object2object_runtime_commit(g2g_runtime, table_name, 5);
+    object2object_runtime_update(o2o_runtime, o2o_schema, table_name, table_line, MAAT_OP_DEL);
+    object2object_runtime_commit(o2o_runtime, table_name, 5);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < MAX_G2G_SCAN_TIMES; i++) {
-        object2object_runtime_get_super_objects(g2g_runtime, hit_object_ids, 2,
+    for (int i = 0; i < MAX_O2O_SCAN_TIMES; i++) {
+        object2object_runtime_get_super_objects(o2o_runtime, hit_object_ids, 2,
                                              super_object_ids, MAX_ITEM_NUM);
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
@@ -291,12 +291,12 @@ TEST_F(MaatObjectExclude, level_3_perf) {
     memset(table_line, 0, sizeof(table_line));
     sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[1].object_id,
             rules.del_items[1].incl_sub_ids_str, rules.del_items[1].excl_sub_ids_str, 0);
-    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_DEL);
-    object2object_runtime_commit(g2g_runtime, table_name, 6);
+    object2object_runtime_update(o2o_runtime, o2o_schema, table_name, table_line, MAAT_OP_DEL);
+    object2object_runtime_commit(o2o_runtime, table_name, 6);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < MAX_G2G_SCAN_TIMES; i++) {
-        object2object_runtime_get_super_objects(g2g_runtime, hit_object_ids, 2,
+    for (int i = 0; i < MAX_O2O_SCAN_TIMES; i++) {
+        object2object_runtime_get_super_objects(o2o_runtime, hit_object_ids, 2,
                                              super_object_ids, MAX_ITEM_NUM);
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
@@ -304,7 +304,7 @@ TEST_F(MaatObjectExclude, level_3_perf) {
     log_info(logger, MODULE_OBJECT_NESTING_GTEST, "level_3_basic hit 4 super_objects scan consume time %lldms",
              time_elapse_ms);
 
-    object2object_runtime_free(g2g_runtime);
+    object2object_runtime_free(o2o_runtime);
 }
 
 TEST_F(MaatObjectExclude, level_4_function) {
@@ -312,8 +312,8 @@ TEST_F(MaatObjectExclude, level_4_function) {
     struct object2object_rule rules;
     const char *table_name = "EXCLUDE_OBJECT2OBJECT";
 
-    void *g2g_runtime = object2object_runtime_new(g2g_schema, 1, garbage_bin, logger);
-    if (NULL == g2g_runtime) {
+    void *o2o_runtime = object2object_runtime_new(o2o_schema, 1, garbage_bin, logger);
+    if (NULL == o2o_runtime) {
         log_fatal(logger, MODULE_OBJECT_NESTING_GTEST, "object2object_runtime_new failed.");
         assert(0);
     }
@@ -327,14 +327,14 @@ TEST_F(MaatObjectExclude, level_4_function) {
 
         sprintf(table_line, "%lld\t%s\t%s\t%d", rules.add_items[i].object_id,
                 rules.add_items[i].incl_sub_ids_str, rules.add_items[i].excl_sub_ids_str, 1);
-        object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_ADD);
+        object2object_runtime_update(o2o_runtime, o2o_schema, table_name, table_line, MAAT_OP_ADD);
     }
 
-    object2object_runtime_commit(g2g_runtime, table_name, 7);
+    object2object_runtime_commit(o2o_runtime, table_name, 7);
 
     long long hit_object_ids[2] = {14, 16};
     long long super_object_ids[MAX_ITEM_NUM];
-    size_t super_object_cnt = object2object_runtime_get_super_objects(g2g_runtime, hit_object_ids, 2,
+    size_t super_object_cnt = object2object_runtime_get_super_objects(o2o_runtime, hit_object_ids, 2,
                                                                   super_object_ids, MAX_ITEM_NUM);
     EXPECT_EQ(super_object_cnt, 5);
     EXPECT_EQ(super_object_ids[0], 4);
@@ -347,10 +347,10 @@ TEST_F(MaatObjectExclude, level_4_function) {
     memset(table_line, 0, sizeof(table_line));
     sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[0].object_id,
             rules.del_items[0].incl_sub_ids_str, rules.del_items[0].excl_sub_ids_str, 0);
-    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_DEL);
-    object2object_runtime_commit(g2g_runtime, table_name, 8);
+    object2object_runtime_update(o2o_runtime, o2o_schema, table_name, table_line, MAAT_OP_DEL);
+    object2object_runtime_commit(o2o_runtime, table_name, 8);
 
-    super_object_cnt = object2object_runtime_get_super_objects(g2g_runtime, hit_object_ids, 2,
+    super_object_cnt = object2object_runtime_get_super_objects(o2o_runtime, hit_object_ids, 2,
                                                             super_object_ids, MAX_ITEM_NUM);
     EXPECT_EQ(super_object_cnt, 7);
     EXPECT_EQ(super_object_ids[0], 1);
@@ -361,7 +361,7 @@ TEST_F(MaatObjectExclude, level_4_function) {
     EXPECT_EQ(super_object_ids[5], 9);
     EXPECT_EQ(super_object_ids[6], 10);
 
-    object2object_runtime_free(g2g_runtime);
+    object2object_runtime_free(o2o_runtime);
 }
 
 TEST_F(MaatObjectExclude, level_4_perf) {
@@ -369,8 +369,8 @@ TEST_F(MaatObjectExclude, level_4_perf) {
     struct object2object_rule rules;
     const char *table_name = "EXCLUDE_OBJECT2OBJECT";
 
-    void *g2g_runtime = object2object_runtime_new(g2g_schema, 1, garbage_bin, logger);
-    if (NULL == g2g_runtime) {
+    void *o2o_runtime = object2object_runtime_new(o2o_schema, 1, garbage_bin, logger);
+    if (NULL == o2o_runtime) {
         log_fatal(logger, MODULE_OBJECT_NESTING_GTEST, "object2object_runtime_new failed.");
         assert(0);
     }
@@ -384,10 +384,10 @@ TEST_F(MaatObjectExclude, level_4_perf) {
 
         sprintf(table_line, "%lld\t%s\t%s\t%d", rules.add_items[i].object_id,
                 rules.add_items[i].incl_sub_ids_str, rules.add_items[i].excl_sub_ids_str, 1);
-        object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_ADD);
+        object2object_runtime_update(o2o_runtime, o2o_schema, table_name, table_line, MAAT_OP_ADD);
     }
 
-    object2object_runtime_commit(g2g_runtime, table_name, 7);
+    object2object_runtime_commit(o2o_runtime, table_name, 7);
 
     long long hit_object_ids[2] = {14, 16};
     long long super_object_ids[MAX_ITEM_NUM];
@@ -395,8 +395,8 @@ TEST_F(MaatObjectExclude, level_4_perf) {
     struct log_handle *logger = MaatObjectExclude::logger;
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < MAX_G2G_SCAN_TIMES; i++) {
-        object2object_runtime_get_super_objects(g2g_runtime, hit_object_ids, 2,
+    for (int i = 0; i < MAX_O2O_SCAN_TIMES; i++) {
+        object2object_runtime_get_super_objects(o2o_runtime, hit_object_ids, 2,
                                              super_object_ids, MAX_ITEM_NUM);
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
@@ -408,12 +408,12 @@ TEST_F(MaatObjectExclude, level_4_perf) {
     memset(table_line, 0, sizeof(table_line));
     sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[0].object_id,
             rules.del_items[0].incl_sub_ids_str, rules.del_items[0].excl_sub_ids_str, 0);
-    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_DEL);
-    object2object_runtime_commit(g2g_runtime, table_name, 8);
+    object2object_runtime_update(o2o_runtime, o2o_schema, table_name, table_line, MAAT_OP_DEL);
+    object2object_runtime_commit(o2o_runtime, table_name, 8);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < MAX_G2G_SCAN_TIMES; i++) {
-        object2object_runtime_get_super_objects(g2g_runtime, hit_object_ids, 2,
+    for (int i = 0; i < MAX_O2O_SCAN_TIMES; i++) {
+        object2object_runtime_get_super_objects(o2o_runtime, hit_object_ids, 2,
                                              super_object_ids, MAX_ITEM_NUM);
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
@@ -421,7 +421,7 @@ TEST_F(MaatObjectExclude, level_4_perf) {
     log_info(logger, MODULE_OBJECT_NESTING_GTEST, "level_4_basic hit 7 super_objects scan consume time %lldms",
              time_elapse_ms);
 
-    object2object_runtime_free(g2g_runtime);
+    object2object_runtime_free(o2o_runtime);
 }
 
 TEST_F(MaatObjectExclude, level_exceed_function) {
@@ -429,8 +429,8 @@ TEST_F(MaatObjectExclude, level_exceed_function) {
     struct object2object_rule rules;
     const char *table_name = "EXCLUDE_OBJECT2OBJECT";
 
-    void *g2g_runtime = object2object_runtime_new(g2g_schema, 1, garbage_bin, logger);
-    if (NULL == g2g_runtime) {
+    void *o2o_runtime = object2object_runtime_new(o2o_schema, 1, garbage_bin, logger);
+    if (NULL == o2o_runtime) {
         log_fatal(logger, MODULE_OBJECT_NESTING_GTEST, "object2object_runtime_new failed.");
         assert(0);
     }
@@ -444,14 +444,14 @@ TEST_F(MaatObjectExclude, level_exceed_function) {
 
         sprintf(table_line, "%lld\t%s\t%s\t%d", rules.add_items[i].object_id,
                 rules.add_items[i].incl_sub_ids_str, rules.add_items[i].excl_sub_ids_str, 1);
-        object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_ADD);
+        object2object_runtime_update(o2o_runtime, o2o_schema, table_name, table_line, MAAT_OP_ADD);
     }
 
-    object2object_runtime_commit(g2g_runtime, table_name, 8);
+    object2object_runtime_commit(o2o_runtime, table_name, 8);
 
     long long hit_object_ids[2] = {7, 13};
     long long super_object_ids[MAX_ITEM_NUM];
-    size_t super_object_cnt = object2object_runtime_get_super_objects(g2g_runtime, hit_object_ids, 2,
+    size_t super_object_cnt = object2object_runtime_get_super_objects(o2o_runtime, hit_object_ids, 2,
                                                                   super_object_ids, MAX_ITEM_NUM);
     EXPECT_EQ(super_object_cnt, 6);
     EXPECT_EQ(super_object_ids[0], 4);
@@ -465,12 +465,12 @@ TEST_F(MaatObjectExclude, level_exceed_function) {
     memset(table_line, 0, sizeof(table_line));
     sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[0].object_id,
             rules.del_items[0].incl_sub_ids_str, rules.del_items[0].excl_sub_ids_str, 0);
-    object2object_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, MAAT_OP_DEL);
-    object2object_runtime_commit(g2g_runtime, table_name, 9);
+    object2object_runtime_update(o2o_runtime, o2o_schema, table_name, table_line, MAAT_OP_DEL);
+    object2object_runtime_commit(o2o_runtime, table_name, 9);
 
     hit_object_ids[0] = 7;
     hit_object_ids[1] = 10;
-    super_object_cnt = object2object_runtime_get_super_objects(g2g_runtime, hit_object_ids, 2,
+    super_object_cnt = object2object_runtime_get_super_objects(o2o_runtime, hit_object_ids, 2,
                                                             super_object_ids, MAX_ITEM_NUM);
     EXPECT_EQ(super_object_cnt, 5);
     EXPECT_EQ(super_object_ids[0], 2);
@@ -479,7 +479,7 @@ TEST_F(MaatObjectExclude, level_exceed_function) {
     EXPECT_EQ(super_object_ids[3], 8);
     EXPECT_EQ(super_object_ids[4], 11);
 
-    object2object_runtime_free(g2g_runtime);
+    object2object_runtime_free(o2o_runtime);
 }
 
 int main(int argc, char ** argv)

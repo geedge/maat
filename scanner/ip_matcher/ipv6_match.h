@@ -26,7 +26,7 @@
 typedef struct _ipv6_rule_t{
 
 	struct ipv6_range 	rule;
-	long long		    rule_id;
+	uuid_t		    rule_uuid;
 	void *				tag;
 }ipv6_rule_t;
 

@@ -24,6 +24,7 @@ extern "C"
 #endif
 
 #include <stddef.h>
+#include <uuid/uuid.h>
 
 #define MAX_ITEMS_PER_BOOL_EXPR 8
 
@@ -37,7 +38,7 @@ extern "C"
     /* At least one item's negate_option should be 0. */
     struct bool_expr
     {
-        unsigned long long expr_id;
+        uuid_t expr_uuid;
         void *user_tag;
         size_t item_num;
         struct bool_item items[MAX_ITEMS_PER_BOOL_EXPR];
@@ -45,7 +46,7 @@ extern "C"
 
     struct bool_expr_match
     {
-        unsigned long long expr_id;
+        uuid_t expr_uuid;
         void *user_tag;
     };
 

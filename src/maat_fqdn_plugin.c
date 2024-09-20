@@ -265,7 +265,7 @@ fqdn_plugin_rule_new(const cJSON *json, struct fqdn_plugin_schema *schema,
                   __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
-    fqdn_plugin_rule->id = atoi(tmp_obj->valuestring);
+    uuid_parse(tmp_obj->valuestring, fqdn_plugin_rule->uuid);
 
     tmp_obj = cJSON_GetObjectItem(json, "fqdn");
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {

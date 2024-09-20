@@ -153,7 +153,9 @@ void config_monitor_traverse(long long current_version, const cJSON *json_root,
 		}
 	}
 	
-	config_load_json_content(json_root, object2object_table->valuestring, "object_groups", u_param, update_fn);
+	if (object2object_table) {
+		config_load_json_content(json_root, object2object_table->valuestring, "object_groups", u_param, update_fn);
+	}
 	config_load_json_content(json_root, rule_table->valuestring, "rules", u_param, update_fn);
 
 	if (finish_fn != NULL) {

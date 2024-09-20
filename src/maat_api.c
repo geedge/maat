@@ -1184,7 +1184,7 @@ string_scan(struct table_manager *tbl_mgr, int thread_id,
 }
 
 static size_t
-object_to_rule(struct maat *maat_inst, long long *results, size_t n_result,
+object_to_rule(struct maat *maat_inst, uuid_t *results, size_t n_result,
                  struct maat_state *state)
 {
     int rule_table_id =
@@ -1205,7 +1205,7 @@ object_to_rule(struct maat *maat_inst, long long *results, size_t n_result,
 }
 
 int maat_scan_flag(struct maat *maat_inst, int attribute_id,
-                   long long flag, long long *results, size_t n_result,
+                   long long flag, uuid_t *results, size_t n_result,
                    size_t *n_hit_result, struct maat_state *state)
 {
     if ((NULL == maat_inst) || attribute_id < 0 || attribute_id >= MAX_ATTRIBUTE_NUM ||
@@ -1284,7 +1284,7 @@ int maat_scan_flag(struct maat *maat_inst, int attribute_id,
 }
 
 int maat_scan_integer(struct maat *maat_inst, int attribute_id,
-                      long long integer, long long *results, size_t n_result,
+                      long long integer, uuid_t *results, size_t n_result,
                       size_t *n_hit_result, struct maat_state *state)
 {
     if ((NULL == maat_inst) || attribute_id < 0 || attribute_id >= MAX_ATTRIBUTE_NUM ||
@@ -1364,7 +1364,7 @@ int maat_scan_integer(struct maat *maat_inst, int attribute_id,
 }
 
 int maat_scan_ipv4_port(struct maat *maat_inst, int attribute_id, uint32_t ip_addr,
-                        int port, long long *results, size_t n_result,
+                        int port, uuid_t *results, size_t n_result,
                         size_t *n_hit_result, struct maat_state *state)
 {
     if ((NULL == maat_inst) || attribute_id < 0 || attribute_id >= MAX_ATTRIBUTE_NUM ||
@@ -1443,7 +1443,7 @@ int maat_scan_ipv4_port(struct maat *maat_inst, int attribute_id, uint32_t ip_ad
 }
 
 int maat_scan_ipv6_port(struct maat *maat_inst, int attribute_id, uint8_t *ip_addr,
-                        int port, long long *results, size_t n_result,
+                        int port, uuid_t *results, size_t n_result,
                         size_t *n_hit_result, struct maat_state *state)
 {
     if ((NULL == maat_inst) || attribute_id < 0 || attribute_id >= MAX_ATTRIBUTE_NUM ||
@@ -1523,7 +1523,7 @@ int maat_scan_ipv6_port(struct maat *maat_inst, int attribute_id, uint8_t *ip_ad
 
 #define PORT_IGNORED -1
 inline int maat_scan_ipv6(struct maat *instance, int attribute_id, uint8_t *ip_addr,
-                   long long *results, size_t n_result, size_t *n_hit_result,
+                   uuid_t *results, size_t n_result, size_t *n_hit_result,
                    struct maat_state *state)
 {
     return maat_scan_ipv6_port(instance, attribute_id, ip_addr, PORT_IGNORED,
@@ -1531,7 +1531,7 @@ inline int maat_scan_ipv6(struct maat *instance, int attribute_id, uint8_t *ip_a
 }
 
 inline int maat_scan_ipv4(struct maat *instance, int attribute_id, uint32_t ip_addr,
-                   long long *results, size_t n_result, size_t *n_hit_result,
+                   uuid_t *results, size_t n_result, size_t *n_hit_result,
                    struct maat_state *state)
 {
     return maat_scan_ipv4_port(instance, attribute_id, ip_addr, PORT_IGNORED,
@@ -1540,7 +1540,7 @@ inline int maat_scan_ipv4(struct maat *instance, int attribute_id, uint32_t ip_a
 
 int maat_scan_string(struct maat *maat_inst, int attribute_id,
                      const char *data, size_t data_len,
-                     long long *results, size_t n_result,
+                     uuid_t *results, size_t n_result,
                      size_t *n_hit_result, struct maat_state *state)
 {
     if ((NULL == maat_inst) || attribute_id < 0 || attribute_id >= MAX_ATTRIBUTE_NUM ||
@@ -1642,8 +1642,8 @@ static void maat_state_add_hit_object(struct maat_state *state, int attribute_id
 
     struct maat_item hit_items[n_hit_item];
     for (size_t i = 0; i < n_hit_item; i++) {
-        hit_items[i].item_id = objects[i].item_id;
-        hit_items[i].object_id = objects[i].object_id;
+        uuid_copy(hit_items[i].item_uuid, objects[i].item_uuid);
+        uuid_copy(hit_items[i].object_uuid, objects[i].object_uuid);
     }
 
     rule_compile_state_update(state->rule_compile_state, maat_inst, attribute_id,
@@ -1682,7 +1682,7 @@ maat_state_activate_hit_not_object(struct maat_state *state, int attribute_id)
 
 int maat_scan_object(struct maat *maat_inst, int attribute_id,
                     struct maat_hit_object *objects, size_t n_object,
-                    long long *results, size_t n_result,
+                    uuid_t *results, size_t n_result,
                     size_t *n_hit_result, struct maat_state *state)
 {
     if ((NULL == maat_inst) || attribute_id < 0 || attribute_id >= MAX_ATTRIBUTE_NUM ||
@@ -1724,7 +1724,7 @@ int maat_scan_object(struct maat *maat_inst, int attribute_id,
 }
 
 int maat_scan_not_logic(struct maat *maat_inst, int attribute_id,
-                        long long *results, size_t n_result,
+                        uuid_t *results, size_t n_result,
                         size_t *n_hit_result, struct maat_state *state)
 {
     if ((NULL == maat_inst) || attribute_id < 0 || attribute_id >= MAX_ATTRIBUTE_NUM ||
@@ -1848,7 +1848,7 @@ static int expr_stream_scan(struct maat_stream *stream, const char *data,
 }
 
 int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data_len, 
-                     long long *results, size_t n_result, size_t *n_hit_result,
+                     uuid_t *results, size_t n_result, size_t *n_hit_result,
                      struct maat_state *state)
 {
     if ((NULL == maat_stream) || (NULL == data) || (0 == data_len) 
@@ -2135,13 +2135,13 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
         return -1;
     }
 
-    int g2g_table_id = table_manager_get_object2object_table_id(maat_inst->tbl_mgr);
-    void *g2g_runtime = table_manager_get_runtime(maat_inst->tbl_mgr, g2g_table_id);
+    int o2o_table_id = table_manager_get_object2object_table_id(maat_inst->tbl_mgr);
+    void *o2o_runtime = table_manager_get_runtime(maat_inst->tbl_mgr, o2o_table_id);
 
     size_t hit_path_cnt =
         rule_compile_state_get_internal_hit_paths(state->rule_compile_state,
                                             (struct rule_runtime *)rule_rt,
-                                            (struct object2object_runtime *)g2g_runtime,
+                                            (struct object2object_runtime *)o2o_runtime,
                                              path_array, array_size);
 
     return rule_runtime_get_hit_paths((struct rule_runtime *)rule_rt,

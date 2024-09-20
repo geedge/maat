@@ -3,7 +3,7 @@
     "object_table": "OBJECT",
     "rules": [
         {
-            "rule_id": 1,
+            "rule_id": "1",
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -13,6 +13,7 @@
             "conditions": [
                 {
                     "object_name": "Untitled",
+                    "attribute_name": "HTTP_URL",
                     "objects": [
                         {
                             "items": [

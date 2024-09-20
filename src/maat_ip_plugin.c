@@ -159,7 +159,7 @@ ip_plugin_rule_new(struct ip_plugin_schema *schema, const char *table_name,
                   __FUNCTION__, __LINE__, table_name, schema->key_name, cJSON_Print(json));
         goto error;
     }
-    ip_plugin_rule->rule_id = atoll(tmp_obj->valuestring);
+    uuid_parse(tmp_obj->valuestring, ip_plugin_rule->rule_uuid);
     
     tmp_obj = cJSON_GetObjectItem(json, "ip");
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {

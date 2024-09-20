@@ -23,6 +23,7 @@ extern "C"
 
 #include <stdint.h>
 #include <netinet/in.h>
+#include <uuid/uuid.h>
 
 /* maat instance handle */
 struct maat;
@@ -32,15 +33,15 @@ struct maat_hit_path {
     int attribute_id;    // 0 is not a attribute.
     int negate_option;     // 1 means negate condition(condition)
     int condition_index; // 0 ~ 7
-    long long item_id;
-    long long sub_object_id;
-    long long top_object_id;
-    long long rule_id;
+    uuid_t item_uuid;
+    uuid_t sub_object_uuid;
+    uuid_t top_object_uuid;
+    uuid_t rule_uuid;
 };
 
 struct maat_hit_object {
-    long long item_id;
-    long long object_id;
+    uuid_t item_uuid;
+    uuid_t object_uuid;
     int attribute_id;
 };
 
@@ -259,11 +260,11 @@ struct maat_state;
  *         MAAT_SCAN_HIT       
 */
 int maat_scan_flag(struct maat *instance, int attribute_id, long long flag,
-                   long long *results, size_t n_result, size_t *n_hit_result,
+                   uuid_t *results, size_t n_result, size_t *n_hit_result,
                    struct maat_state *state);
 
 int maat_scan_integer(struct maat *instance, int attribute_id, long long integer,
-                      long long *results, size_t n_result, size_t *n_hit_result,
+                      uuid_t *results, size_t n_result, size_t *n_hit_result,
                       struct maat_state *state);
 
 /**
@@ -271,32 +272,32 @@ int maat_scan_integer(struct maat *instance, int attribute_id, long long integer
  * @param port:    port in host order. If the port is not specified, use -1. Note that 0 is a valid port.
 */
 int maat_scan_ipv4_port(struct maat *instance, int attribute_id, uint32_t ip_addr, int port,
-                   long long *results, size_t n_result, size_t *n_hit_result,
+                   uuid_t *results, size_t n_result, size_t *n_hit_result,
                    struct maat_state *state);
 
 int maat_scan_ipv6_port(struct maat *instance, int attribute_id, uint8_t *ip_addr, int port,
-                   long long *results, size_t n_result, size_t *n_hit_result,
+                   uuid_t *results, size_t n_result, size_t *n_hit_result,
                    struct maat_state *state);
 int maat_scan_ipv4(struct maat *instance, int attribute_id, uint32_t ip_addr,
-                   long long *results, size_t n_result, size_t *n_hit_result,
+                   uuid_t *results, size_t n_result, size_t *n_hit_result,
                    struct maat_state *state);
 
 int maat_scan_ipv6(struct maat *instance, int attribute_id, uint8_t *ip_addr,
-                   long long *results, size_t n_result, size_t *n_hit_result,
+                   uuid_t *results, size_t n_result, size_t *n_hit_result,
                    struct maat_state *state);
 
 int maat_scan_string(struct maat *instance, int attribute_id,
                      const char *data, size_t data_len,
-                     long long *results, size_t n_result,
+                     uuid_t *results, size_t n_result,
                      size_t *n_hit_result, struct maat_state *state);
 
 int maat_scan_object(struct maat *instance, int attribute_id,
                     struct maat_hit_object *objects, size_t n_object,
-                    long long *results, size_t n_result,
+                    uuid_t *results, size_t n_result,
                     size_t *n_hit_result, struct maat_state *state);
 
 int maat_scan_not_logic(struct maat *instance, int attribute_id,
-                        long long *results, size_t n_result,
+                        uuid_t *results, size_t n_result,
                         size_t *n_hit_result, struct maat_state *state);
 
 struct maat_stream;
@@ -304,7 +305,7 @@ struct maat_stream *maat_stream_new(struct maat *instance, int attribute_id,
                                     struct maat_state *state);
 
 int maat_stream_scan(struct maat_stream *stream, const char *data, int data_len, 
-                     long long *results, size_t n_result, size_t *n_hit_result,
+                     uuid_t *results, size_t n_result, size_t *n_hit_result,
                      struct maat_state *state);
 
 void maat_stream_free(struct maat_stream *stream);

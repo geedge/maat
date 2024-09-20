@@ -30,8 +30,8 @@ struct flag_schema {
 };
 
 struct flag_item {
-    long long item_id;
-    long long object_id;
+    uuid_t item_uuid;
+    uuid_t object_uuid;
     long long flag;
     long long flag_mask;
     void *user_data;
@@ -197,9 +197,11 @@ static int flag_runtime_update_row(struct flag_runtime *flag_rt, char *key,
         //add
         ret = rcu_hash_add(flag_rt->item_hash, key, key_len, (void *)item);
         if (ret < 0) {
+            char uuid_str[UUID_STR_LEN] = {0};
+            uuid_unparse(item->item_uuid, uuid_str);
             log_debug(flag_rt->logger, MODULE_FLAG,
-                      "[%s:%d] flag item(item_id:%lld) add to item_hash failed", 
-                      __FUNCTION__, __LINE__, item->item_id);
+                      "[%s:%d] flag item(item_uuid:%s) add to item_hash failed", 
+                      __FUNCTION__, __LINE__, uuid_str);
             return -1;
         }
     }
@@ -242,22 +244,22 @@ int flag_runtime_set_scan_district(struct flag_runtime *flag_rt, const char *dis
 
 static struct flag_item *
 flag_item_new(struct flag_schema *schema, const char *table_name,
-              const cJSON *json, struct flag_runtime *flag_rt, long long item_id)
+              const cJSON *json, struct flag_runtime *flag_rt, uuid_t item_uuid)
 {
     cJSON *tmp_obj = NULL;
     enum table_type table_type = TABLE_TYPE_INVALID;
     struct flag_item *item = ALLOC(struct flag_item, 1);
 
-    item->item_id = item_id;
+    uuid_copy(item->item_uuid, item_uuid);
 
-    tmp_obj = cJSON_GetObjectItem(json, "object_id");
+    tmp_obj = cJSON_GetObjectItem(json, "object_uuid");
     if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
         log_fatal(flag_rt->logger, MODULE_FLAG, 
                   "[%s:%d] flag table:<%s> has no object_id in json:%s",
                   __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
-    item->object_id = atoll(tmp_obj->valuestring);
+    uuid_parse(tmp_obj->valuestring, item->object_uuid);
 
     table_type = table_manager_get_table_type(schema->ref_tbl_mgr, schema->table_id);
     if (table_type == TABLE_TYPE_INTERVAL_PLUS) {
@@ -316,7 +318,7 @@ static struct flag_rule flag_item_to_flag_rule(struct flag_item *item)
 {
     struct flag_rule rule;
 
-    rule.rule_id = item->item_id;
+    uuid_copy(rule.rule_uuid, item->item_uuid);
     rule.flag = item->flag;
     rule.mask = item->flag_mask;
     rule.user_tag = item->user_data;
@@ -344,7 +346,7 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
         return -1;
     }
 
-    cJSON *item = cJSON_GetObjectItem(json, "item_id");
+    cJSON *item = cJSON_GetObjectItem(json, "uuid");
     if (NULL == item || item->type != cJSON_String) {
         log_fatal(flag_rt->logger, MODULE_FLAG,
                   "[%s:%d] flag table:<%s> line:%s has no item_id",
@@ -352,11 +354,12 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
         goto ERROR;
     }
 
-    long long item_id = atoll(item->valuestring);
+    uuid_t item_uuid;
+    uuid_parse(item->valuestring, item_uuid);
 
     struct flag_item *flag_item = NULL;
     if (MAAT_OP_ADD == op) {
-        flag_item = flag_item_new(schema, table_name, json, flag_rt, item_id);
+        flag_item = flag_item_new(schema, table_name, json, flag_rt, item_uuid);
         if (NULL == flag_item) {
             flag_rt->update_err_cnt++;
             goto ERROR;
@@ -368,7 +371,7 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
         flag_item->user_data = item_district_id;
     }
 
-    int ret = flag_runtime_update_row(flag_rt, (char *)&item_id, sizeof(long long),
+    int ret = flag_runtime_update_row(flag_rt, (char *)&item_uuid, sizeof(item_uuid),
                                       flag_item, op);
     if (ret < 0) {
         if (flag_item != NULL) {
@@ -520,18 +523,17 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id,
         int tag_district_id = *(int *)(hit_results[i].user_tag);
         if (tag_district_id == state->district_id ||
             tag_district_id == DISTRICT_ANY) {
-            long long item_id = hit_results[i].rule_id;
             struct flag_item *flag_item =
                 (struct flag_item *)rcu_hash_find(flag_rt->item_hash, 
-                                                  (char *)&item_id,
-                                                  sizeof(long long));
+                                                  (char *)&hit_results[i].rule_uuid,
+                                                  sizeof(hit_results[i].rule_uuid));
             if (!flag_item) {
                 // item config has been deleted
                 continue;
             }
 
-            hit_maat_items[real_hit_item_cnt].item_id = item_id;
-            hit_maat_items[real_hit_item_cnt].object_id = flag_item->object_id;
+            uuid_copy(hit_maat_items[real_hit_item_cnt].item_uuid, hit_results[i].rule_uuid);
+            uuid_copy(hit_maat_items[real_hit_item_cnt].object_uuid, flag_item->object_uuid);
             real_hit_item_cnt++;
         }
     }
