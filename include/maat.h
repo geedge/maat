@@ -95,16 +95,16 @@ enum log_level {
 /* update_type: MAAT_UPDATE_TYPE_FULL or MAAT_UPDATE_TYPE_INC */
 typedef void maat_start_callback_t(int update_type, void *u_param);
 
-typedef void maat_update_callback_t(int table_id, const char *table_line, enum maat_operation op, void *u_para);
+typedef void maat_update_callback_t(const char *table_name, const char *table_line, enum maat_operation op, void *u_para);
 
 typedef void maat_finish_callback_t(void *u_para);
 
-typedef void maat_ex_new_func_t(const char *table_name, int table_id, const char *key, 
+typedef void maat_ex_new_func_t(const char *table_name, const char *key, 
                                 const char *table_line, void **ad, long argl, void *argp);
 
-typedef void maat_ex_free_func_t(int table_id, void **ad, long argl, void *argp);
+typedef void maat_ex_free_func_t(const char *table_name, void **ad, long argl, void *argp);
 
-typedef void maat_ex_dup_func_t(int table_id, void **to, void **from, long argl, void *argp);
+typedef void maat_ex_dup_func_t(const char *table_name, void **to, void **from, long argl, void *argp);
 
 /* maat_instance options API */
 struct maat_options;
@@ -189,12 +189,11 @@ int maat_helper_verify_regex_expression(const char *expression);
 
 /* maat table API */
 int maat_get_table_id(struct maat *instance, const char *table_name);
-int maat_get_attribute_id(struct maat *instance, const char *attribute_name);
 
-const char *maat_get_table_schema_tag(struct maat *instance, int table_id);//TODO: delete
+const char *maat_get_table_schema_tag(struct maat *instance, const char *table_name);
 
 /* return 0 if success, otherwise return -1 */
-int maat_table_callback_register(struct maat *instance, int table_id,
+int maat_table_callback_register(struct maat *instance, const char *table_name,
 								 maat_start_callback_t *start,
 								 maat_update_callback_t *update,
 								 maat_finish_callback_t *finish,
@@ -220,10 +219,10 @@ int maat_plugin_table_ex_schema_register(struct maat *instance, const char *tabl
  *        specified in table_info.json. If use ip_addr key type, then key should be 
  *        ip address in network order.
 */
-void *maat_plugin_table_get_ex_data(struct maat *instance, int table_id,
+void *maat_plugin_table_get_ex_data(struct maat *instance, const char *table_name,
                                     const char *key, size_t key_len);
                                      
-int maat_ip_plugin_table_get_ex_data(struct maat *instance, int table_id,
+int maat_ip_plugin_table_get_ex_data(struct maat *instance, const char *table_name,
                                      const struct ip_addr *ip_addr,
                                      void **ex_data_array, size_t array_size);
 
@@ -231,15 +230,15 @@ int maat_ip_plugin_table_get_ex_data(struct maat *instance, int table_id,
  * NOTE: @retval -1(ERROR) 0(no ex_data) 1(only one ex_data)
  *      this function return only one ex_data if matched
  */
-int maat_ipport_plugin_table_get_ex_data(struct maat *instance, int table_id,
+int maat_ipport_plugin_table_get_ex_data(struct maat *instance, const char *table_name,
                                          const struct ip_addr *ip_addr, uint16_t port,
                                          void **ex_data_array, size_t array_size);
 
-int maat_fqdn_plugin_table_get_ex_data(struct maat *instance, int table_id,
+int maat_fqdn_plugin_table_get_ex_data(struct maat *instance, const char *table_name,
                                        const char *fqdn, void **ex_data_array, 
                                        size_t array_size);
 
-int maat_bool_plugin_table_get_ex_data(struct maat *instance, int table_id,
+int maat_bool_plugin_table_get_ex_data(struct maat *instance, const char *table_name,
                                        unsigned long long *item_ids, size_t n_item,
                                        void **ex_data_array, size_t array_size);
 /* maat scan API */
@@ -259,50 +258,46 @@ struct maat_state;
  *         MAAT_SCAN_HALF_HIT
  *         MAAT_SCAN_HIT       
 */
-int maat_scan_flag(struct maat *instance, int attribute_id, long long flag,
-                   uuid_t *results, size_t n_result, size_t *n_hit_result,
+int maat_scan_flag(struct maat *instance, const char *table_name, const char *attribute_name, 
+                   long long flag, uuid_t *results, size_t n_result, size_t *n_hit_result,
                    struct maat_state *state);
 
-int maat_scan_integer(struct maat *instance, int attribute_id, long long integer,
-                      uuid_t *results, size_t n_result, size_t *n_hit_result,
+int maat_scan_integer(struct maat *instance, const char *table_name, const char *attribute_name,
+                      long long integer, uuid_t *results, size_t n_result, size_t *n_hit_result,
                       struct maat_state *state);
 
 /**
  * @param ip_addr: ipv4 address in network order
  * @param port:    port in host order. If the port is not specified, use -1. Note that 0 is a valid port.
 */
-int maat_scan_ipv4_port(struct maat *instance, int attribute_id, uint32_t ip_addr, int port,
-                   uuid_t *results, size_t n_result, size_t *n_hit_result,
-                   struct maat_state *state);
+int maat_scan_ipv4_port(struct maat *instance, const char *table_name, const char *attribute_name,
+                    uint32_t ip_addr, int port, uuid_t *results, size_t n_result, size_t *n_hit_result,
+                    struct maat_state *state);
 
-int maat_scan_ipv6_port(struct maat *instance, int attribute_id, uint8_t *ip_addr, int port,
-                   uuid_t *results, size_t n_result, size_t *n_hit_result,
-                   struct maat_state *state);
-int maat_scan_ipv4(struct maat *instance, int attribute_id, uint32_t ip_addr,
-                   uuid_t *results, size_t n_result, size_t *n_hit_result,
-                   struct maat_state *state);
+int maat_scan_ipv6_port(struct maat *instance, const char *table_name, const char *attribute_name,
+                    uint8_t *ip_addr, int port, uuid_t *results, size_t n_result, size_t *n_hit_result,
+                    struct maat_state *state);
+int maat_scan_ipv4(struct maat *instance, const char *table_name, const char *attribute_name,
+                    uint32_t ip_addr, uuid_t *results, size_t n_result, size_t *n_hit_result,
+                    struct maat_state *state);
 
-int maat_scan_ipv6(struct maat *instance, int attribute_id, uint8_t *ip_addr,
-                   uuid_t *results, size_t n_result, size_t *n_hit_result,
-                   struct maat_state *state);
+int maat_scan_ipv6(struct maat *instance, const char *table_name, const char *attribute_name,
+                    uint8_t *ip_addr, uuid_t *results, size_t n_result, size_t *n_hit_result,
+                    struct maat_state *state);
 
-int maat_scan_string(struct maat *instance, int attribute_id,
-                     const char *data, size_t data_len,
-                     uuid_t *results, size_t n_result,
+int maat_scan_string(struct maat *instance, const char *table_name, const char *attribute_name,
+                     const char *data, size_t data_len, uuid_t *results, size_t n_result,
                      size_t *n_hit_result, struct maat_state *state);
 
-int maat_scan_object(struct maat *instance, int attribute_id,
-                    struct maat_hit_object *objects, size_t n_object,
-                    uuid_t *results, size_t n_result,
+int maat_scan_object(struct maat *instance, const char *table_name, const char *attribute_name,
+                    struct maat_hit_object *objects, size_t n_object, uuid_t *results, size_t n_result,
                     size_t *n_hit_result, struct maat_state *state);
 
-int maat_scan_not_logic(struct maat *instance, int attribute_id,
-                        uuid_t *results, size_t n_result,
-                        size_t *n_hit_result, struct maat_state *state);
+int maat_scan_not_logic(struct maat *instance, const char *table_name, const char *attribute_name,
+                        uuid_t *results, size_t n_result, size_t *n_hit_result, struct maat_state *state);
 
 struct maat_stream;
-struct maat_stream *maat_stream_new(struct maat *instance, int attribute_id,
-                                    struct maat_state *state);
+struct maat_stream *maat_stream_new(struct maat *instance, const char *table_name, const char *attribute_name, struct maat_state *state);
 
 int maat_stream_scan(struct maat_stream *stream, const char *data, int data_len, 
                      uuid_t *results, size_t n_result, size_t *n_hit_result,
@@ -317,10 +312,7 @@ void maat_state_reset(struct maat_state *state);
 
 void maat_state_free(struct maat_state *state);
 
-int maat_state_set_scan_district(struct maat_state *state, int attribute_id, 
-                                 const char *district, size_t district_len);
-
-int maat_state_set_scan_rule_table(struct maat_state *state, int rule_table_id);
+int maat_state_set_scan_rule_table(struct maat_state *state, const char *rule_table_name);
 
 int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *path_array, 
                              size_t array_size);
