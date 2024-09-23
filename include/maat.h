@@ -30,7 +30,7 @@ struct maat;
 
 struct maat_hit_path {
     int Nth_scan;
-    int attribute_id;    // 0 is not a attribute.
+    char *attribute_name;    // 0 is not a attribute.
     int negate_option;     // 1 means negate condition(condition)
     int condition_index; // 0 ~ 7
     uuid_t item_uuid;
@@ -42,7 +42,7 @@ struct maat_hit_path {
 struct maat_hit_object {
     uuid_t item_uuid;
     uuid_t object_uuid;
-    int attribute_id;
+    char *attribute_name;
 };
 
 enum maat_scan_status {
@@ -187,9 +187,6 @@ int maat_helper_read_column(const char *table_line, int Nth_column,
  **/                           
 int maat_helper_verify_regex_expression(const char *expression);
 
-/* maat table API */
-int maat_get_table_id(struct maat *instance, const char *table_name);
-
 const char *maat_get_table_schema_tag(struct maat *instance, const char *table_name);
 
 /* return 0 if success, otherwise return -1 */
@@ -246,7 +243,7 @@ struct maat_state;
 
 /**
  * @param instance:     maat instance created by maat_new()
- * @param table_id:     the id of table which to be scanned
+ * @param table_name:   the name of table which to be scanned
  * @param thread_id:    thread index
  * @param results:      array to store hit rule id
  * @param n_result:     the array size
@@ -317,8 +314,8 @@ int maat_state_set_scan_rule_table(struct maat_state *state, const char *rule_ta
 int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *path_array, 
                              size_t array_size);
 
-int maat_state_get_rule_table_ids(struct maat_state *state, long long *rule_ids,
-                                    size_t n_rule_ids, int *rule_table_ids);
+int maat_state_get_rule_table_names(struct maat_state *state, uuid_t *rule_ids,
+                                    size_t n_rule_ids, char *rule_table_names[]);
                              
 /**
  * @brief get the total number of scans after maat_state_new
