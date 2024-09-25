@@ -65,33 +65,18 @@
         "db_tables":["HTTP_URL", "HTTP_HOST"],
         "table_type":"expr",
         "expr_engine":"rulescan",
-        "supported_attributes":["HTTP_URL", "HTTP_URL_FILTER"],
         "schema_tag": "{\"http_region\": \"expr\"}"
     },
     {
         "table_id":11,
         "table_name":"KEYWORDS_TABLE",
         "table_type":"expr",
-        "supported_attributes":[
-            "HTTP_RESPONSE_KEYWORDS",
-            "HTTP_RESPONSE_KEYWORDS_1",
-            "HTTP_RESPONSE_KEYWORDS_2",
-            "HTTP_RESPONSE_KEYWORDS_3",
-            "HTTP_RESPONSE_KEYWORDS_4",
-            "HTTP_RESPONSE_KEYWORDS_5",
-            "HTTP_RESPONSE_KEYWORDS_6",
-            "HTTP_RESPONSE_KEYWORDS_7",
-            "HTTP_RESPONSE_KEYWORDS_8",
-            "HTTP_DUMMY",
-            "HTTP_NOT_LOGIC",
-            "HTTP_NOT_LOGIC_1"],
         "schema_tag": "{\"http_response_keywords\": \"attribute\"}"
     },
     {
         "table_id":12,
         "table_name":"IP_CONFIG",
-        "table_type":"ip",
-        "supported_attributes": ["ATTRIBUTE_IP_CONFIG"]
+        "table_type":"ip"
     },
     {
         "table_id":13,
@@ -108,12 +93,6 @@
             "key_len":8,
             "key_name":"TODO"
         }
-    },
-    {
-        "table_id":15,
-        "table_name":"HTTP_SIGNATURE",
-        "table_type":"expr_plus",
-        "supported_attributes":["HTTP_REQUEST_HEADER", "HTTP_RESPONSE_HEADER"]
     },
     {
         "table_id":16,
@@ -163,11 +142,6 @@
         }
     },
     {
-        "table_id":21,
-        "table_name":"APP_PAYLOAD",
-        "table_type":"expr_plus"
-    },
-    {
         "table_id":22,
         "table_name":"TROJAN_PAYLOAD",
         "table_type":"expr"
@@ -181,7 +155,6 @@
         "table_id":24,
         "table_name":"IP_PLUS_CONFIG",
         "table_type":"ip",
-        "supported_attributes":["ATTRIBUTE_IP_PLUS_TABLE", "ATTRIBUTE_IP_PLUS_SOURCE", "ATTRIBUTE_IP_PLUS_DESTINATION"],
         "schema_tag": "{\"attribute_ip_plus_table\": \"attribute\"}"
     },
     {
@@ -196,19 +169,12 @@
     {
         "table_id":30,
         "table_name":"AS_NUMBER",
-        "table_type":"expr",
-        "supported_attributes":["SOURCE_IP_ASN", "DESTINATION_IP_ASN", "ASN_NOT_LOGIC"]
+        "table_type":"expr"
     },
     {
         "table_id":33,
         "table_name":"GeoLocation",
-        "table_type":"expr",
-        "supported_attributes":["SOURCE_IP_GEO"]
-    },
-    {
-        "table_id":35,
-        "table_name":"INTERGER_PLUS",
-        "table_type":"interval_plus"
+        "table_type":"expr"
     },
     {
         "table_id":36,
@@ -247,11 +213,6 @@
         "table_id":41,
         "table_name":"FLAG_CONFIG",
         "table_type":"flag"
-    },
-    {
-        "table_id":42,
-        "table_name":"FLAG_PLUS_CONFIG",
-        "table_type":"flag_plus"
     },
     {
         "table_id":43,
