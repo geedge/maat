@@ -61,8 +61,6 @@ struct expr_item {
     uuid_t object_uuid;
     char keywords[MAX_KEYWORDS_STR_LEN + 1];
     enum expr_type expr_type;
-    void *user_data;
-    int district_id;
 };
 
 struct expr_runtime {
@@ -78,9 +76,6 @@ struct expr_runtime {
     struct maat_garbage_bin *ref_garbage_bin;
 
     enum expr_engine_type engine_type;
-    int district_num;
-    struct maat_kv_store *district_map;
-    struct maat_kv_store *tmp_district_map;
 
     long long *scan_times;
     long long *scan_cpu_time;
@@ -117,45 +112,11 @@ static enum expr_type int_to_expr_type(int expr_type) {
     return type;
 }
 
-static int expr_runtime_get_district_id(struct expr_runtime *expr_rt,
-                                        const char *district)
-{
-    long long district_id = DISTRICT_ANY;
-
-	int map_ret = maat_kv_read(expr_rt->district_map, district, &district_id, 1);
-	if (map_ret < 0) {
-        if (NULL == expr_rt->tmp_district_map) {
-            expr_rt->tmp_district_map = maat_kv_store_duplicate(expr_rt->district_map);
-        }
-        
-        map_ret = maat_kv_read(expr_rt->tmp_district_map, district, &district_id, 1);
-        if (map_ret < 0) {
-            district_id = expr_rt->district_num;
-		    maat_kv_register(expr_rt->tmp_district_map, district, district_id);
-		    expr_rt->district_num++;
-        }
-	}
-
-	return (int)district_id;
-}
-
-int expr_runtime_set_scan_district(struct expr_runtime *expr_rt, const char *district, 
-                                    size_t district_len, long long *district_id)
-{
-    if (NULL == expr_rt || NULL == district || 0 == district_len) {
-        return -1;
-    }
-
-    return maat_kv_read_unNull(expr_rt->district_map, district, district_len,
-                               district_id, 1);
-}
-
 static struct expr_item *
 expr_item_new(struct expr_schema *expr_schema, const char *table_name,
               const cJSON *json, struct expr_runtime *expr_rt, uuid_t item_uuid)
 {
     int expr_type = -1;
-    enum table_type table_type = TABLE_TYPE_INVALID;
     struct expr_item *expr_item = ALLOC(struct expr_item, 1);
     cJSON *tmp_obj = NULL;
     size_t len = 0;
@@ -215,34 +176,6 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
                       uuid_str, expr_item->keywords);
             goto error;
         }
-    }
-   
-    table_type = table_manager_get_table_type(expr_schema->ref_tbl_mgr, expr_schema->table_id);
-    if (table_type == TABLE_TYPE_EXPR_PLUS) {
-        tmp_obj = cJSON_GetObjectItem(json, "district");
-        if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
-            log_fatal(expr_rt->logger, MODULE_EXPR, 
-                      "[%s:%d] expr table:<%s> has no district in line:%s",
-                      __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
-            goto error;
-        }
-
-        len = strlen(tmp_obj->valuestring);
-        if (len > MAX_DISTRICT_STR_LEN) {
-            log_fatal(expr_rt->logger, MODULE_EXPR, 
-                      "[%s:%d] expr table:<%s> district length exceed maximum:%d"
-                      " in line:%s", __FUNCTION__, __LINE__, table_name,
-                      MAX_DISTRICT_STR_LEN, cJSON_Print(json));
-            goto error;
-        }
-
-        char district[MAX_DISTRICT_STR_LEN + 1] = {0};
-        memcpy(district, tmp_obj->valuestring, len);
-        assert(strlen(district) > 0);
-        str_unescape(district);
-        expr_item->district_id = expr_runtime_get_district_id(expr_rt, district);
-    } else {
-        expr_item->district_id = DISTRICT_ANY;
     }
 
     return expr_item;
@@ -315,10 +248,6 @@ static void expr_item_free(struct expr_item *item)
     if (NULL == item) {
         return;
     }
-    
-    if (item->user_data != NULL) {
-        FREE(item->user_data);
-    }
 
     FREE(item);
 }
@@ -344,7 +273,7 @@ void *expr_runtime_new(void *expr_schema, size_t max_thread_num,
     expr_rt->n_worker_thread = max_thread_num;
     expr_rt->ref_garbage_bin = garbage_bin;
     expr_rt->logger = logger;
-    expr_rt->district_map = maat_kv_store_new();
+
     if (schema->engine_type == MAAT_EXPR_ENGINE_AUTO) {
         expr_rt->engine_type = table_manager_get_expr_engine(schema->ref_tbl_mgr);
     } else {
@@ -377,13 +306,6 @@ void expr_runtime_free(void *expr_runtime)
     if (expr_rt->item_hash != NULL) {
         rcu_hash_free(expr_rt->item_hash);
         expr_rt->item_hash = NULL;
-    }
-
-    assert(expr_rt->tmp_district_map == NULL);
-
-    if (expr_rt->district_map != NULL) {
-        maat_kv_store_free(expr_rt->district_map);
-        expr_rt->district_map = NULL;
     }
 
     if (expr_rt->scan_times != NULL) {
@@ -658,7 +580,6 @@ static int expr_item_to_expr_rule(struct expr_item *expr_item,
     }
 
     uuid_copy(expr_rule->expr_uuid, expr_item->item_uuid);
-    expr_rule->tag = expr_item->user_data;
     expr_rule->n_patterns = sub_expr_cnt;
     
     return 0;
@@ -714,11 +635,6 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
             expr_rt->update_err_cnt++;
             goto ERROR;
         }
-
-        int *item_district_id = ALLOC(int, 1);
-        *item_district_id = expr_item->district_id;
-        
-        expr_item->user_data = item_district_id;
     }
 
     int ret = expr_runtime_update_row(expr_rt, (char *)&item_uuid, sizeof(item_uuid),
@@ -769,14 +685,6 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
     int updating_flag = rcu_hash_is_updating(expr_rt->item_hash);
     if (0 == updating_flag) {
         return 0;
-    }
-
-    if (expr_rt->tmp_district_map != NULL) {
-        struct maat_kv_store *tmp_map = expr_rt->district_map;
-        expr_rt->district_map = expr_rt->tmp_district_map;
-        expr_rt->tmp_district_map = NULL;
-        maat_garbage_bagging(expr_rt->ref_garbage_bin, tmp_map, NULL, 
-                             garbage_maat_kv_store_free);
     }
 
     int ret = 0;
@@ -943,20 +851,17 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
     }
 
     for (size_t i = 0; i < n_hit_item; i++) {
-        int tag_district_id = *(int *)(hit_results[i].user_tag);
-        if (tag_district_id == state->district_id || tag_district_id == DISTRICT_ANY) {
-            struct expr_item *expr_item = (struct expr_item *)rcu_hash_find(expr_rt->item_hash, 
-                                                                            (char *)&hit_results[i].rule_uuid,
-                                                                            sizeof(uuid_t));
-            if (!expr_item) {
-                // item config has been deleted
-                continue;
-            }
-
-            uuid_copy(hit_maat_items[real_hit_item_num].item_uuid, expr_item->item_uuid);
-            uuid_copy(hit_maat_items[real_hit_item_num].object_uuid, expr_item->object_uuid);
-            real_hit_item_num++;
+        struct expr_item *expr_item = (struct expr_item *)rcu_hash_find(expr_rt->item_hash, 
+                                                                        (char *)&hit_results[i].rule_uuid,
+                                                                        sizeof(uuid_t));
+        if (!expr_item) {
+            // item config has been deleted
+            continue;
         }
+
+        uuid_copy(hit_maat_items[real_hit_item_num].item_uuid, expr_item->item_uuid);
+        uuid_copy(hit_maat_items[real_hit_item_num].object_uuid, expr_item->object_uuid);
+        real_hit_item_num++;
     }
 
     if (real_hit_item_num > 0) {

@@ -18,11 +18,7 @@ extern "C"
 // if matched, return id and tag;
 struct interval_result
 {
-    uuid_t rule_uuid; 
-
-    /* A transparent user tag for convenient accessing, 
-    the caller is responsible for its memory management. */
-    void    *user_tag;    
+    uuid_t rule_uuid;   
 };
 
 struct interval_rule

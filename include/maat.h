@@ -176,9 +176,6 @@ void maat_reload_log_level(struct maat *instance, enum log_level level);
  */
 void maat_register_thread(struct maat *instance);
 
-/* maat helper API */
-int maat_helper_read_column(const char *table_line, int Nth_column, 
-                            size_t *column_offset, size_t *column_len);
 /**
  * verify if regex expression is legal
  * 

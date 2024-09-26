@@ -17,7 +17,7 @@ set(MAAT_SRC alignment.c maat_api.c rcu_hash.c maat_garbage_collection.c maat_co
     maat_ip_plugin.c maat_ipport_plugin.c maat_bool_plugin.c maat_fqdn_plugin.c maat_stat.c)
 
 set(LIB_SOURCE_FILES
-	${PROJECT_SOURCE_DIR}/deps/cJSON/cJSON.c ${PROJECT_SOURCE_DIR}/deps/log/log.c)
+	${PROJECT_SOURCE_DIR}/deps/cJSON/cJSON.c ${PROJECT_SOURCE_DIR}/deps/yyjson/yyjson.c ${PROJECT_SOURCE_DIR}/deps/log/log.c)
 
 include_directories(/opt/MESA/include/MESA/)
 include_directories(${PROJECT_SOURCE_DIR}/include/)

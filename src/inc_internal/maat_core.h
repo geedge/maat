@@ -35,12 +35,7 @@ extern "C"
 #include "hiredis/hiredis.h"
 
 #define MAX_TABLE_NUM	1024
-#define MAX_ATTRIBUTE_NUM	1024
 
-#define	DISTRICT_ANY	   -1
-#define	DISTRICT_UNKNOWN   -2
-
-#define MAX_DISTRICT_STR_LEN   128
 #define INVALID_VERSION    -1
 
 #define mr_region_id_var "SEQUENCE_REGION"
@@ -189,10 +184,8 @@ struct maat_state {
 	struct maat *maat_inst;
     struct rule_compile_state *rule_compile_state;
     int Nth_scan;
-    int district_id; //-1: Any District; -2: Unkonwn District;
 	uint16_t thread_id;
     int16_t rule_table_id;
-	uint8_t district_flag;
     uint8_t logic_negate_option;
 };
 

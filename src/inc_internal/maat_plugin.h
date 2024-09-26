@@ -17,6 +17,7 @@ extern "C"
 #endif
 
 #include "cJSON/cJSON.h"
+#include "yyjson/yyjson.h"
 #include "maat.h"
 #include "maat_ex_data.h"
 

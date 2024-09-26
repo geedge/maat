@@ -47,7 +47,8 @@ enum plugin_key_type {
     PLUGIN_KEY_TYPE_INVALID = 0,
     PLUGIN_KEY_TYPE_POINTER,
     PLUGIN_KEY_TYPE_INTEGER,
-    PLUGIN_KEY_TYPE_IP_ADDR
+    PLUGIN_KEY_TYPE_IP_ADDR,
+    PLUGIN_KEY_TYPE_UUID
 };
 
 #define	MAX_PLUGIN_PER_TABLE 32
@@ -118,6 +119,8 @@ void *plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
             schema->key_len = custom_item->valueint;
         } else if (strcmp(custom_item->valuestring, "ip_addr") == 0) {
             schema->key_type = PLUGIN_KEY_TYPE_IP_ADDR;
+        } else if (strcmp(custom_item->valuestring, "uuid") == 0) {
+            schema->key_type = PLUGIN_KEY_TYPE_UUID;
         } else {
             log_fatal(logger, MODULE_PLUGIN,
                       "[%s:%d]plugin table:<%s> schema key_type:%s is illegal, "
@@ -251,6 +254,7 @@ int plugin_table_set_ex_container_schema(void *plugin_schema, int table_id,
     }
 
     schema->container_schema.table_id = table_id;
+    schema->container_schema.table_name = (char *)table_manager_get_table_name(schema->ref_tbl_mgr, table_id);
     schema->container_schema.custom_data_free = custom_data_free;
     schema->container_schema.ex_schema.new_func = new_func;
     schema->container_schema.ex_schema.free_func = free_func;
@@ -355,7 +359,7 @@ static int plugin_runtime_update_row(struct plugin_runtime *plugin_rt,
     size_t cb_count = plugin_schema->cb_cnt;
     if (cb_count > 0) {
         for (size_t i = 0; i < cb_count; i++) {
-            plugin_schema->cb[i].update(plugin_schema->table_id, row, op,
+            plugin_schema->cb[i].update(table_name, row, op,
                                         plugin_schema->cb[i].u_para);
         }
     }
@@ -369,13 +373,14 @@ static int plugin_runtime_update_row(struct plugin_runtime *plugin_rt,
 }
 
 static int plugin_accept_tag_match(struct plugin_schema *schema,
-                                   const char *table_name, const cJSON *json,
+                                   const char *table_name, const char *line,
                                    struct log_handle *logger)
 {
     size_t tag_len = 0;
     size_t n_tag = table_manager_accept_tags_count(schema->ref_tbl_mgr);
     cJSON *tmp_obj = NULL;
     int ret = 0;
+    cJSON *json = cJSON_Parse(line);
 
     tmp_obj = cJSON_GetObjectItem(json, "tag");
 
@@ -410,21 +415,25 @@ static int plugin_accept_tag_match(struct plugin_schema *schema,
         }
     }
 
+    cJSON_Delete(json);
+
     return TAG_MATCH_MATCHED;
 }
 
 static int plugin_table_line_get_ip_key(struct plugin_schema *schema,
-                                        const char *table_name, const cJSON *json,
+                                        const char *table_name, const char *line,
                                         const char *src_key, size_t src_key_len,
                                         char *dst_key, size_t *dst_key_len,
                                         struct log_handle *logger)
 {
+    cJSON *json = cJSON_Parse(line);
+
     if (src_key_len >= INET6_ADDRSTRLEN) {
         log_fatal(logger, MODULE_PLUGIN,
                   "[%s:%d] plugin table:<%s> ip_key too long exceed maximum:%d in "
                   "table_line:%s", __FUNCTION__, __LINE__, table_name,
                   INET6_ADDRSTRLEN, cJSON_Print(json));
-        return -1;
+        goto ERROR;
     }
 
     cJSON *tmp_obj = NULL;
@@ -435,7 +444,7 @@ static int plugin_table_line_get_ip_key(struct plugin_schema *schema,
         log_fatal(logger, MODULE_PLUGIN,
                   "[%s:%d] plugin table:<%s> has no addr_type or not string format in table_line:%s",
                   __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
-        return -1;
+        goto ERROR;
     }
 
     char ip_key[INET6_ADDRSTRLEN] = {0};
@@ -451,7 +460,7 @@ static int plugin_table_line_get_ip_key(struct plugin_schema *schema,
                       "[%s:%d] plugin table:<%s> ipv4 key"
                       " illegal in table_line:%s",
                       __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
-            return -1;
+            goto ERROR;
         }
 
         memcpy(dst_key, (char *)&ipv4_addr, sizeof(ipv4_addr));
@@ -464,7 +473,7 @@ static int plugin_table_line_get_ip_key(struct plugin_schema *schema,
                       "[%s:%d] plugin table:<%s> ipv6 key"
                       " illegal in table_line:%s",
                       __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
-            return -1;
+            goto ERROR;
         }
 
         memcpy(dst_key, (char *)&ipv6_addr, sizeof(ipv6_addr));
@@ -474,33 +483,32 @@ static int plugin_table_line_get_ip_key(struct plugin_schema *schema,
                   "[%s:%d] plugin table:<%s> addr_type:%d illegal, just"
                   " allow{4, 6}, table_line:%s",
                   __FUNCTION__, __LINE__, table_name, addr_type, cJSON_Print(json));
-        return -1;
+        goto ERROR;
     }
 
     return 0;
+ERROR:
+    if (json) {
+        cJSON_Delete(json);
+    }
+    return -1;
 }
 
 static int plugin_table_line_get_key(struct plugin_schema *schema,
-                                     const char *table_name, const cJSON *json,
+                                     const char *table_name, const char *line,
                                      const char *src_key, size_t src_key_len,
                                      char *dst_key, size_t *dst_key_len,
                                      struct log_handle *logger)
 {
-    if (schema->key_type == PLUGIN_KEY_TYPE_POINTER) {
+    if (schema->key_type == PLUGIN_KEY_TYPE_POINTER || schema->key_type == PLUGIN_KEY_TYPE_UUID) {
         memcpy(dst_key, src_key, src_key_len);
         *dst_key_len = src_key_len;
     } else if (schema->key_type == PLUGIN_KEY_TYPE_INTEGER) {
-        if (schema->key_len == sizeof(long long)) {
-            long long key_ll = atoll(src_key);
-            memcpy(dst_key, (char *)&key_ll, schema->key_len);
-        } else {
-            int key_int = atoi(src_key);
-            memcpy(dst_key, (char *)&key_int, schema->key_len);
-        }
+        memcpy(dst_key, src_key, schema->key_len);
         *dst_key_len = schema->key_len;
     } else {
         //PLUGIN_KEY_TYPE_IP_ADDR
-        return plugin_table_line_get_ip_key(schema, table_name, json, src_key,
+        return plugin_table_line_get_ip_key(schema, table_name, line, src_key,
                                             src_key_len, dst_key, dst_key_len,
                                             logger);
     }
@@ -519,45 +527,72 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema,
 
     struct plugin_schema *schema = (struct plugin_schema *)plugin_schema;
     struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
-    cJSON *tmp_obj = NULL;
-    cJSON *json = cJSON_Parse(line);
+    yyjson_doc *doc = yyjson_read(line, strlen(line), 0);
+    
+    const char *raw_key = NULL;
+    int tmp_int_key = 0;
+    long long tmp_long_key = 0;
+    uuid_t uuid_key;
 
-    if (NULL == json) {
+    if (NULL == doc) {
         log_fatal(plugin_rt->logger, MODULE_PLUGIN,
                   "[%s:%d] plugin table:<%s> line is not json format, line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         return -1;
     }
+    yyjson_val *json_root = yyjson_doc_get_root(doc);
 
-    int ret = plugin_accept_tag_match(schema, table_name, json, plugin_rt->logger);
+    int ret = plugin_accept_tag_match(schema, table_name, line, plugin_rt->logger);
     if (ret == TAG_MATCH_UNMATCHED) {
         plugin_rt->update_err_cnt++;
         goto ERROR;
     }
 
     size_t raw_key_len = 0;
-    tmp_obj = cJSON_GetObjectItem(json, schema->key_name);
-    if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
+    yyjson_val *tmp_obj = yyjson_obj_get(json_root, schema->key_name);
+    if (tmp_obj == NULL) {
         log_fatal(plugin_rt->logger, MODULE_PLUGIN,
-                  "[%s:%d] plugin table:<%s> has no key_name or invalid format in table_line:%s",
-                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
-        goto ERROR;
-    }
-    raw_key_len = strlen(tmp_obj->valuestring);
-
-    if (raw_key_len > MAX_KEYWORDS_STR_LEN) {
-        log_fatal(plugin_rt->logger, MODULE_PLUGIN,
-                  "[%s:%d] plugin table:<%s> key length exceed maxium:%d"
-                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
-                  MAX_KEYWORDS_STR_LEN, line); 
+                  "[%s:%d] plugin table:<%s> has no key_name %s in table_line:%s",
+                  __FUNCTION__, __LINE__, table_name, schema->key_name, line);
         goto ERROR;
     }
 
-    const char *raw_key = tmp_obj->valuestring;
+    if (schema->key_type == PLUGIN_KEY_TYPE_INTEGER) {
+        if (schema->key_len == sizeof(int)) {
+            tmp_int_key = yyjson_get_int(tmp_obj);
+            raw_key = (char*)&tmp_int_key;
+        } else {
+            tmp_long_key = yyjson_get_int(tmp_obj);
+            raw_key = (char*)&tmp_long_key;
+        }
+        raw_key_len = schema->key_len;       
+    } else if (schema->key_type == PLUGIN_KEY_TYPE_UUID){
+        const char *uuid_str = yyjson_get_str(tmp_obj);
+        if (uuid_parse(uuid_str, uuid_key) == -1) {
+            log_fatal(plugin_rt->logger, MODULE_PLUGIN,
+                    "[%s:%d] plugin table:<%s> uuid key illegal in table_line:%s",
+                    __FUNCTION__, __LINE__, table_name, line);
+            goto ERROR;
+        }
+        raw_key = (char*)&uuid_key;
+        raw_key_len = sizeof(uuid_t);
+    } else {
+        raw_key = yyjson_get_str(tmp_obj);
+        raw_key_len = strlen(raw_key);
+
+        if (raw_key_len > MAX_KEYWORDS_STR_LEN) {
+            log_fatal(plugin_rt->logger, MODULE_PLUGIN,
+                    "[%s:%d] plugin table:<%s> key length exceed maxium:%d"
+                    " in table_line:%s", __FUNCTION__, __LINE__, table_name,
+                    MAX_KEYWORDS_STR_LEN, line); 
+            goto ERROR;
+        }
+    }
+
     char hash_key[MAX_KEYWORDS_STR_LEN + 1] = {0};
     size_t hash_key_len = 0;
 
-    ret = plugin_table_line_get_key(schema, table_name, json, raw_key, raw_key_len,
+    ret = plugin_table_line_get_key(schema, table_name, line, raw_key, raw_key_len,
                                     hash_key, &hash_key_len, plugin_rt->logger);
     if (ret < 0) {
         plugin_rt->update_err_cnt++;
@@ -572,7 +607,17 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema,
     }
     
     char print_key[MAX_KEYWORDS_STR_LEN + 1] = {0};
-    memcpy(print_key, raw_key, raw_key_len);
+    if (schema->key_type == PLUGIN_KEY_TYPE_INTEGER) {
+        if (schema->key_len == sizeof(long long)) {
+            snprintf(print_key, sizeof(print_key), "%lld", *(long long*)raw_key);
+        } else {
+            snprintf(print_key, sizeof(print_key), "%d", *(int*)raw_key);
+        }
+    } else if(schema->key_type == PLUGIN_KEY_TYPE_UUID) {
+        uuid_unparse(uuid_key, print_key);
+    } else {
+        memcpy(print_key, raw_key, raw_key_len);
+    }
     log_debug(plugin_rt->logger, MODULE_PLUGIN,
               "plugin table:<%s> update one line, key:%s, key_len:%zu, maat_operation:%d",
               table_name, print_key, raw_key_len, op);
@@ -580,8 +625,8 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema,
     return 0;
 
 ERROR:
-    if (json) {
-        cJSON_Delete(json);
+    if (doc) {
+        yyjson_doc_free(doc);
     }
     return -1;
 }

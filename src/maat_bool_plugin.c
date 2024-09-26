@@ -115,6 +115,7 @@ int bool_plugin_table_set_ex_container_schema(void *bool_plugin_schema, int tabl
     }
 
     schema->container_schema.table_id = table_id;
+    schema->container_schema.table_name = (char*)table_manager_get_table_name(schema->ref_tbl_mgr, table_id);
     schema->container_schema.custom_data_free = custom_data_free;
     schema->container_schema.ex_schema.new_func = new_func;
     schema->container_schema.ex_schema.free_func = free_func;

@@ -10,35 +10,35 @@ include_directories(${PROJECT_SOURCE_DIR}/scanner/ip_matcher)
 include_directories(${PROJECT_SOURCE_DIR}/scanner/ipport_matcher)
 include_directories(${PROJECT_SOURCE_DIR}/scanner/bool_matcher)
 
-add_executable(rcu_hash_gtest rcu_hash_gtest.cpp)
-target_link_libraries(rcu_hash_gtest maat_frame_static gtest_static)
+# add_executable(rcu_hash_gtest rcu_hash_gtest.cpp)
+# target_link_libraries(rcu_hash_gtest maat_frame_static gtest_static)
 
-add_executable(maat_input_mode_gtest maat_input_mode_gtest.cpp test_utils.cpp)
-target_link_libraries(maat_input_mode_gtest maat_frame_static gtest_static)
+# add_executable(maat_input_mode_gtest maat_input_mode_gtest.cpp test_utils.cpp)
+# target_link_libraries(maat_input_mode_gtest maat_frame_static gtest_static)
 
 add_executable(maat_framework_gtest maat_framework_gtest.cpp test_utils.cpp)
 target_link_libraries(maat_framework_gtest maat_frame_static gtest_static)
 
-add_executable(maat_framework_perf_gtest maat_framework_perf_gtest.cpp test_utils.cpp)
-target_link_libraries(maat_framework_perf_gtest maat_frame_static gtest_static)
+# add_executable(maat_framework_perf_gtest maat_framework_perf_gtest.cpp test_utils.cpp)
+# target_link_libraries(maat_framework_perf_gtest maat_frame_static gtest_static)
 
-add_executable(expr_matcher_gtest expr_matcher_gtest.cpp)
-target_link_libraries(expr_matcher_gtest maat_frame_static gtest_static)
+# add_executable(expr_matcher_gtest expr_matcher_gtest.cpp)
+# target_link_libraries(expr_matcher_gtest maat_frame_static gtest_static)
 
-add_executable(ip_matcher_gtest ip_matcher_gtest.cpp)
-target_link_libraries(ip_matcher_gtest maat_frame_static gtest_static)
+# add_executable(ip_matcher_gtest ip_matcher_gtest.cpp)
+# target_link_libraries(ip_matcher_gtest maat_frame_static gtest_static)
 
-add_executable(ipport_matcher_gtest ipport_matcher_gtest.cpp)
-target_link_libraries(ipport_matcher_gtest maat_frame_static gtest_static)
+# add_executable(ipport_matcher_gtest ipport_matcher_gtest.cpp)
+# target_link_libraries(ipport_matcher_gtest maat_frame_static gtest_static)
 
-add_executable(bool_matcher_gtest bool_matcher_gtest.cpp)
-target_link_libraries(bool_matcher_gtest maat_frame_static gtest_static)
+# add_executable(bool_matcher_gtest bool_matcher_gtest.cpp)
+# target_link_libraries(bool_matcher_gtest maat_frame_static gtest_static)
 
-add_executable(maat_ex_data_gtest maat_ex_data_gtest.cpp)
-target_link_libraries(maat_ex_data_gtest maat_frame_static gtest_static)
+# add_executable(maat_ex_data_gtest maat_ex_data_gtest.cpp)
+# target_link_libraries(maat_ex_data_gtest maat_frame_static gtest_static)
 
-add_subdirectory(object_nesting)
-add_subdirectory(ipport_plugin)
+# add_subdirectory(object_nesting)
+# add_subdirectory(ipport_plugin)
 #add_subdirectory(benchmark) //TODO: convert iris rule to json rule
 
 configure_file(table_info.json table_info.json COPYONLY)

@@ -276,7 +276,6 @@ static void fs_table_row_refresh(struct maat_stat *stat, int perf_on)
                 o2o_excl_rule_num += object2object_runtime_exclude_rule_count(runtime);
                 break;
             case TABLE_TYPE_EXPR:
-            case TABLE_TYPE_EXPR_PLUS:
                 regex_rule_num = expr_runtime_regex_rule_count(runtime);
                 break;
             case TABLE_TYPE_IP:
@@ -329,8 +328,7 @@ static void fs_table_row_refresh(struct maat_stat *stat, int perf_on)
         total_update_err +=
             table_manager_runtime_update_err_count(stat->ref_tbl_mgr, i);
 
-        if (table_type == TABLE_TYPE_EXPR ||
-            table_type == TABLE_TYPE_EXPR_PLUS) {
+        if (table_type == TABLE_TYPE_EXPR) {
             fieldstat_easy_counter_set(stat->fs_handle, 0,
                                        stat->fs_column_id[COLUMN_REGEX_NUM],
                                        &cell_tag, 1, regex_rule_num);

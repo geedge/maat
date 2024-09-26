@@ -3,7 +3,7 @@
     "object2object_table": "OBJECT2OBJECT",
     "rules": [
         {
-            "rule_id": "1",
+            "uuid": "9c5ee166-3af6-fb23-f8f8-8c7062ed3717",
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -12,7 +12,6 @@
             "is_valid": "yes",
             "conditions": [
                 {
-                    "object_name": "Untitled",
                     "attribute_name": "HTTP_URL",
                     "objects": [
                         {

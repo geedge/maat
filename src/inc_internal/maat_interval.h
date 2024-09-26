@@ -50,10 +50,6 @@ long long interval_runtime_rule_count(void *interval_runtime);
 */
 int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id, 
                           long long integer, int attribute_id, struct maat_state *state);
-
-int interval_runtime_set_scan_district(struct interval_runtime *interval_rt,
-                                       const char *district, size_t district_len,
-                                       long long *district_id);
                                        
 void interval_runtime_perf_stat(struct interval_runtime *interval_rt,
                                 struct timespec *start, struct timespec *end,

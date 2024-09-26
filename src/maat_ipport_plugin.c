@@ -143,6 +143,7 @@ int ipport_plugin_table_set_ex_container_schema(void *ipport_plugin_schema, int 
     }
 
     schema->container_schema.table_id = table_id;
+    schema->container_schema.table_name = (char*)table_manager_get_table_name(schema->ref_tbl_mgr, table_id);
     schema->container_schema.custom_data_free = custom_data_free;
     schema->container_schema.ex_schema.new_func = new_func;
     schema->container_schema.ex_schema.free_func = free_func;
@@ -231,7 +232,7 @@ ipport_item_new(struct ipport_plugin_schema *schema, const char *table_name,
     int ret = 0;
 
     tmp_obj = cJSON_GetObjectItem(json, schema->key_name);
-    if (NULL == tmp_obj || tmp_obj->type != cJSON_Number) {
+    if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
         log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport table:<%s> has no key or invalid format, line:%s",
                   __FUNCTION__, __LINE__, table_name, cJSON_Print(json));

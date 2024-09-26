@@ -31,8 +31,6 @@ struct interval_item {
     uuid_t object_uuid;
     int low_boundary;
     int up_boundary;
-    void *user_data;
-    int district_id;
 };
 
 struct interval_runtime {
@@ -43,10 +41,6 @@ struct interval_runtime {
     size_t n_worker_thread;
     struct log_handle *logger;
     struct maat_garbage_bin *ref_garbage_bin;
-
-    int district_num;
-    struct maat_kv_store *district_map;
-    struct maat_kv_store *tmp_district_map;
 
     long long *scan_times;
     long long *scan_cpu_time;
@@ -95,10 +89,6 @@ static void interval_item_free(struct interval_item *item)
         return;
     }
 
-    if (item->user_data != NULL) {
-        FREE(item->user_data);
-    }
-
     FREE(item);
 }
 
@@ -122,7 +112,6 @@ void *interval_runtime_new(void *interval_schema, size_t max_thread_num,
     interval_rt->n_worker_thread = max_thread_num;
     interval_rt->ref_garbage_bin = garbage_bin;
     interval_rt->logger = logger;
-    interval_rt->district_map = maat_kv_store_new();
 
     interval_rt->hit_times = alignment_int64_array_alloc(max_thread_num);
     interval_rt->scan_times = alignment_int64_array_alloc(max_thread_num);
@@ -149,13 +138,6 @@ void interval_runtime_free(void *interval_runtime)
         interval_rt->matcher = NULL;
     }
 
-    assert(interval_rt->tmp_district_map == NULL);
-
-    if (interval_rt->district_map != NULL) {
-        maat_kv_store_free(interval_rt->district_map);
-        interval_rt->district_map = NULL;
-    }
-
     if (interval_rt->hit_times != NULL) {
         alignment_int64_array_free(interval_rt->hit_times);
         interval_rt->hit_times = NULL;
@@ -179,45 +161,10 @@ void interval_runtime_free(void *interval_runtime)
     FREE(interval_rt);
 }
 
-static int interval_runtime_get_district_id(struct interval_runtime *interval_rt,
-                                            const char *district)
-{
-    long long district_id = DISTRICT_ANY;
-
-	int map_ret = maat_kv_read(interval_rt->district_map, district, &district_id, 1);
-	if (map_ret < 0) {
-        if (NULL == interval_rt->tmp_district_map) {
-            interval_rt->tmp_district_map = maat_kv_store_duplicate(interval_rt->district_map);
-        }
-        
-        map_ret = maat_kv_read(interval_rt->tmp_district_map, district, &district_id, 1);
-        if (map_ret < 0) {
-            district_id = interval_rt->district_num;
-		    maat_kv_register(interval_rt->tmp_district_map, district, district_id);
-		    interval_rt->district_num++;
-        }
-	}
-
-	return (int)district_id;
-}
-
-int interval_runtime_set_scan_district(struct interval_runtime *interval_rt,
-                                       const char *district, size_t district_len,
-                                       long long *district_id)
-{
-    if (NULL == interval_rt || NULL == district || 0 == district_len) {
-        return -1;
-    }
-
-    return maat_kv_read_unNull(interval_rt->district_map, district, district_len,
-                               district_id, 1);
-}
-
 static struct interval_item *
 interval_item_new(struct interval_schema *schema, const char *table_name,
                   const cJSON *json, struct interval_runtime *interval_rt, uuid_t item_uuid)
 {
-    enum table_type table_type = TABLE_TYPE_INVALID;
     char port_str[16] = {0};
     struct interval_item *item = ALLOC(struct interval_item, 1);
     cJSON *tmp_obj = NULL;
@@ -232,34 +179,6 @@ interval_item_new(struct interval_schema *schema, const char *table_name,
         goto error;
     }
     uuid_parse(tmp_obj->valuestring, item->object_uuid);
-
-    table_type = table_manager_get_table_type(schema->ref_tbl_mgr, schema->table_id);
-    if (table_type == TABLE_TYPE_INTERVAL_PLUS) {
-        tmp_obj = cJSON_GetObjectItem(json, "district");
-        if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
-            log_fatal(interval_rt->logger, MODULE_INTERVAL, 
-                      "[%s:%d] interval_plus table:<%s> has no district in line:%s",
-                      __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
-            goto error;
-        }
-
-        size_t len = strlen(tmp_obj->valuestring);
-
-        if (len > MAX_DISTRICT_STR_LEN) {
-            log_fatal(interval_rt->logger, MODULE_INTERVAL, 
-                      "[%s:%d] interval_plus table:<%s> district length exceed "
-                      "maximum:%d in line:%s", __FUNCTION__, __LINE__, table_name,
-                      MAX_DISTRICT_STR_LEN, cJSON_Print(json));
-            goto error;
-        }
-
-        char district[MAX_DISTRICT_STR_LEN + 1] = {0};
-        memcpy(district, tmp_obj->valuestring, len);
-        assert(strlen(district) > 0);
-        item->district_id = interval_runtime_get_district_id(interval_rt, district);
-    } else {
-        item->district_id = DISTRICT_ANY;
-    }
 
     tmp_obj = cJSON_GetObjectItem(json, "interval");
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
@@ -290,7 +209,6 @@ interval_item_to_interval_rule(struct interval_item *item)
     rule.start = item->low_boundary;
     rule.end = item->up_boundary;
     uuid_copy(rule.result.rule_uuid, item->item_uuid);
-    rule.result.user_tag = item->user_data;
 
     return rule;
 }
@@ -372,11 +290,6 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
             interval_rt->update_err_cnt++;
             goto ERROR;
         }
-
-        int *item_district_id = ALLOC(int, 1);
-        *item_district_id = interval_item->district_id;
-
-        interval_item->user_data = item_district_id;
     }
 
     int ret = interval_runtime_update_row(interval_rt, (char *)&item_uuid, sizeof(uuid_t),
@@ -417,14 +330,6 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name,
     int updating_flag = rcu_hash_is_updating(interval_rt->item_hash);
     if (0 == updating_flag) {
         return 0;
-    }
-
-    if (interval_rt->tmp_district_map != NULL) {
-        struct maat_kv_store *tmp_map = interval_rt->district_map;
-        interval_rt->district_map = interval_rt->tmp_district_map;
-        interval_rt->tmp_district_map = NULL;
-        maat_garbage_bagging(interval_rt->ref_garbage_bin, tmp_map, NULL, 
-                             garbage_maat_kv_store_free);
     }
 
     void **ex_data_array = NULL;
@@ -531,22 +436,18 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
     }
 
     for (int i = 0; i < n_hit_item; i++) {
-        int tag_district_id = *(int *)(hit_results[i].user_tag);
-        if (tag_district_id == state->district_id ||
-            tag_district_id == DISTRICT_ANY) {
-            struct interval_item *int_item =
-                (struct interval_item *)rcu_hash_find(interval_rt->item_hash, 
-                                                     (char *)&hit_results[i].rule_uuid,
-                                                      sizeof(uuid_t));
-            if (!int_item) {
-                // item config has been deleted
-                continue;
-            }
-
-            uuid_copy(hit_maat_items[real_hit_item_cnt].item_uuid, int_item->item_uuid);
-            uuid_copy(hit_maat_items[real_hit_item_cnt].object_uuid, int_item->object_uuid);
-            real_hit_item_cnt++;
+        struct interval_item *int_item =
+            (struct interval_item *)rcu_hash_find(interval_rt->item_hash, 
+                                                    (char *)&hit_results[i].rule_uuid,
+                                                    sizeof(uuid_t));
+        if (!int_item) {
+            // item config has been deleted
+            continue;
         }
+
+        uuid_copy(hit_maat_items[real_hit_item_cnt].item_uuid, int_item->item_uuid);
+        uuid_copy(hit_maat_items[real_hit_item_cnt].object_uuid, int_item->object_uuid);
+        real_hit_item_cnt++;
     }
 
     if (real_hit_item_cnt > 0) {

@@ -26,12 +26,9 @@ extern "C"
 enum table_type {
     TABLE_TYPE_INVALID = -1,
     TABLE_TYPE_FLAG = 0,
-    TABLE_TYPE_FLAG_PLUS,
 	TABLE_TYPE_EXPR,
-    TABLE_TYPE_EXPR_PLUS,
     TABLE_TYPE_IP,
     TABLE_TYPE_INTERVAL,
-    TABLE_TYPE_INTERVAL_PLUS,
     TABLE_TYPE_PLUGIN,
     TABLE_TYPE_IP_PLUGIN,
     TABLE_TYPE_IPPORT_PLUGIN,
@@ -60,7 +57,8 @@ size_t table_manager_table_num(struct table_manager *tbl_mgr);
 
 int table_manager_get_table_id(struct table_manager *tbl_mgr, const char *table_name);
 int table_manager_get_attribute_id(struct table_manager *tbl_mgr, const char *attribute_name);
-int table_manager_attribute_get_table_id(struct table_manager *tbl_mgr, int attr_id);
+int table_manager_attribute_register(struct table_manager *tbl_mgr, const char *attribute_name, struct log_handle *logger);
+
 /**
  * @brief get table_name's all conjunction parents' table_id
  * 
@@ -76,7 +74,7 @@ int table_manager_attribute_get_table_id(struct table_manager *tbl_mgr, int attr
 */
 int table_manager_get_conj_parent_table_ids(struct table_manager *tbl_mgr, const char *table_name,
                                             long long *table_ids_array, size_t n_table_ids_array);
-
+int maat_get_table_id(struct maat *maat_inst, const char *table_name);
 const char *table_manager_get_table_name(struct table_manager *tbl_mgr,
                                          int table_id);
 const char *table_manager_get_attribute_name(struct table_manager *tbl_mgr, int attr_id);

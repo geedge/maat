@@ -228,7 +228,6 @@ static struct bool_expr *bool_exprs_new(struct expr_rule *rules, size_t n_rule,
         
         uuid_copy(bool_exprs[i].expr_uuid, rules[i].expr_uuid);
         bool_exprs[i].item_num = rules[i].n_patterns;
-        bool_exprs[i].user_tag = rules[i].tag;
     }
 
     return bool_exprs;
@@ -435,7 +434,6 @@ static int expr_matcher_bool_matcher_match(struct bool_matcher *bm, struct bool_
 
     for (int index = 0; index < bool_matcher_ret; index++) {
         uuid_copy(result_array[index].rule_uuid, match_buff[index].expr_uuid);
-        result_array[index].user_tag = match_buff[index].user_tag;
     }
     *n_hit_result = bool_matcher_ret;
 

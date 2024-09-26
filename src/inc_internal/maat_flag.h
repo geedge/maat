@@ -50,11 +50,6 @@ long long flag_runtime_rule_count(void *flag_runtime);
 int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id, long long flag,
                       int attribute_id, struct maat_state *state);
 
-int flag_runtime_set_scan_district(struct flag_runtime *flag_rt, const char *district, 
-                                    size_t district_len, long long *district_id);
-
-
-
 void flag_runtime_perf_stat(struct flag_runtime *flag_rt, struct timespec *start,
                             struct timespec *end, int thread_id);
 

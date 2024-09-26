@@ -59,9 +59,6 @@ int expr_runtime_stream_scan(struct expr_runtime_stream *expr_rt_stream, const c
 
 void expr_runtime_stream_close(struct expr_runtime_stream *expr_rt_stream);
 
-int expr_runtime_set_scan_district(struct expr_runtime *expr_rt, const char *district, 
-                                   size_t district_len, long long *district_id);
-
 void expr_runtime_perf_stat(struct expr_runtime *flag_rt, size_t scan_len, 
                             struct timespec *start, struct timespec *end, 
                             int thread_id);

@@ -21,19 +21,14 @@ struct flag_rule
 {
     uint64_t flag;
     uint64_t mask;
-    uuid_t rule_uuid; // unique for a rule;
-
-    /* A transparent user tag for convenient accessing, 
-    the caller is responsible for its memory management. */
-    void    *user_tag;     
+    uuid_t rule_uuid; // unique for a rule;   
 };
 
 
 // if matched, return id and tag;
 struct flag_result
 {
-    uuid_t rule_uuid; // unique for a rule;
-    void    *user_tag;    
+    uuid_t rule_uuid; // unique for a rule;    
 };
 
 

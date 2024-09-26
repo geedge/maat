@@ -189,16 +189,11 @@ int expr_table_set_line(struct maat *maat_inst, const char *table_name,
     
     enum table_type table_type =
         table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
-    assert(table_type == TABLE_TYPE_EXPR ||
-           table_type == TABLE_TYPE_EXPR_PLUS);
+    assert(table_type == TABLE_TYPE_EXPR);
 
-    if (table_type == TABLE_TYPE_EXPR_PLUS) {
-        sprintf(table_line, "%lld\t%lld\t%s\t%d\t%s\t%d",
-                item_id, object_id, district, expr_type, keywords, op);
-    } else {
-        sprintf(table_line, "%lld\t%lld\t%d\t%s\t%d",
-                item_id, object_id, expr_type, keywords, op);
-    }
+    
+    sprintf(table_line, "%lld\t%lld\t%d\t%s\t%d",
+            item_id, object_id, expr_type, keywords, op);//TODO
 
     struct maat_cmd_line line_rule;
     line_rule.rule_id = item_id;
@@ -221,16 +216,10 @@ int interval_table_set_line(struct maat *maat_inst, const char *table_name,
 
     enum table_type table_type =
         table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
-    assert(table_type == TABLE_TYPE_INTERVAL ||
-           table_type == TABLE_TYPE_INTERVAL_PLUS);
+    assert(table_type == TABLE_TYPE_INTERVAL);
 
-    if (table_type == TABLE_TYPE_INTERVAL_PLUS) {
-        sprintf(table_line, "%lld\t%lld\t%s\t%s\t%d",
-                item_id, object_id, district, port_str, op);
-    } else {
-        sprintf(table_line, "%lld\t%lld\t%s\t%d",
-                item_id, object_id, port_str, op);
-    }
+    sprintf(table_line, "%lld\t%lld\t%s\t%d",
+            item_id, object_id, port_str, op);//TODO
 
     struct maat_cmd_line line_rule;
     line_rule.rule_id = item_id;

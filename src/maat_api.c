@@ -43,11 +43,6 @@
 
 #define MODULE_MAAT_API	 module_name_str("maat.api")
 
-enum district_flag {
-    DISTRICT_FLAG_UNSET,
-    DISTRICT_FLAG_SET
-};
-
 enum logic_negate_option {
     LOGIC_NEGATE_OPTION_UNSET,
     LOGIC_NEGATE_OPTION_SET
@@ -475,12 +470,6 @@ static int _get_tid(struct maat *maat_inst)
     return _thread_local_tid;
 }
 
-int maat_helper_read_column(const char *table_line, int Nth_column, 
-                            size_t *column_offset, size_t *column_len)
-{
-    return get_column_pos(table_line, Nth_column, column_offset, column_len);
-}
-
 int maat_helper_verify_regex_expression(const char *regex_expr)
 {
     if (NULL == regex_expr) {
@@ -490,30 +479,15 @@ int maat_helper_verify_regex_expression(const char *regex_expr)
     return expr_matcher_verify_regex_expression(regex_expr, NULL);
 }
 
-int maat_get_table_id(struct maat *maat_inst, const char *table_name)
-{
-    if (NULL == maat_inst || NULL == table_name) {
-        return -1;
-    }
-
-    struct table_manager *table_mgr = maat_inst->tbl_mgr;
-    return table_manager_get_table_id(table_mgr, table_name);
-}
-
-int maat_get_attribute_id(struct maat *instance, const char *attribute_name)
-{
-    if (NULL == instance || NULL == attribute_name) {
-        return -1;
-    }
-
-    struct table_manager *table_mgr = instance->tbl_mgr;
-    return table_manager_get_attribute_id(table_mgr, attribute_name);
-}
-
 const char *
-maat_get_table_schema_tag(struct maat *maat_inst, int table_id)
+maat_get_table_schema_tag(struct maat *maat_inst, const char *table_name)
 {
-    if (NULL == maat_inst || table_id < 0) {
+    if (NULL == maat_inst || table_name == NULL) {
+        return NULL;
+    }
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    if (table_id < 0) {
         return NULL;
     }
 
@@ -542,22 +516,31 @@ maat_runtime_ref_dec(struct maat_runtime *maat_rt, int thread_id)
 }
 
 /* must be plugin table */
-int maat_table_callback_register(struct maat *maat_inst, int table_id,
+int maat_table_callback_register(struct maat *maat_inst, const char *table_name,
 								 maat_start_callback_t *start,
 								 maat_update_callback_t *update,
 								 maat_finish_callback_t *finish,
 								 void *u_para)
 {
     int ret = -1;
+    int table_id = maat_get_table_id(maat_inst, table_name);
+
+    if (table_id < 0) {
+        log_fatal(maat_inst->logger, MODULE_MAAT_API,
+                  "[%s:%d] table(table_name:%s) is not registered, "
+                  "register callback failed", __FUNCTION__,
+                  __LINE__, table_name);
+        return -1;
+    }
 
     pthread_mutex_lock(&(maat_inst->background_update_mutex));
     void *schema = table_manager_get_schema(maat_inst->tbl_mgr, table_id);
     if (NULL == schema) {
         pthread_mutex_unlock(&(maat_inst->background_update_mutex));
         log_fatal(maat_inst->logger, MODULE_MAAT_API,
-                  "[%s:%d] table(table_id:%d) schema is NULL, "
+                  "[%s:%d] table(table_name:%s) schema is NULL, "
                   "register callback failed", __FUNCTION__,
-                  __LINE__, table_id);
+                  __LINE__, table_name);
         return -1;
     }
 
@@ -597,7 +580,7 @@ int maat_table_callback_register(struct maat *maat_inst, int table_id,
                 break;
             }
 
-            update(table_id, ex_data_row->row, ex_data_row->op, u_para);
+            update(table_name, ex_data_row->row, ex_data_row->op, u_para);
         }
 
         if (finish != NULL) {
@@ -870,12 +853,16 @@ int maat_plugin_table_ex_schema_register(struct maat *maat_inst,
     return ret;
 }
 
-void *maat_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
+void *maat_plugin_table_get_ex_data(struct maat *maat_inst, const char *table_name,
                                     const char *key, size_t key_len)
 {
 
-    if (NULL == maat_inst || table_id < 0 || table_id >= MAX_TABLE_NUM 
-        || NULL == key) {
+    if (NULL == maat_inst || NULL == key) {
+        return NULL;
+    }
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    if (table_id < 0 || table_id >= MAX_TABLE_NUM) {
         return NULL;
     }
 
@@ -909,15 +896,19 @@ void *maat_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
     return ret;
 }
 
-int maat_ip_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
+int maat_ip_plugin_table_get_ex_data(struct maat *maat_inst, const char *table_name,
                                      const struct ip_addr *ip_addr,
                                      void **ex_data_array, size_t array_size)
 {
-    if (NULL == maat_inst || table_id < 0 || table_id >= MAX_TABLE_NUM 
-        || NULL == ip_addr || NULL == ex_data_array || 0 == array_size) {
+    if (NULL == maat_inst || NULL == ip_addr || NULL == ex_data_array || 0 == array_size) {
         return -1;
     }
     
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    if (table_id < 0 || table_id >= MAX_TABLE_NUM) {
+        return -1;
+    }
+
     struct maat_runtime *maat_rt = maat_inst->maat_rt;
     if (NULL == maat_rt) {
         return -1;
@@ -936,12 +927,16 @@ int maat_ip_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
     return ip_plugin_runtime_get_ex_data(ip_plugin_rt, ip_addr, ex_data_array, array_size);
 }
 
-int maat_ipport_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
+int maat_ipport_plugin_table_get_ex_data(struct maat *maat_inst, const char *table_name,
                                           const struct ip_addr *ip_addr, uint16_t port,
                                           void **ex_data_array, size_t array_size)
 {
-    if (NULL == maat_inst || table_id < 0 || table_id >= MAX_TABLE_NUM 
-        || NULL == ip_addr || NULL == ex_data_array || 0 == array_size) {
+    if (NULL == maat_inst || NULL == ip_addr || NULL == ex_data_array || 0 == array_size) {
+        return -1;
+    }
+    
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    if (table_id < 0 || table_id >= MAX_TABLE_NUM) {
         return -1;
     }
 
@@ -964,12 +959,16 @@ int maat_ipport_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
                                              ex_data_array, array_size);
 }
 
-int maat_fqdn_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
+int maat_fqdn_plugin_table_get_ex_data(struct maat *maat_inst, const char *table_name,
                                        const char *fqdn, void **ex_data_array, 
                                        size_t array_size)
 {
-    if (NULL == maat_inst || table_id < 0 || table_id >= MAX_TABLE_NUM 
-        || NULL == fqdn || NULL == ex_data_array || 0 == array_size) {
+    if (NULL == maat_inst || NULL == fqdn || NULL == ex_data_array || 0 == array_size) {
+        return -1;
+    }
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    if (table_id < 0 || table_id >= MAX_TABLE_NUM) {
         return -1;
     }
 
@@ -991,12 +990,16 @@ int maat_fqdn_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
     return fqdn_plugin_runtime_get_ex_data(fqdn_plugin_rt, fqdn, ex_data_array, array_size);
 }
 
-int maat_bool_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
+int maat_bool_plugin_table_get_ex_data(struct maat *maat_inst, const char *table_name,
                                        unsigned long long *item_ids, size_t n_item,
                                        void **ex_data_array, size_t array_size)
 {
-    if (NULL == maat_inst || table_id < 0 || table_id >= MAX_TABLE_NUM 
-        || NULL == item_ids || NULL == ex_data_array || 0 == array_size) {
+    if (NULL == maat_inst || NULL == item_ids || NULL == ex_data_array || 0 == array_size) {
+        return -1;
+    }
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    if (table_id < 0 || table_id >= MAX_TABLE_NUM) {
         return -1;
     }
     
@@ -1025,13 +1028,8 @@ flag_scan(struct table_manager *tbl_mgr, int thread_id, long long flag,
 {
     enum table_type table_type =
         table_manager_get_table_type(tbl_mgr, table_id);
-    if (table_type == TABLE_TYPE_FLAG_PLUS && 
-        DISTRICT_FLAG_UNSET == state->district_flag) {
-        return -1;
-    }
 
-    if (table_type != TABLE_TYPE_FLAG &&
-        table_type != TABLE_TYPE_FLAG_PLUS) {
+    if (table_type != TABLE_TYPE_FLAG) {
         return -1;
     }
 
@@ -1060,13 +1058,8 @@ interval_scan(struct table_manager *tbl_mgr, int thread_id, long long integer,
 
     enum table_type table_type =
         table_manager_get_table_type(tbl_mgr, table_id);
-    if (table_type == TABLE_TYPE_INTERVAL_PLUS && 
-        DISTRICT_FLAG_UNSET == state->district_flag) {
-        return -1;
-    }
 
-    if (table_type != TABLE_TYPE_INTERVAL &&
-        table_type != TABLE_TYPE_INTERVAL_PLUS) {
+    if (table_type != TABLE_TYPE_INTERVAL) {
         return -1;
     }
 
@@ -1153,13 +1146,8 @@ string_scan(struct table_manager *tbl_mgr, int thread_id,
 {
     enum table_type table_type =
         table_manager_get_table_type(tbl_mgr, table_id);
-    if (table_type == TABLE_TYPE_EXPR_PLUS && 
-        DISTRICT_FLAG_UNSET == state->district_flag) {
-        return -1;
-    }
 
-    if (table_type != TABLE_TYPE_EXPR &&
-        table_type != TABLE_TYPE_EXPR_PLUS) {
+    if (table_type != TABLE_TYPE_EXPR) {
         return -1;
     }
 
@@ -1204,12 +1192,11 @@ object_to_rule(struct maat *maat_inst, uuid_t *results, size_t n_result,
                                  results, n_result, state);
 }
 
-int maat_scan_flag(struct maat *maat_inst, int attribute_id,
+int maat_scan_flag(struct maat *maat_inst, const char *table_name, const char *attribute_name,
                    long long flag, uuid_t *results, size_t n_result,
                    size_t *n_hit_result, struct maat_state *state)
 {
-    if ((NULL == maat_inst) || attribute_id < 0 || attribute_id >= MAX_ATTRIBUTE_NUM ||
-        (NULL == results) || (0 == n_result) || (NULL == n_hit_result) ||
+    if ((NULL == maat_inst) || (NULL == results) || (0 == n_result) || (NULL == n_hit_result) ||
         (NULL == state) || (state->thread_id < 0)) {
         return MAAT_SCAN_ERR;
     }
@@ -1221,22 +1208,25 @@ int maat_scan_flag(struct maat *maat_inst, int attribute_id,
 
     state->Nth_scan++;
 
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    if (table_id < 0) {
+        maat_inst->stat->scan_err_cnt++;
+        return MAAT_SCAN_ERR;
+    }
+    int attribute_id = table_manager_get_attribute_id(maat_inst->tbl_mgr, attribute_name);
+    if (attribute_id < 0) {
+        maat_inst->stat->scan_err_cnt++;
+        return MAAT_SCAN_ERR;
+    }
+
     struct maat_runtime *maat_rt = maat_inst->maat_rt;
     if (NULL == maat_rt) {
         return MAAT_SCAN_OK;
     }
 
     enum table_type table_type = TABLE_TYPE_INVALID;
-
-    int table_id = table_manager_attribute_get_table_id(maat_inst->tbl_mgr, attribute_id);
-    
-    if (table_id < 0) {
-        maat_inst->stat->scan_err_cnt++;
-        return MAAT_SCAN_ERR;
-    }
-
     table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
-    if (table_type != TABLE_TYPE_FLAG && table_type != TABLE_TYPE_FLAG_PLUS) {
+    if (table_type != TABLE_TYPE_FLAG) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
@@ -1283,12 +1273,11 @@ int maat_scan_flag(struct maat *maat_inst, int attribute_id,
     }
 }
 
-int maat_scan_integer(struct maat *maat_inst, int attribute_id,
+int maat_scan_integer(struct maat *maat_inst, const char *table_name, const char *attribute_name,
                       long long integer, uuid_t *results, size_t n_result,
                       size_t *n_hit_result, struct maat_state *state)
 {
-    if ((NULL == maat_inst) || attribute_id < 0 || attribute_id >= MAX_ATTRIBUTE_NUM ||
-        (NULL == results) || (0 == n_result) || (NULL == n_hit_result) ||
+    if ((NULL == maat_inst) || (NULL == results) || (0 == n_result) || (NULL == n_hit_result) ||
         (NULL == state) || (state->thread_id < 0)) {
         return MAAT_SCAN_ERR;
     }
@@ -1300,23 +1289,25 @@ int maat_scan_integer(struct maat *maat_inst, int attribute_id,
 
     state->Nth_scan++;
 
+    int table_id = table_manager_get_table_id(maat_inst->tbl_mgr, table_name);
+    if (table_id < 0) {
+        maat_inst->stat->scan_err_cnt++;
+        return MAAT_SCAN_ERR;
+    }
+    int attribute_id = table_manager_get_attribute_id(maat_inst->tbl_mgr, attribute_name);
+    if (attribute_id < 0) {
+        maat_inst->stat->scan_err_cnt++;
+        return MAAT_SCAN_ERR;
+    }
+
     struct maat_runtime *maat_rt = maat_inst->maat_rt;
     if (NULL == maat_rt) {
         return MAAT_SCAN_OK;
     }
 
     enum table_type table_type = TABLE_TYPE_INVALID;
-
-    int table_id = table_manager_attribute_get_table_id(maat_inst->tbl_mgr, attribute_id);
-    
-    if (table_id < 0) {
-        maat_inst->stat->scan_err_cnt++;
-        return MAAT_SCAN_ERR;
-    }
-
     table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
-    if (table_type != TABLE_TYPE_INTERVAL &&
-        table_type != TABLE_TYPE_INTERVAL_PLUS) {
+    if (table_type != TABLE_TYPE_INTERVAL) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
@@ -1363,12 +1354,11 @@ int maat_scan_integer(struct maat *maat_inst, int attribute_id,
     }
 }
 
-int maat_scan_ipv4_port(struct maat *maat_inst, int attribute_id, uint32_t ip_addr,
-                        int port, uuid_t *results, size_t n_result,
+int maat_scan_ipv4_port(struct maat *maat_inst, const char *table_name, const char *attribute_name, 
+                        uint32_t ip_addr, int port, uuid_t *results, size_t n_result,
                         size_t *n_hit_result, struct maat_state *state)
 {
-    if ((NULL == maat_inst) || attribute_id < 0 || attribute_id >= MAX_ATTRIBUTE_NUM ||
-        (NULL == results) || (0 == n_result) || (NULL == n_hit_result) ||
+    if ((NULL == maat_inst) || (NULL == results) || (0 == n_result) || (NULL == n_hit_result) ||
         (NULL == state) || (state->thread_id < 0)) {
         return MAAT_SCAN_ERR;
     }
@@ -1380,20 +1370,23 @@ int maat_scan_ipv4_port(struct maat *maat_inst, int attribute_id, uint32_t ip_ad
 
     state->Nth_scan++;
 
+    int table_id = table_manager_get_table_id(maat_inst->tbl_mgr, table_name);
+    if (table_id < 0) {
+        maat_inst->stat->scan_err_cnt++;
+        return MAAT_SCAN_ERR;
+    }
+    int attribute_id = table_manager_get_attribute_id(maat_inst->tbl_mgr, attribute_name);
+    if (attribute_id < 0) {
+        maat_inst->stat->scan_err_cnt++;
+        return MAAT_SCAN_ERR;
+    }
+
     struct maat_runtime *maat_rt = maat_inst->maat_rt;
     if (NULL == maat_rt) {
         return MAAT_SCAN_OK;
     }
 
     enum table_type table_type = TABLE_TYPE_INVALID;
-
-    int table_id = table_manager_attribute_get_table_id(maat_inst->tbl_mgr, attribute_id);
-    
-    if (table_id < 0) {
-        maat_inst->stat->scan_err_cnt++;
-        return MAAT_SCAN_ERR;
-    }
-
     table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     if (table_type != TABLE_TYPE_IP) {
         maat_inst->stat->scan_err_cnt++;
@@ -1442,12 +1435,11 @@ int maat_scan_ipv4_port(struct maat *maat_inst, int attribute_id, uint32_t ip_ad
     }
 }
 
-int maat_scan_ipv6_port(struct maat *maat_inst, int attribute_id, uint8_t *ip_addr,
-                        int port, uuid_t *results, size_t n_result,
+int maat_scan_ipv6_port(struct maat *maat_inst, const char *table_name, const char *attribute_name, 
+                        uint8_t *ip_addr, int port, uuid_t *results, size_t n_result,
                         size_t *n_hit_result, struct maat_state *state)
 {
-    if ((NULL == maat_inst) || attribute_id < 0 || attribute_id >= MAX_ATTRIBUTE_NUM ||
-        (NULL == ip_addr) || (NULL == results) || (0 == n_result) ||
+    if ((NULL == maat_inst) || (NULL == ip_addr) || (NULL == results) || (0 == n_result) ||
         (NULL == n_hit_result) || (NULL == state) || (state->thread_id < 0)) {
         return MAAT_SCAN_ERR;
     }
@@ -1459,20 +1451,23 @@ int maat_scan_ipv6_port(struct maat *maat_inst, int attribute_id, uint8_t *ip_ad
 
     state->Nth_scan++;
 
+    int table_id = table_manager_get_table_id(maat_inst->tbl_mgr, table_name);
+    if (table_id < 0) {
+        maat_inst->stat->scan_err_cnt++;
+        return MAAT_SCAN_ERR;
+    }
+    int attribute_id = table_manager_get_attribute_id(maat_inst->tbl_mgr, attribute_name);
+    if (attribute_id < 0) {
+        maat_inst->stat->scan_err_cnt++;
+        return MAAT_SCAN_ERR;
+    }
+
     struct maat_runtime *maat_rt = maat_inst->maat_rt;
     if (NULL == maat_rt) {
         return MAAT_SCAN_OK;
     }
 
     enum table_type table_type = TABLE_TYPE_INVALID;
-
-    int table_id = table_manager_attribute_get_table_id(maat_inst->tbl_mgr, attribute_id);
-    
-    if (table_id < 0) {
-        maat_inst->stat->scan_err_cnt++;
-        return MAAT_SCAN_ERR;
-    }
-
     table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     if (table_type != TABLE_TYPE_IP) {
         maat_inst->stat->scan_err_cnt++;
@@ -1522,29 +1517,27 @@ int maat_scan_ipv6_port(struct maat *maat_inst, int attribute_id, uint8_t *ip_ad
 }
 
 #define PORT_IGNORED -1
-inline int maat_scan_ipv6(struct maat *instance, int attribute_id, uint8_t *ip_addr,
-                   uuid_t *results, size_t n_result, size_t *n_hit_result,
-                   struct maat_state *state)
+inline int maat_scan_ipv6(struct maat *instance, const char *table_name, const char *attribute_name,
+                        uint8_t *ip_addr, uuid_t *results, size_t n_result, size_t *n_hit_result, 
+                        struct maat_state *state)
 {
-    return maat_scan_ipv6_port(instance, attribute_id, ip_addr, PORT_IGNORED,
+    return maat_scan_ipv6_port(instance, table_name, attribute_name, ip_addr, PORT_IGNORED,
                                results, n_result, n_hit_result, state);
 }
 
-inline int maat_scan_ipv4(struct maat *instance, int attribute_id, uint32_t ip_addr,
-                   uuid_t *results, size_t n_result, size_t *n_hit_result,
-                   struct maat_state *state)
+inline int maat_scan_ipv4(struct maat *instance, const char *table_name, const char *attribute_name, 
+                        uint32_t ip_addr, uuid_t *results, size_t n_result, size_t *n_hit_result,
+                        struct maat_state *state)
 {
-    return maat_scan_ipv4_port(instance, attribute_id, ip_addr, PORT_IGNORED,
+    return maat_scan_ipv4_port(instance, table_name, attribute_name, ip_addr, PORT_IGNORED,
                                results, n_result, n_hit_result, state);
 }
 
-int maat_scan_string(struct maat *maat_inst, int attribute_id,
-                     const char *data, size_t data_len,
-                     uuid_t *results, size_t n_result,
+int maat_scan_string(struct maat *maat_inst, const char *table_name, const char *attribute_name,
+                     const char *data, size_t data_len, uuid_t *results, size_t n_result,
                      size_t *n_hit_result, struct maat_state *state)
 {
-    if ((NULL == maat_inst) || attribute_id < 0 || attribute_id >= MAX_ATTRIBUTE_NUM ||
-        (NULL == data) || (0 == data_len) || (NULL == results) ||
+    if ((NULL == maat_inst) || (NULL == data) || (0 == data_len) || (NULL == results) ||
         (0 == n_result) || (NULL == n_hit_result) || (NULL == state) ||
         (state->thread_id < 0)) {
         return MAAT_SCAN_ERR;
@@ -1557,22 +1550,25 @@ int maat_scan_string(struct maat *maat_inst, int attribute_id,
 
     state->Nth_scan++;
 
+    int table_id = table_manager_get_table_id(maat_inst->tbl_mgr, table_name);
+    if (table_id < 0) {
+        maat_inst->stat->scan_err_cnt++;
+        return MAAT_SCAN_ERR;
+    }
+    int attribute_id = table_manager_get_attribute_id(maat_inst->tbl_mgr, attribute_name);
+    if (attribute_id < 0) {
+        maat_inst->stat->scan_err_cnt++;
+        return MAAT_SCAN_ERR;
+    }
+
     struct maat_runtime *maat_rt = maat_inst->maat_rt;
     if (NULL == maat_rt) {
         return MAAT_SCAN_OK;
     }
 
     enum table_type table_type = TABLE_TYPE_INVALID;
-    
-    int table_id = table_manager_attribute_get_table_id(maat_inst->tbl_mgr, attribute_id);
-    
-    if (table_id < 0) {
-        maat_inst->stat->scan_err_cnt++;
-        return MAAT_SCAN_ERR;
-    }
-
     table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
-    if (table_type != TABLE_TYPE_EXPR && table_type != TABLE_TYPE_EXPR_PLUS) {
+    if (table_type != TABLE_TYPE_EXPR) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
@@ -1680,13 +1676,12 @@ maat_state_activate_hit_not_object(struct maat_state *state, int attribute_id)
                                    attribute_id, state->Nth_scan);
 }
 
-int maat_scan_object(struct maat *maat_inst, int attribute_id,
+int maat_scan_object(struct maat *maat_inst, const char *table_name, const char *attribute_name,
                     struct maat_hit_object *objects, size_t n_object,
                     uuid_t *results, size_t n_result,
                     size_t *n_hit_result, struct maat_state *state)
 {
-    if ((NULL == maat_inst) || attribute_id < 0 || attribute_id >= MAX_ATTRIBUTE_NUM ||
-        (NULL == objects) || (0 == n_object) || (NULL == results) ||
+    if ((NULL == maat_inst) || (NULL == objects) || (0 == n_object) || (NULL == results) ||
         (0 == n_result) || (NULL == n_hit_result) || (NULL == state) ||
         (state->thread_id < 0)) {
         return -1;
@@ -1694,16 +1689,20 @@ int maat_scan_object(struct maat *maat_inst, int attribute_id,
 
     state->Nth_scan++;
 
-    struct maat_runtime *maat_rt = maat_inst->maat_rt;
-    if (NULL == maat_rt) {
-        return MAAT_SCAN_OK;
-    }
-
-    int table_id = table_manager_attribute_get_table_id(maat_inst->tbl_mgr, attribute_id);
-    
+    int table_id = table_manager_get_table_id(maat_inst->tbl_mgr, table_name);
     if (table_id < 0) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
+    }
+    int attribute_id = table_manager_get_attribute_id(maat_inst->tbl_mgr, attribute_name);
+    if (attribute_id < 0) {
+        maat_inst->stat->scan_err_cnt++;
+        return MAAT_SCAN_ERR;
+    }
+
+    struct maat_runtime *maat_rt = maat_inst->maat_rt;
+    if (NULL == maat_rt) {
+        return MAAT_SCAN_OK;
     }
 
     maat_runtime_ref_inc(maat_rt, state->thread_id);
@@ -1723,18 +1722,22 @@ int maat_scan_object(struct maat *maat_inst, int attribute_id,
     return MAAT_SCAN_OK;
 }
 
-int maat_scan_not_logic(struct maat *maat_inst, int attribute_id,
+int maat_scan_not_logic(struct maat *maat_inst, const char *table_name, const char *attribute_name,
                         uuid_t *results, size_t n_result,
                         size_t *n_hit_result, struct maat_state *state)
 {
-    if ((NULL == maat_inst) || attribute_id < 0 || attribute_id >= MAX_ATTRIBUTE_NUM ||
-        (NULL == results) || (0 == n_result) || (NULL == n_hit_result) ||
+    if ((NULL == maat_inst) || (NULL == results) || (0 == n_result) || (NULL == n_hit_result) ||
         (NULL == state) || (state->thread_id < 0)) {
         return -1;
     }
 
     if (NULL == state->rule_compile_state) {
         return 0;
+    }
+
+    int attribute_id = table_manager_get_attribute_id(maat_inst->tbl_mgr, attribute_name);
+    if (attribute_id < 0) {
+        return -1;
     }
 
     struct maat_runtime *maat_rt = maat_inst->maat_rt;
@@ -1759,11 +1762,9 @@ int maat_scan_not_logic(struct maat *maat_inst, int attribute_id,
     return MAAT_SCAN_OK;
 }
 
-struct maat_stream *maat_stream_new(struct maat *maat_inst, int attribute_id, 
-                                    struct maat_state *state)
+struct maat_stream *maat_stream_new(struct maat *maat_inst, const char *table_name, const char *attribute_name, struct maat_state *state)
 {
-    if ((NULL == maat_inst) || attribute_id < 0 || attribute_id >= MAX_ATTRIBUTE_NUM ||
-        (NULL == state) || (state->thread_id < 0)) {
+    if ((NULL == maat_inst) || (NULL == state) || (state->thread_id < 0)) {
         return NULL;
     }
 
@@ -1771,8 +1772,8 @@ struct maat_stream *maat_stream_new(struct maat *maat_inst, int attribute_id,
     stream->ref_maat_inst = maat_inst;
     stream->last_full_version = maat_inst->last_full_version;
     stream->thread_id = state->thread_id;
-    stream->table_id = table_manager_attribute_get_table_id(maat_inst->tbl_mgr, attribute_id);
-    stream->attribute_id = attribute_id;
+    stream->table_id = table_manager_get_table_id(maat_inst->tbl_mgr, table_name);
+    stream->attribute_id = table_manager_get_attribute_id(maat_inst->tbl_mgr, attribute_name);
     stream->logger = maat_inst->logger;
 
     enum table_type table_type = TABLE_TYPE_INVALID;
@@ -1780,11 +1781,13 @@ struct maat_stream *maat_stream_new(struct maat *maat_inst, int attribute_id,
     if (stream->table_id < 0) {
         goto error;
     }
+    if (stream->attribute_id < 0) {
+        goto error;
+    }
 
     table_type = table_manager_get_table_type(maat_inst->tbl_mgr,
                                               stream->table_id);
-    if (table_type != TABLE_TYPE_EXPR &&
-        table_type != TABLE_TYPE_EXPR_PLUS) {
+    if (table_type != TABLE_TYPE_EXPR) {
         goto error;
     }
 
@@ -1822,13 +1825,8 @@ static int expr_stream_scan(struct maat_stream *stream, const char *data,
     enum table_type table_type = TABLE_TYPE_INVALID;
     struct table_manager *tbl_mgr = stream->ref_maat_inst->tbl_mgr;
     table_type = table_manager_get_table_type(tbl_mgr, stream->table_id);
-    if (table_type == TABLE_TYPE_EXPR_PLUS && 
-        DISTRICT_FLAG_UNSET == state->district_flag) {
-        return -1;
-    }
 
-    if (table_type != TABLE_TYPE_EXPR &&
-        table_type != TABLE_TYPE_EXPR_PLUS) {
+    if (table_type != TABLE_TYPE_EXPR) {
         return -1;
     }
 
@@ -1951,8 +1949,6 @@ struct maat_state *maat_state_new(struct maat *maat_inst, int thread_id)
     struct maat_state *state = ALLOC(struct maat_state, 1);
 
     state->maat_inst = maat_inst;
-    state->district_flag = DISTRICT_FLAG_UNSET;
-    state->district_id = DISTRICT_ANY;
     state->thread_id = thread_id;
 
     /* state->rule_state no need to alloc memory at this point,
@@ -1970,8 +1966,6 @@ void maat_state_reset(struct maat_state *state)
     }
 
     state->rule_table_id = 0;
-    state->district_flag = DISTRICT_FLAG_UNSET;
-    state->district_id = DISTRICT_ANY;
     state->Nth_scan = 0;
 
     if (state->rule_compile_state != NULL) {
@@ -2008,72 +2002,14 @@ void maat_state_free(struct maat_state *state)
                               thread_id, sizeof(struct maat_state));
 }
 
-int maat_state_set_scan_district(struct maat_state *state, int attribute_id, 
-                                 const char *district, size_t district_len)
+int maat_state_set_scan_rule_table(struct maat_state *state, const char *rule_table_name)
 {
-    if (NULL == state || NULL == district || 0 == district_len) {
+    if (NULL == state) {
         return -1;
     }
 
-    struct maat *maat_inst = state->maat_inst;
-    assert(maat_inst != NULL);
-
-    if (NULL == maat_inst->maat_rt) {
-        return -1;
-    }
-
-    int table_id = table_manager_attribute_get_table_id(maat_inst->tbl_mgr, attribute_id);
-    
-    if (table_id < 0) {
-        maat_inst->stat->scan_err_cnt++;
-        return MAAT_SCAN_ERR;
-    }
-
-    enum table_type table_type = TABLE_TYPE_INVALID;
-    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
-    if (table_type != TABLE_TYPE_FLAG_PLUS && table_type != TABLE_TYPE_EXPR_PLUS &&
-        table_type != TABLE_TYPE_INTERVAL_PLUS) {
-        return -1;
-    }
-
-    int ret = -1;
-    long long district_id = DISTRICT_UNKNOWN;
-
-    void *runtime = table_manager_get_runtime(maat_inst->tbl_mgr, table_id);
-    assert(runtime != NULL);
-    
-    switch (table_type) {
-        case TABLE_TYPE_FLAG_PLUS:
-            ret = flag_runtime_set_scan_district((struct flag_runtime *)runtime,
-                                                 district, district_len, &district_id);
-            break;
-        case TABLE_TYPE_EXPR_PLUS:
-            ret = expr_runtime_set_scan_district((struct expr_runtime *)runtime,
-                                                 district, district_len, &district_id);
-            break;
-        case TABLE_TYPE_INTERVAL_PLUS:
-            ret = interval_runtime_set_scan_district((struct interval_runtime *)runtime,
-                                                     district, district_len, &district_id);
-            break;
-        default:
-            break;
-    }
-
-    if (ret < 0) {
-        state->district_id = DISTRICT_UNKNOWN;
-    } else {
-        state->district_id = (int)district_id;
-    }
-
-    state->district_flag = DISTRICT_FLAG_SET;
-
-    return 0;
-}
-
-int maat_state_set_scan_rule_table(struct maat_state *state,
-                                      int rule_table_id)
-{
-    if (NULL == state || rule_table_id < 0) {
+    int rule_table_id = table_manager_get_table_id(state->maat_inst->tbl_mgr, rule_table_name);
+    if (rule_table_id < 0) {
         return -1;
     }
 
@@ -2089,17 +2025,17 @@ int maat_state_set_scan_rule_table(struct maat_state *state,
     return 0;
 }
 
-int maat_state_get_rule_table_ids(struct maat_state *state, long long *rule_ids,
-                                     size_t n_rule_ids, int *rule_table_ids)
+int maat_state_get_rule_table_names(struct maat_state *state, uuid_t *rule_ids,
+                                    size_t n_rule_ids, char *rule_table_names[])
 {
     if (NULL == state || NULL == rule_ids || 0 == n_rule_ids ||
-        NULL == rule_table_ids) {
+        NULL == rule_table_names) {
         return -1;
     }
 
     for (size_t i = 0; i < n_rule_ids; i++) {
-        rule_table_ids[i] = rule_compile_state_get_rule_table_id(state->rule_compile_state,
-                                                                  rule_ids[i]);
+        int table_id = rule_compile_state_get_rule_table_id(state->rule_compile_state, rule_ids[i]);
+        rule_table_names[i] = (char *)table_manager_get_table_name(state->maat_inst->tbl_mgr, table_id);
     }
     
     return n_rule_ids;

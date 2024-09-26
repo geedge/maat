@@ -157,7 +157,7 @@ void *ex_data_runtime_row2ex_data(struct ex_data_runtime *ex_data_rt,
 {   
     void *ex_data = NULL;
     struct ex_container_schema *container_schema = ex_data_rt->ref_container_schema;
-    container_schema->ex_schema.new_func(table_name, ex_data_rt->table_id, key, row, 
+    container_schema->ex_schema.new_func(table_name, key, row, 
                                          &ex_data, container_schema->ex_schema.argl, 
                                          container_schema->ex_schema.argp);
     return ex_data;
@@ -192,7 +192,7 @@ void ex_container_free(void *ex_data_runtime, void *ex_container)
 
     /* free ex_container->ex_data */
     if (container->ex_data != NULL && container_schema->ex_schema.free_func != NULL) {
-        container_schema->ex_schema.free_func(container_schema->table_id,
+        container_schema->ex_schema.free_func(container_schema->table_name,
                                               &(container->ex_data),
                                               container_schema->ex_schema.argl,
                                               container_schema->ex_schema.argp);
@@ -251,7 +251,7 @@ void *ex_data_runtime_get_ex_data_by_key(struct ex_data_runtime *ex_data_rt,
     }
 
     void *dup_ex_data = NULL;
-    container_schema->ex_schema.dup_func(ex_data_rt->table_id, &dup_ex_data, 
+    container_schema->ex_schema.dup_func(container_schema->table_name, &dup_ex_data, 
                                          &(ex_container->ex_data), 
                                          container_schema->ex_schema.argl, 
                                          container_schema->ex_schema.argp);
@@ -271,7 +271,7 @@ void *ex_data_runtime_get_ex_data_by_container(struct ex_data_runtime *ex_data_r
     }
 
     void *dup_ex_data = NULL;
-    container_schema->ex_schema.dup_func(ex_data_rt->table_id, &dup_ex_data, 
+    container_schema->ex_schema.dup_func(container_schema->table_name, &dup_ex_data, 
                                          &(ex_container->ex_data),
                                          container_schema->ex_schema.argl, 
                                          container_schema->ex_schema.argp);

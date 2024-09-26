@@ -67,7 +67,6 @@ struct expr_pattern {
 
 struct expr_scan_result {
 	uuid_t rule_uuid;
-	void *user_tag;
 };
 
 /* logic AND expression, such as (rule1 & rule2) */
@@ -75,7 +74,6 @@ struct expr_rule {
 	uuid_t expr_uuid;   /* AND expression ID */
 	size_t n_patterns;
 	struct expr_pattern patterns[MAX_EXPR_PATTERN_NUM];
-	void *tag;           /* user defined data, return with hit result */
 };
 
 int expr_matcher_verify_regex_expression(const char *regex_expr,
