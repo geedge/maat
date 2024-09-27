@@ -34,7 +34,7 @@ struct foreign_key {
 //rm= Redis Maat
 struct serial_rule {
 	enum maat_operation op;//0: delete, 1: add.
-	long long rule_id;
+	char rule_uuid_str[UUID_STR_LEN];
 	long long timeout;			// absolute unix time.
 	char table_name[MAX_NAME_STR_LEN];
 	char *table_line;
@@ -48,7 +48,7 @@ struct serial_rule {
 void maat_clear_rule_cache(struct serial_rule *s_rule);
 
 void maat_set_serial_rule(struct serial_rule *rule, enum maat_operation op,
-                          long long rule_id, const char *table_name,
+                          const char *rule_uuid_str, const char *table_name,
                           const char *line, long long timeout);
 
 redisContext *maat_connect_redis(const char *redis_ip, int redis_port,

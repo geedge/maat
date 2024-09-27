@@ -622,6 +622,7 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema,
               "plugin table:<%s> update one line, key:%s, key_len:%zu, maat_operation:%d",
               table_name, print_key, raw_key_len, op);
     
+    yyjson_doc_free(doc);
     return 0;
 
 ERROR:

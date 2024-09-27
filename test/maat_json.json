@@ -10,7 +10,7 @@
 					"table_name": "AS_NUMBER",
 					"table_type": "expr",
 					"table_content": {
-						"keywords": "^AS1234$",
+						"expression": "^AS1234$",
 						"expr_type": "and"
 					}
 				}
@@ -24,7 +24,7 @@
 					"table_name": "AS_NUMBER",
 					"table_type": "expr",
 					"table_content": {
-						"keywords": "^AS2345$",
+						"expression": "^AS2345$",
 						"expr_type": "and"
 					}
 				}
@@ -38,7 +38,7 @@
 					"table_name": "AS_NUMBER",
 					"table_type": "expr",
 					"table_content": {
-						"keywords": "^AS6789$",
+						"expression": "^AS6789$",
 						"expr_type": "and"
 					}
 				}
@@ -52,7 +52,7 @@
 					"table_name": "AS_NUMBER",
 					"table_type": "expr",
 					"table_content": {
-						"keywords": "^AS9001$",
+						"expression": "^AS9001$",
 						"expr_type": "and"
 					}
 				}
@@ -66,7 +66,7 @@
 					"table_name": "AS_NUMBER",
 					"table_type": "expr",
 					"table_content": {
-						"keywords": "^AS9002$",
+						"expression": "^AS9002$",
 						"expr_type": "and"
 					}
 				}
@@ -80,7 +80,7 @@
 					"table_name": "AS_NUMBER",
 					"table_type": "expr",
 					"table_content": {
-						"keywords": "^AS9003$",
+						"expression": "^AS9003$",
 						"expr_type": "and"
 					}
 				}
@@ -107,7 +107,7 @@
 					"table_name": "KEYWORDS_TABLE",
 					"table_type": "expr",
 					"table_content": {
-						"keywords": "^sports.example.com$",
+						"expression": "^sports.example.com$",
 						"expr_type": "and"
 					}
 				}
@@ -200,7 +200,7 @@
 					"table_name": "GeoLocation",
 					"table_type": "expr",
 					"table_content": {
-						"keywords": "^Greece.Sparta$",
+						"expression": "^Greece.Sparta$",
 						"expr_type": "and"
 					}
 				}
@@ -247,7 +247,7 @@
 					"table_name": "KEYWORDS_TABLE",
 					"table_type": "expr",
 					"table_content": {
-						"keywords": "Take me Home&Batman\\",
+						"expression": "Take me Home&Batman\\",
 						"expr_type": "and"
 					}
 				}
@@ -261,7 +261,7 @@
                     "table_type": "expr",
                     "table_name": "MAIL_ADDR",
                     "table_content": {
-                        "keywords": "^ceshi3@mailhost.cn",
+                        "expression": "^ceshi3@mailhost.cn",
                         "expr_type": "and"
                     }
                 },
@@ -269,7 +269,7 @@
                     "table_type": "expr",
                     "table_name": "MAIL_ADDR",
                     "table_content": {
-                        "keywords": "^ceshi6@mailhost.cn",
+                        "expression": "^ceshi6@mailhost.cn",
                         "expr_type": "and"
                     }
                 }
@@ -283,7 +283,7 @@
                     "table_type": "expr",
                     "table_name": "MAIL_ADDR",
                     "table_content": {
-                        "keywords": "^ceshi4@mailhost.cn",
+                        "expression": "^ceshi4@mailhost.cn",
                         "expr_type": "and"
                     }
                 }
@@ -298,7 +298,7 @@
                     "table_type": "expr",
                     "table_content": {
 
-                        "keywords": "Chrome/78.0.3904.108",
+                        "expression": "Chrome/78.0.3904.108",
                         "expr_type": "and"
                     }
                 }
@@ -313,7 +313,7 @@
                     "table_type": "expr",
                     "table_content": {
 
-                        "keywords": "uid=12345678",
+                        "expression": "uid=12345678",
                         "expr_type": "and"
                     }
                 },
@@ -322,7 +322,7 @@
                     "table_type": "expr",
                     "table_content": {
 
-                        "keywords": "sessionid=888888",
+                        "expression": "sessionid=888888",
                         "expr_type": "and"
                     }
                 }
@@ -336,7 +336,7 @@
                     "table_name": "HTTP_URL",
                     "table_type": "expr",
                     "table_content": {
-                        "keywords": "2019/12/27",
+                        "expression": "2019/12/27",
                         "expr_type": "and"
                     }
                 }
@@ -351,7 +351,7 @@
                     "table_name": "HTTP_URL",
                     "table_type": "expr",
                     "table_content": {
-                        "keywords": "must-contained-string-of-rule-199",
+                        "expression": "must-contained-string-of-rule-199",
                         "expr_type": "and"
                     }
                 }
@@ -366,7 +366,7 @@
                     "table_name": "HTTP_URL",
                     "table_type": "expr",
                     "table_content": {
-                        "keywords": "must-not-contained-string-of-rule-199",
+                        "expression": "must-not-contained-string-of-rule-199",
                         "expr_type": "and"
                     }
                 }
@@ -381,7 +381,7 @@
                     "table_name": "HTTP_URL",
                     "table_type": "expr",
                     "table_content": {
-                        "keywords": "must-contained-string-of-rule-200",
+                        "expression": "must-contained-string-of-rule-200",
                         "expr_type": "and"
                     }
                 }
@@ -396,7 +396,7 @@
                     "table_name": "HTTP_URL",
                     "table_type": "expr",
                     "table_content": {
-                        "keywords": "must-not-contained-string-of-rule-200",
+                        "expression": "must-not-contained-string-of-rule-200",
                         "expr_type": "and"
                     }
                 }
@@ -453,7 +453,7 @@
                     "table_type": "expr",
                     "table_name": "KEYWORDS_TABLE",
                     "table_content": {
-                        "keywords": "jianshu.com$",
+                        "expression": "jianshu.com$",
                         "expr_type": "and"
                     }
                 }
@@ -468,7 +468,7 @@
                     "table_type": "expr",
                     "table_name": "KEYWORDS_TABLE",
                     "table_content": {
-                        "keywords": "^www.jianshu.com$",
+                        "expression": "^www.jianshu.com$",
                         "expr_type": "and"
                     }
                 }
@@ -483,7 +483,7 @@
                     "table_type": "expr",
                     "table_name": "KEYWORDS_TABLE",
                     "table_content": {
-                        "keywords": "baidu.com$",
+                        "expression": "baidu.com$",
                         "expr_type": "and"
                     }
                 }
@@ -498,7 +498,7 @@
                     "table_type": "expr",
                     "table_name": "KEYWORDS_TABLE",
                     "table_content": {
-                        "keywords": "^www.baidu.com$",
+                        "expression": "^www.baidu.com$",
                         "expr_type": "and"
                     }
                 }
@@ -513,7 +513,7 @@
                     "table_type": "expr",
                     "table_name": "KEYWORDS_TABLE",
                     "table_content": {
-                        "keywords": "^mail.baidu.com$",
+                        "expression": "^mail.baidu.com$",
                         "expr_type": "and"
                     }
                 }
@@ -528,7 +528,7 @@
 					"table_name": "HTTP_URL",
 					"table_type": "expr",
 					"table_content": {
-						"keywords": "string-of-rule-217.com$",
+						"expression": "string-of-rule-217.com$",
 						"expr_type": "and"
 					}
 				}
@@ -543,7 +543,7 @@
 					"table_name": "HTTP_URL",
 					"table_type": "expr",
 					"table_content": {
-						"keywords": "www.string-of-rule-217.com",
+						"expression": "www.string-of-rule-217.com",
 						"expr_type": "and"
 					}
 				}
@@ -663,7 +663,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "abckkk&123",
+										"expression": "abckkk&123",
 										"expr_type": "and"
 									}
 								}
@@ -728,7 +728,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "action=search\\&query=(.*)",
+										"expression": "action=search\\&query=(.*)",
 										"expr_type": "regex"
 									}
 								}
@@ -758,7 +758,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "should_not_hit_any_rule",
+										"expression": "should_not_hit_any_rule",
 										"expr_type": "and"
 									}
 								}
@@ -795,7 +795,7 @@
 									"table_type": "expr",
 									"table_content": {
 
-										"keywords": "abckkk&123",
+										"expression": "abckkk&123",
 										"expr_type": "and"
 									}
 								}
@@ -825,7 +825,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "C#中国",
+										"expression": "C#中国",
 										"expr_type": "and"
 									}
 								}
@@ -855,7 +855,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "2010&يىلىدىكى",
+										"expression": "2010&يىلىدىكى",
 										"expr_type": "and"
 									}
 								}
@@ -885,7 +885,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "سىياسىي",
+										"expression": "سىياسىي",
 										"expr_type": "and"
 									}
 								}
@@ -932,7 +932,7 @@
 									"table_name": "HTTP_HOST",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "www.3300av.com",
+										"expression": "www.3300av.com",
 										"expr_type": "and"
 									}
 								}
@@ -962,7 +962,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "novel&27122.txt",
+										"expression": "novel&27122.txt",
 										"expr_type": "and"
 									}
 								}
@@ -992,7 +992,7 @@
 									"table_name": "IMAGE_FP",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "(offset=4362,depth=4458)|323031333A30333A30372032333A35363A313000323031333A30333A30372032333A35363A3130000000FFE20C584943435F50524F46494C4500010100000C484C696E6F021000006D6E74725247422058595A2007CE00020009000600310000|",
+										"expression": "(offset=4362,depth=4458)|323031333A30333A30372032333A35363A313000323031333A30333A30372032333A35363A3130000000FFE20C584943435F50524F46494C4500010100000C484C696E6F021000006D6E74725247422058595A2007CE00020009000600310000|",
 										"expr_type": "and"
 									}
 								}
@@ -1022,7 +1022,7 @@
 									"table_name": "IMAGE_FP",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "(offset=19339,depth=19467)|6CB2CB2F2028474C994991CCFC65CCA5E3B6FF001673985D157358610CACC674EE64CC27B5721CCDABD9CCA7C8E9F7BB1F54A930A6034D50F92711F5B2DACCB0715D2E6873CE5CE431DC701A194C260E9DB78CC89F2C84745869AB88349A3AE0412AB59D9ABA84EDEFFF0057FA4DA66D333698B5AD6F844DA2226D1CADAD5E44|",
+										"expression": "(offset=19339,depth=19467)|6CB2CB2F2028474C994991CCFC65CCA5E3B6FF001673985D157358610CACC674EE64CC27B5721CCDABD9CCA7C8E9F7BB1F54A930A6034D50F92711F5B2DACCB0715D2E6873CE5CE431DC701A194C260E9DB78CC89F2C84745869AB88349A3AE0412AB59D9ABA84EDEFFF0057FA4DA66D333698B5AD6F844DA2226D1CADAD5E44|",
 										"expr_type": "and"
 									}
 								}
@@ -1054,7 +1054,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "should&hit&aaa",
+										"expression": "should&hit&aaa",
 										"expr_type": "and"
 									}
 								}
@@ -1086,7 +1086,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "should&hit&bbb",
+										"expression": "should&hit&bbb",
 										"expr_type": "and"
 									}
 								}
@@ -1116,7 +1116,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "2018-10-05",
+										"expression": "2018-10-05",
 										"expr_type": "and"
 									}
 								}
@@ -1148,7 +1148,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "i.ytimg.com",
+										"expression": "i.ytimg.com",
 										"expr_type": "and"
 									}
 								}
@@ -1178,7 +1178,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": ",IgpwcjA0LnN2bzAzKgkxMjcuMC4wLjE",
+										"expression": ",IgpwcjA0LnN2bzAzKgkxMjcuMC4wLjE",
 										"expr_type": "and"
 									}
 								}
@@ -1209,7 +1209,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "must-contained-string-of-rule-143",
+										"expression": "must-contained-string-of-rule-143",
 										"expr_type": "and"
 									}
 								}
@@ -1229,7 +1229,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "must-not-contained-string-of-rule-143",
+										"expression": "must-not-contained-string-of-rule-143",
 										"expr_type": "and"
 									}
 								}
@@ -1260,7 +1260,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "must-contained-string-of-rule-144",
+										"expression": "must-contained-string-of-rule-144",
 										"expr_type": "and"
 									}
 								}
@@ -1280,7 +1280,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "must-not-contained-string-of-rule-144",
+										"expression": "must-not-contained-string-of-rule-144",
 										"expr_type": "and"
 									}
 								}
@@ -1311,7 +1311,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "must-contained-string-of-rule-145",
+										"expression": "must-contained-string-of-rule-145",
 										"expr_type": "and"
 									}
 								}
@@ -1350,7 +1350,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "must-contained-string-of-rule-146",
+										"expression": "must-contained-string-of-rule-146",
 										"expr_type": "and"
 									}
 								}
@@ -1371,7 +1371,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "must-contained-not-string-of-rule-146",
+										"expression": "must-contained-not-string-of-rule-146",
 										"expr_type": "and"
 									}
 								}
@@ -1411,7 +1411,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "condition0-in-rule-147",
+										"expression": "condition0-in-rule-147",
 										"expr_type": "and"
 									}
 								}
@@ -1432,7 +1432,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "condition1-in-rule-147",
+										"expression": "condition1-in-rule-147",
 										"expr_type": "and"
 									}
 								}
@@ -1453,7 +1453,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "condition2-in-rule-147",
+										"expression": "condition2-in-rule-147",
 										"expr_type": "and"
 									}
 								}
@@ -1474,7 +1474,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "condition3-in-rule-147",
+										"expression": "condition3-in-rule-147",
 										"expr_type": "and"
 									}
 								}
@@ -1495,7 +1495,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "condition4-in-rule-147",
+										"expression": "condition4-in-rule-147",
 										"expr_type": "and"
 									}
 								}
@@ -1516,7 +1516,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "condition5-in-rule-147",
+										"expression": "condition5-in-rule-147",
 										"expr_type": "and"
 									}
 								}
@@ -1537,7 +1537,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "condition6-in-rule-147",
+										"expression": "condition6-in-rule-147",
 										"expr_type": "and"
 									}
 								}
@@ -1558,7 +1558,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "condition7-in-rule-147",
+										"expression": "condition7-in-rule-147",
 										"expr_type": "and"
 									}
 								}
@@ -1588,7 +1588,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "Cookie:\\s.*head",
+										"expression": "Cookie:\\s.*head",
 										"expr_type": "regex"
 									}
 								}
@@ -1618,7 +1618,7 @@
 									"table_type": "expr",
 									"table_name": "TROJAN_PAYLOAD",
 									"table_content": {
-										"keywords": "(offset=0,depth=4)|01000000|",
+										"expression": "(offset=0,depth=4)|01000000|",
 										"expr_type": "and"
 									}
 								}
@@ -1637,7 +1637,7 @@
 									"table_type": "expr",
 									"table_name": "TROJAN_PAYLOAD",
 									"table_content": {
-										"keywords": "1:G2.40",
+										"expression": "1:G2.40",
 										"expr_type": "and"
 									}
 								}
@@ -1667,7 +1667,7 @@
 									"table_type": "expr",
 									"table_name": "MAIL_ADDR",
 									"table_content": {
-										"keywords": "ceshi3@mailhost.cn$",
+										"expression": "ceshi3@mailhost.cn$",
 										"expr_type": "and"
 									}
 								}
@@ -1805,7 +1805,7 @@
 									"table_type": "expr",
 									"table_name": "TROJAN_PAYLOAD",
 									"table_content": {
-										"keywords": "我的订单",
+										"expression": "我的订单",
 										"expr_type": "and"
 									}
 								}
@@ -1901,7 +1901,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "https://blog.csdn.net/littlefang/article/details/8213058",
+										"expression": "https://blog.csdn.net/littlefang/article/details/8213058",
 										"expr_type": "and"
 									}
 								}
@@ -1956,7 +1956,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": ">ЗАО «Севергазвтоматика АйС»<",
+										"expression": ">ЗАО «Севергазвтоматика АйС»<",
 										"expr_type": "and"
 									}
 								}
@@ -1987,7 +1987,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "cavemancircus.com/",
+										"expression": "cavemancircus.com/",
 										"expr_type": "and"
 									}
 								}
@@ -2037,7 +2037,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "2019/12/27/pretty-girls-6",
+										"expression": "2019/12/27/pretty-girls-6",
 										"expr_type": "and"
 									}
 								}
@@ -2342,7 +2342,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "string1&string2&string3&string4&string5&string6&string7&string8",
+										"expression": "string1&string2&string3&string4&string5&string6&string7&string8",
 										"expr_type": "and"
 									}
 								}
@@ -2456,7 +2456,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "must-not-contained-string-of-rule-186",
+										"expression": "must-not-contained-string-of-rule-186",
 										"expr_type": "and"
 									}
 								}
@@ -2506,7 +2506,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "must-not-contained-string-of-rule-187",
+										"expression": "must-not-contained-string-of-rule-187",
 										"expr_type": "and"
 									}
 								}
@@ -2556,7 +2556,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "must-not-contained-string-of-rule-188",
+										"expression": "must-not-contained-string-of-rule-188",
 										"expr_type": "and"
 									}
 								}
@@ -2606,7 +2606,7 @@
 									"table_type": "expr",
 									"table_content": {
 
-										"keywords": "|ab00|",
+										"expression": "|ab00|",
 										"expr_type": "and"
 									}
 								}
@@ -2636,7 +2636,7 @@
 									"table_type": "expr",
 									"table_name": "KEYWORDS_TABLE",
 									"table_content": {
-										"keywords": "|54455354|",
+										"expression": "|54455354|",
 										"expr_type": "and"
 									}
 								}
@@ -2667,7 +2667,7 @@
 									"table_name": "FLAG_CONFIG",
 									"table_content": {
 										"flag": 1,
-										"flag_mask": 3
+										"mask": 3
 									}
 								}
 							]
@@ -2697,7 +2697,7 @@
 									"table_name": "FLAG_CONFIG",
 									"table_content": {
 										"flag": 2,
-										"flag_mask": 3
+										"mask": 3
 									}
 								}
 							]
@@ -2715,7 +2715,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "hello",
+										"expression": "hello",
 										"expr_type": "and"
 									}
 								}
@@ -2746,7 +2746,7 @@
 									"table_name": "FLAG_CONFIG",
 									"table_content": {
 										"flag": 21,
-										"flag_mask": 31
+										"mask": 31
 									}
 								}
 							]
@@ -2775,7 +2775,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "hqdefault.jpg",
+										"expression": "hqdefault.jpg",
 										"expr_type": "and"
 									}
 								}
@@ -2807,7 +2807,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "firewall",
+										"expression": "firewall",
 										"expr_type": "and"
 									}
 								}
@@ -3004,7 +3004,7 @@
 									"table_type": "expr",
 									"table_name": "KEYWORDS_TABLE",
 									"table_content": {
-										"keywords": "123^456",
+										"expression": "123^456",
 										"expr_type": "regex"
 									}
 								}
@@ -3034,7 +3034,7 @@
 									"table_type": "expr",
 									"table_name": "KEYWORDS_TABLE",
 									"table_content": {
-										"keywords": "|54455354|",
+										"expression": "|54455354|",
 										"expr_type": "and"
 									}
 								}
@@ -3065,7 +3065,7 @@
 									"table_name": "FLAG_CONFIG",
 									"table_content": {
 										"flag": 1,
-										"flag_mask": 3
+										"mask": 3
 									}
 								}
 							]
@@ -3212,7 +3212,7 @@
 									"table_name": "EXPR_LITERAL_PERF_CONFIG",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "today&yesterday",
+										"expression": "today&yesterday",
 										"expr_type": "and"
 									}
 								}
@@ -3243,7 +3243,7 @@
 									"table_name": "FLAG_PERF_CONFIG",
 									"table_content": {
 										"flag": 15,
-										"flag_mask": 15
+										"mask": 15
 									}
 								}
 							]
@@ -3272,7 +3272,7 @@
 									"table_name": "EXPR_REGEX_PERF_CONFIG",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "action=search\\&query=(.*)",
+										"expression": "action=search\\&query=(.*)",
 										"expr_type": "regex"
 									}
 								}
@@ -3312,7 +3312,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "keywords-for-rule-211",
+										"expression": "keywords-for-rule-211",
 										"expr_type": "and"
 									}
 								}
@@ -3352,7 +3352,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "keywords-for-rule-217",
+										"expression": "keywords-for-rule-217",
 										"expr_type": "and"
 									}
 								}
@@ -3413,7 +3413,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "keywords-dummy-219-1",
+										"expression": "keywords-dummy-219-1",
 										"expr_type": "and"
 									}
 								}
@@ -3434,7 +3434,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "keywords-dummy-219-2",
+										"expression": "keywords-dummy-219-2",
 										"expr_type": "and"
 									}
 								}
@@ -3455,7 +3455,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "keywords-dummy-219-3",
+										"expression": "keywords-dummy-219-3",
 										"expr_type": "and"
 									}
 								}
@@ -3476,7 +3476,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "keywords-dummy-219-4",
+										"expression": "keywords-dummy-219-4",
 										"expr_type": "and"
 									}
 								}
@@ -3497,7 +3497,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "keywords-dummy-219-5",
+										"expression": "keywords-dummy-219-5",
 										"expr_type": "and"
 									}
 								}
@@ -3518,7 +3518,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "keywords-dummy-219-6",
+										"expression": "keywords-dummy-219-6",
 										"expr_type": "and"
 									}
 								}
@@ -3539,7 +3539,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "keywords-dummy-219-7",
+										"expression": "keywords-dummy-219-7",
 										"expr_type": "and"
 									}
 								}
@@ -3560,7 +3560,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "keywords-dummy-219-8",
+										"expression": "keywords-dummy-219-8",
 										"expr_type": "and"
 									}
 								}
@@ -3592,7 +3592,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "keywords-dummy-220-1",
+										"expression": "keywords-dummy-220-1",
 										"expr_type": "and"
 									}
 								}
@@ -3613,7 +3613,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "keywords-dummy-220-2",
+										"expression": "keywords-dummy-220-2",
 										"expr_type": "and"
 									}
 								}
@@ -3634,7 +3634,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "keywords-dummy-220-3",
+										"expression": "keywords-dummy-220-3",
 										"expr_type": "and"
 									}
 								}
@@ -3666,7 +3666,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "not_logic_keywords_222",
+										"expression": "not_logic_keywords_222",
 										"expr_type": "and"
 									}
 								}
@@ -3698,7 +3698,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "not_logic_rule_223_1",
+										"expression": "not_logic_rule_223_1",
 										"expr_type": "and"
 									}
 								}
@@ -3719,7 +3719,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "not_logic_rule_223_2",
+										"expression": "not_logic_rule_223_2",
 										"expr_type": "and"
 									}
 								}
@@ -3740,7 +3740,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "not_logic_rule_223_3",
+										"expression": "not_logic_rule_223_3",
 										"expr_type": "and"
 									}
 								}
@@ -3772,7 +3772,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "not_logic_rule_224_1",
+										"expression": "not_logic_rule_224_1",
 										"expr_type": "and"
 									}
 								}
@@ -3793,7 +3793,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "not_logic_rule_224_2",
+										"expression": "not_logic_rule_224_2",
 										"expr_type": "and"
 									}
 								}
@@ -3825,7 +3825,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "GET / HTTP/1.1\\r\\nHost: www.baidu.com\\r\\n\\r\\n",
+										"expression": "GET / HTTP/1.1\\r\\nHost: www.baidu.com\\r\\n\\r\\n",
 										"expr_type": "and"
 									}
 								}
@@ -3894,7 +3894,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "youtube.com",
+										"expression": "youtube.com",
 										"expr_type": "and"
 									}
 								}
@@ -3944,7 +3944,7 @@
 									"table_name": "HTTP_URL",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "É",
+										"expression": "É",
 										"expr_type": "regex"
 									}
 								}
@@ -4084,7 +4084,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "html>\\\\r\\\\n",
+										"expression": "html>\\\\r\\\\n",
 										"expr_type": "and"
 									}
 								}
@@ -4116,7 +4116,7 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_type": "expr",
 									"table_content": {
-										"keywords": "\\(\\)abc\\^\\$def\\|",
+										"expression": "\\(\\)abc\\^\\$def\\|",
 										"expr_type": "and"
 									}
 								}
@@ -4146,7 +4146,7 @@
 									"table_type": "expr",
 									"table_name": "KEYWORDS_TABLE",
 									"table_content": {
-										"keywords": "cd |6162|",
+										"expression": "cd |6162|",
 										"expr_type": "and"
 									}
 								}

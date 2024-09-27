@@ -416,6 +416,8 @@ int ipport_plugin_runtime_update(void *ipport_plugin_runtime,
             ex_data_runtime_cached_row_count(ipport_plugin_rt->ex_data_rt);
     }
 
+    cJSON_Delete(json);
+
     return 0;
 
 ERROR:

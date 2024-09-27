@@ -4,19 +4,19 @@
 #include "maat_command.h"
 #include "ip_matcher/ip_matcher.h"
 
+struct maat_cmd_condition {
+    const char *object_uuids_str[8];
+    int object_num;
+    int negate_option;
+    const char *attribute_name;
+};
 int write_json_to_redis(const char *json_filename, char *redis_ip, int redis_port,
                         int redis_db, struct log_handle *logger);
 
 int rule_table_set_line(struct maat *maat_inst, const char *table_name,
-                           enum maat_operation op, long long rule_id,
-                           const char *user_region, int condition_num,
-                           int expire_after);
-
-int object2rule_table_set_line(struct maat *maat_inst, const char *table_name,
-                                 enum maat_operation op, long long object_id,
-                                 long long rule_id, int negate_option,
-                                 const char *attribute_name, int condition_index,
-                                 int expire_after);
+                           enum maat_operation op, uuid_t rule_uuid,
+                           const char *user_region, struct maat_cmd_condition conditions[],
+                           int condition_num, int expire_after);
 
 int object2object_table_set_line(struct maat *maat_inst, const char *table_name,
                                enum maat_operation op, long long object_id,

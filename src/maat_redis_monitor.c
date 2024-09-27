@@ -50,13 +50,13 @@ struct expected_reply {
 };
 
 static char *
-get_foreign_cont_filename(const char *table_name, long long rule_id, 
+get_foreign_cont_filename(const char *table_name, const char* rule_uuid_str, 
                           const char *foreign_key, const char *dir)
 {
 	char buffer[512] = {0};
 
-	snprintf(buffer, sizeof(buffer),"%s/%s-%lld-%s", dir, 
-             table_name, rule_id, foreign_key);
+	snprintf(buffer, sizeof(buffer),"%s/%s-%s-%s", dir, 
+             table_name, rule_uuid_str, foreign_key);
     char *filename = ALLOC(char, strlen(buffer) + 1);
 	memcpy(filename, buffer, strlen(buffer));
 
@@ -82,9 +82,9 @@ get_foregin_keys(struct serial_rule *p_rule, const char foreign_names[MAX_FOREIG
 		if (0 != strncmp(p_foreign, foreign_source_prefix,
 						 strlen(foreign_source_prefix))) {
 			log_fatal(logger, MODULE_REDIS_MONITOR, 
-                      "[%s:%d] Get %s,%lld foreign key failed: "
+                      "[%s:%d] Get %s,%s foreign key failed: "
 					  "Invalid source prefix %s", __FUNCTION__, __LINE__,
-					  p_rule->table_name, p_rule->rule_id, p_foreign);
+					  p_rule->table_name, p_rule->rule_uuid_str, p_foreign);
 			continue;
 		}
 
@@ -94,15 +94,15 @@ get_foregin_keys(struct serial_rule *p_rule, const char foreign_names[MAX_FOREIG
 		if (0 != strncmp(p_foreign, foreign_key_prefix,
 						 strlen(foreign_key_prefix))) {
 			log_info(logger, MODULE_REDIS_MONITOR, 
-                     "[%s:%d] %s, %lld foreign key prefix %s is not recommended",
-					 __FUNCTION__, __LINE__, p_rule->table_name, p_rule->rule_id,
+                     "[%s:%d] %s, %s foreign key prefix %s is not recommended",
+					 __FUNCTION__, __LINE__, p_rule->table_name, p_rule->rule_uuid_str,
 					 p_foreign);
 		}
 
 		p_rule->f_keys[p_rule->n_foreign].key = ALLOC(char, foreign_key_size + 1);
 		memcpy(p_rule->f_keys[p_rule->n_foreign].key, p_foreign, foreign_key_size);
 		p_rule->f_keys[p_rule->n_foreign].filename =
-			get_foreign_cont_filename(p_rule->table_name, p_rule->rule_id, 
+			get_foreign_cont_filename(p_rule->table_name, p_rule->rule_uuid_str, 
                                       p_rule->f_keys[p_rule->n_foreign].key, dir);
 		p_rule->n_foreign++;
 	}
@@ -209,9 +209,9 @@ get_maat_redis_value(redisContext *c, struct serial_rule *rule_list,
 
 	for (i = 0; i < rule_num; i++) {
 		snprintf(redis_cmd, sizeof(redis_cmd), 
-                 "GET %s:%s,%lld", mr_key_prefix[rule_list[i].op],
+                 "GET %s:%s,%s", mr_key_prefix[rule_list[i].op],
                  rule_list[i].table_name,
-                 rule_list[i].rule_id);
+                 rule_list[i].rule_uuid_str);
 		ret = redisAppendCommand(c, redis_cmd);
 		assert(ret == REDIS_OK);
 	}
@@ -220,9 +220,9 @@ get_maat_redis_value(redisContext *c, struct serial_rule *rule_list,
 		ret = maat_wrap_redis_get_reply(c, &reply);
 		if (ret == REDIS_ERR) {
 			log_fatal(logger, MODULE_REDIS_MONITOR, 
-                      "[%s:%d] Redis GET %s:%s,%lld failed, redis server error", 
+                      "[%s:%d] Redis GET %s:%s,%s failed, redis server error", 
                       __FUNCTION__, __LINE__, mr_key_prefix[rule_list[i].op], 
-                      rule_list[i].table_name, rule_list[i].rule_id);
+                      rule_list[i].table_name, rule_list[i].rule_uuid_str);
 			error_happened = 1;
 			break;			
 		}
@@ -235,9 +235,9 @@ get_maat_redis_value(redisContext *c, struct serial_rule *rule_list,
 				failed_cnt++;
 			} else {
 				log_fatal(logger, MODULE_REDIS_MONITOR, 
-                          "[%s:%d] Redis GET %s:%s,%lld failed",
+                          "[%s:%d] Redis GET %s:%s,%s failed",
                           __FUNCTION__, __LINE__, mr_key_prefix[rule_list[i].op],
-						  rule_list[i].table_name, rule_list[i].rule_id);
+						  rule_list[i].table_name, rule_list[i].rule_uuid_str);
 				error_happened = 1;
 			}
 		}
@@ -255,9 +255,9 @@ get_maat_redis_value(redisContext *c, struct serial_rule *rule_list,
 	for (i = 0; i < failed_cnt; i++) {
 		idx = retry_ids[i];
 		snprintf(redis_cmd, sizeof(redis_cmd), 
-                 "GET %s:%s,%lld", mr_key_prefix[MAAT_OP_DEL],
+                 "GET %s:%s,%s", mr_key_prefix[MAAT_OP_DEL],
                  rule_list[idx].table_name,
-                 rule_list[idx].rule_id);
+                 rule_list[idx].rule_uuid_str);
 		ret = redisAppendCommand(c, redis_cmd);
 	}
 
@@ -396,9 +396,9 @@ get_inc_key_list(long long instance_version, long long target_version,
 
 	for (i = 0, j = 0; i < (int)reply->elements; i++) {
 		assert(reply->element[i]->type == REDIS_REPLY_STRING);
-		int ret = sscanf(reply->element[i]->str, "%3s,%[^,],%lld", 
-                         op_str, s_rule[j].table_name, &(s_rule[j].rule_id));
-		if (ret != 3 || s_rule[j].rule_id < 0) {
+		int ret = sscanf(reply->element[i]->str, "%3s,%[^,],%s", 
+                         op_str, s_rule[j].table_name, s_rule[j].rule_uuid_str);
+		if (ret != 3 || s_rule[j].rule_uuid_str[0] == '\0') {
 			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Invalid Redis Key: %s", 
                       __FUNCTION__, __LINE__, reply->element[i]->str);
@@ -445,12 +445,12 @@ void maat_clear_rule_cache(struct serial_rule *s_rule)
 }
 
 void maat_set_serial_rule(struct serial_rule *rule, enum maat_operation op,
-                          long long rule_id, const char *table_name,
+                          const char *rule_uuid_str, const char *table_name,
                           const char *line, long long timeout)
 {
 	memset(rule, 0, sizeof(struct serial_rule));
     rule->op = op;
-	rule->rule_id = rule_id;
+	strncpy(rule->rule_uuid_str, rule_uuid_str, sizeof(rule->rule_uuid_str));
 	rule->timeout = timeout;
 	assert(strlen(table_name) < sizeof(rule->table_name));
 	strncpy(rule->table_name, table_name, sizeof(rule->table_name));
@@ -596,12 +596,12 @@ FULL_UPDATE:
 			continue;
 		}
 
-		ret = sscanf(sub_reply->element[i]->str, "%*[^:]:%[^,],%lld", 
+		ret = sscanf(sub_reply->element[i]->str, "%*[^:]:%[^,],%s", 
                      s_rule_array[full_idx].table_name, 
-                     &(s_rule_array[full_idx].rule_id));
+                     s_rule_array[full_idx].rule_uuid_str);
 		s_rule_array[full_idx].op = MAAT_OP_ADD;
 
-		if (ret != 2 || s_rule_array[full_idx].rule_id < 0 || 
+		if (ret != 2 || s_rule_array[full_idx].rule_uuid_str[0] == '\0' || 
             strlen(s_rule_array[full_idx].table_name) == 0) {
 			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Invalid Redis Key Format: %s", 
@@ -693,20 +693,20 @@ get_foreign_conts(redisContext *c, struct serial_rule *rule_list,
 		ret = maat_wrap_redis_get_reply(c, &reply);
 		if (ret == REDIS_ERR) {
 			log_fatal(logger, MODULE_REDIS_MONITOR, 
-                      "[%s:%d] Get %s,%lld foreign key %s content failed,"
+                      "[%s:%d] Get %s,%s foreign key %s content failed,"
 					  " redis server error", __FUNCTION__, __LINE__,
 					  rule_list[track[i].rule_idx].table_name,
-                      rule_list[track[i].rule_idx].rule_id,
+                      rule_list[track[i].rule_idx].rule_uuid_str,
                       rule_list[track[i].rule_idx].f_keys[track[i].foreign_idx].key);
 			break;
 		}
 		
 		if (reply->type != REDIS_REPLY_STRING) {
 			log_fatal(logger, MODULE_REDIS_MONITOR, 
-                      "[%s:%d] Get %s,%lld foreign key %s content failed",
+                      "[%s:%d] Get %s,%s foreign key %s content failed",
                       __FUNCTION__, __LINE__,
                       rule_list[track[i].rule_idx].table_name,
-                      rule_list[track[i].rule_idx].rule_id,
+                      rule_list[track[i].rule_idx].rule_uuid_str,
                       rule_list[track[i].rule_idx].f_keys[track[i].foreign_idx].key);
 			continue;
 		} else {
@@ -906,29 +906,29 @@ exec_serial_rule(redisContext *c, const char *transaction_list,
 	for (i = 0; i < rule_num; i++) {
 		switch (s_rule[i].op) {
 			case MAAT_OP_ADD:
-				redisAppendCommand(c, "SET %s:%s,%lld %s",
+				redisAppendCommand(c, "SET %s:%s,%s %s",
 						              mr_key_prefix[MAAT_OP_ADD],
 						              s_rule[i].table_name,
-						              s_rule[i].rule_id,
+						              s_rule[i].rule_uuid_str,
 						              s_rule[i].table_line);
 				expected_reply_add(expect_reply+*cnt, i+offset,
 								   REDIS_REPLY_STATUS, 0);
 				(*cnt)++;
 				append_cmd_cnt++;
 				//Allowing add duplicated members for rule id recycling.
-				redisAppendCommand(c, "RPUSH %s ADD,%s,%lld",
+				redisAppendCommand(c, "RPUSH %s ADD,%s,%s",
 						              transaction_list,
 						              s_rule[i].table_name,
-						              s_rule[i].rule_id);
+						              s_rule[i].rule_uuid_str);
 				expected_reply_add(expect_reply+*cnt, -1, REDIS_REPLY_INTEGER, 0);
 				(*cnt)++;
 				append_cmd_cnt++;
 				if (s_rule[i].timeout > 0) {
-					redisAppendCommand(c, "ZADD %s %lld %s,%lld",
+					redisAppendCommand(c, "ZADD %s %lld %s,%s",
 							              mr_expire_sset,
 							              s_rule[i].timeout,
 							              s_rule[i].table_name,
-							              s_rule[i].rule_id);
+							              s_rule[i].rule_uuid_str);
 					expected_reply_add(expect_reply+*cnt, i+offset,
 									   REDIS_REPLY_INTEGER, 1);
 					expected_reply_add(expect_reply+*cnt, i+offset,
@@ -938,22 +938,22 @@ exec_serial_rule(redisContext *c, const char *transaction_list,
 				}
 				break;
 			case MAAT_OP_DEL:
-				redisAppendCommand(c, "RENAME %s:%s,%lld %s:%s,%lld",
+				redisAppendCommand(c, "RENAME %s:%s,%s %s:%s,%s",
 						              mr_key_prefix[MAAT_OP_ADD],
 						              s_rule[i].table_name,
-						              s_rule[i].rule_id,
+						              s_rule[i].rule_uuid_str,
 						              mr_key_prefix[MAAT_OP_DEL],
 						              s_rule[i].table_name,
-						              s_rule[i].rule_id);
+						              s_rule[i].rule_uuid_str);
 				expected_reply_add(expect_reply+*cnt, i+offset,
 								   REDIS_REPLY_STATUS, 0);
 				(*cnt)++;
 				append_cmd_cnt++;
 				
-				redisAppendCommand(c, "EXPIRE %s:%s,%lld %d",
+				redisAppendCommand(c, "EXPIRE %s:%s,%s %d",
 						              mr_key_prefix[MAAT_OP_DEL],
 						              s_rule[i].table_name,
-						              s_rule[i].rule_id,
+						              s_rule[i].rule_uuid_str,
 						              MAAT_REDIS_SYNC_TIME);		
 				expected_reply_add(expect_reply+*cnt, i+offset,
 								   REDIS_REPLY_INTEGER, 1);
@@ -961,28 +961,28 @@ exec_serial_rule(redisContext *c, const char *transaction_list,
 				append_cmd_cnt++;
 				
 				//NX: Don't update already existing elements. Always add new elements.
-				redisAppendCommand(c, "RPUSH %s DEL,%s,%lld",
+				redisAppendCommand(c, "RPUSH %s DEL,%s,%s",
 						              transaction_list,
 						              s_rule[i].table_name,
-						              s_rule[i].rule_id);
+						              s_rule[i].rule_uuid_str);
 				expected_reply_add(expect_reply+*cnt, -1, REDIS_REPLY_INTEGER, 0);
 				(*cnt)++;
 				append_cmd_cnt++;
 				
 				// Try to remove from expiration sorted set, no matter wheather it exists or not.
-				redisAppendCommand(c, "ZREM %s %s,%lld",
+				redisAppendCommand(c, "ZREM %s %s,%s",
 						              mr_expire_sset,
 						              s_rule[i].table_name,
-						              s_rule[i].rule_id);
+						              s_rule[i].rule_uuid_str);
 				expected_reply_add(expect_reply+*cnt, -1, REDIS_REPLY_INTEGER, 0);
 				(*cnt)++;
 				append_cmd_cnt++;
 				
 				// Try to remove from label sorted set, no matter wheather it exists or not.
-				redisAppendCommand(c, "ZREM %s %s,%lld",
+				redisAppendCommand(c, "ZREM %s %s,%s",
 						              mr_label_sset,
 						              s_rule[i].table_name,
-						              s_rule[i].rule_id);
+						              s_rule[i].rule_uuid_str);
 				expected_reply_add(expect_reply+*cnt, -1, REDIS_REPLY_INTEGER, 0);
 				(*cnt)++;
 				append_cmd_cnt++;
@@ -1085,11 +1085,11 @@ int maat_cmd_write_rule(redisContext *c, struct serial_rule *s_rule,
 
 			rule_seq = expected_reply[i].s_rule_seq;
 			log_fatal(logger, MODULE_REDIS_MONITOR, 
-                      "[%s:%d] %s %s %lld failed, rule id maybe conflict"
+                      "[%s:%d] %s %s %s failed, rule id maybe conflict"
 					  " or not exist", __FUNCTION__, __LINE__,
 					  mr_op_str[s_rule[rule_seq].op],
 					  s_rule[rule_seq].table_name,
-					  s_rule[rule_seq].rule_id);
+					  s_rule[rule_seq].rule_uuid_str);
 			success_cnt--;
 			last_failed = rule_seq;
 		}
@@ -1214,8 +1214,8 @@ check_maat_expiration(redisContext *c, struct log_handle *logger)
 
 	for (size_t i = 0; i < s_rule_num; i++) {
 		s_rule[i].op = MAAT_OP_DEL;
-		ret = sscanf(data_reply->element[i]->str, "%[^,],%lld", 
-                    s_rule[i].table_name, &(s_rule[i].rule_id));
+		ret = sscanf(data_reply->element[i]->str, "%[^,],%s", 
+                    s_rule[i].table_name, s_rule[i].rule_uuid_str);
 		assert(ret == 2);
 	}
 	freeReplyObject(data_reply);

@@ -23,7 +23,7 @@ extern "C"
 struct maat_cmd_line {
 	const char *table_name;
 	const char *table_line;
-	long long rule_id;		// for MAAT_OP_DEL, only rule_id and table_name are necessary.
+	const char *rule_uuid_str;		// for MAAT_OP_DEL, only rule_id and table_name are necessary.
 	int expire_after;	//expired after $timeout$ seconds, set to 0 for never timeout.
 };
 

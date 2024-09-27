@@ -210,24 +210,24 @@ flag_item_new(struct flag_schema *schema, const char *table_name,
     uuid_parse(tmp_obj->valuestring, item->object_uuid);
 
     tmp_obj = cJSON_GetObjectItem(json, "flag");
-    if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
+    if (tmp_obj == NULL || tmp_obj->type != cJSON_Number) {
         log_fatal(flag_rt->logger, MODULE_FLAG, 
                   "[%s:%d] flag table:<%s> has no flag in json:%s",
                   __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
 
-    item->flag = strtoull(tmp_obj->valuestring, NULL, 0);
+    item->flag = tmp_obj->valueint;
 
-    tmp_obj = cJSON_GetObjectItem(json, "flag_mask");
-    if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
+    tmp_obj = cJSON_GetObjectItem(json, "mask");
+    if (tmp_obj == NULL || tmp_obj->type != cJSON_Number) {
         log_fatal(flag_rt->logger, MODULE_FLAG, 
-                  "[%s:%d] flag table:<%s> has no flag_mask in json:%s",
+                  "[%s:%d] flag table:<%s> has no mask in json:%s",
                   __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
     
-    item->flag_mask = strtoull(tmp_obj->valuestring, NULL, 0);
+    item->flag_mask = tmp_obj->valueint;
 
     return item;
 error:

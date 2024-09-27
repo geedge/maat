@@ -32,20 +32,16 @@ make_serial_rule(const char *table_name, const char *line, void *u_para, enum ma
 		buff[strlen(line) - 1] = '\0';
 	}
 
-    const char *redis_rule_key = "TEST_RULE_KEY";
-    redisReply *reply =
-        maat_wrap_redis_command(ctx, NULL, "INCRBY %s %d", redis_rule_key, 1);
-
-	if (reply->type == REDIS_REPLY_NIL) {
-		printf("incrby redis_rule_key:%s failed.", redis_rule_key);
+    cJSON *json = cJSON_Parse(line);
+    if (NULL == json) {
         return -1;
-	} else {
-		s_rule->rule_id = maat_read_redis_integer(reply);
-		freeReplyObject(reply);
-		reply = NULL;
-	}
+    }
+    cJSON *rule_uuid = cJSON_GetObjectItem(json, "uuid");
+    if (NULL == rule_uuid || rule_uuid->type != cJSON_String) {
+        return -1;
+    }
 
-	maat_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, s_rule->rule_id,
+	maat_set_serial_rule(s_rule + line_idx, op, rule_uuid->valuestring,
                          table_name, buff, absolute_expire_time);
     (s_rule + line_idx)->ref_ctx = ctx;
 	line_idx++;
@@ -120,9 +116,9 @@ int write_json_to_redis(const char *json_filename, char *redis_ip, int redis_por
 }
 
 int rule_table_set_line(struct maat *maat_inst, const char *table_name,
-                           enum maat_operation op, long long rule_id,
-                           const char *user_region, int condition_num,
-                           int expire_after)
+                           enum maat_operation op, uuid_t rule_uuid,
+                           const char *user_region, struct maat_cmd_condition conditions[],
+                           int condition_num, int expire_after)
 {
     char table_line[1024 * 16] = {0};
     sprintf(table_line, "%lld\t0\t0\t0\t0\t0\t%s\t%d\t%d\t0.0", 
@@ -137,27 +133,9 @@ int rule_table_set_line(struct maat *maat_inst, const char *table_name,
     return maat_cmd_set_line(maat_inst, &line_rule, op);
 }
 
+#if 0 //TODO
 #define TO_OBJECT2X_KEY(object_id, parent_id, condition_index) \
         (((unsigned long)object_id<<32|parent_id) + condition_index)
-
-int object2rule_table_set_line(struct maat *maat_inst, const char *table_name,
-                                 enum maat_operation op, long long object_id,
-                                 long long rule_id, int negate_option,
-                                 const char *attribute_name, int condition_index,
-                                 int expire_after)
-{
-    char table_line[128] = {0};
-    sprintf(table_line, "%lld\t%lld\t%d\t%s\t%d\t%d", 
-            object_id, rule_id, negate_option, attribute_name, condition_index, op);
-
-    struct maat_cmd_line line_rule;
-    line_rule.rule_id = TO_OBJECT2X_KEY(object_id, rule_id, condition_index);
-    line_rule.table_line = table_line;
-    line_rule.table_name = table_name;
-    line_rule.expire_after = expire_after;
-
-    return maat_cmd_set_line(maat_inst, &line_rule, op);
-}
 
 int object2object_table_set_line(struct maat *maat_inst, const char *table_name,
                                enum maat_operation op, long long object_id,
@@ -273,6 +251,7 @@ int flag_table_set_line(struct maat *maat_inst, const char *table_name,
 
     return maat_cmd_set_line(maat_inst, &line_rule, op);
 }
+#endif
 
 void random_keyword_generate(char *keyword_buf, size_t sz)
 {

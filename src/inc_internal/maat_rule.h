@@ -104,7 +104,7 @@ size_t rule_compile_state_get_last_hit_objects(struct rule_compile_state *rule_c
 size_t rule_compile_state_get_last_hit_object_cnt(struct rule_compile_state *rule_compile_state);
 
 int rule_compile_state_get_rule_table_id(struct rule_compile_state *rule_compile_state,
-                                       uuid_t rule_id);
+                                       uuid_t *rule_id);
 
 #ifdef __cplusplus
 }

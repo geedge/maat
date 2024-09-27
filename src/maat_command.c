@@ -287,9 +287,9 @@ int maat_cmd_set_line(struct maat *maat_inst,
 											  line_rule->table_name);
 	if (table_id < 0) {
 		log_fatal(maat_inst->logger, MODULE_MAAT_COMMAND,
-				  "[%s:%d] Command set line id %lld failed: "
+				  "[%s:%d] Command set line id %s failed: "
 				  "unknown table %s", __FUNCTION__, __LINE__,
-				  line_rule->rule_id, line_rule->table_name);
+				  line_rule->rule_uuid_str, line_rule->table_name);
 		FREE(s_rule);
 		return -1;
 	}
@@ -299,7 +299,7 @@ int maat_cmd_set_line(struct maat *maat_inst,
 	}
 
     maat_set_serial_rule(s_rule, op,
-						 line_rule->rule_id, line_rule->table_name,
+						 line_rule->rule_uuid_str, line_rule->table_name,
 						 line_rule->table_line, absolute_expire_time);
 
 	int success_cnt = maat_cmd_write_rule(write_ctx, s_rule, 1, server_time,

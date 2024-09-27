@@ -414,6 +414,8 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime,
             ex_data_runtime_cached_row_count(fqdn_plugin_rt->ex_data_rt);
     }
 
+    cJSON_Delete(json);
+
     return 0;
 
 ERROR:

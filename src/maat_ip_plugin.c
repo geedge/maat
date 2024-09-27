@@ -412,6 +412,7 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema,
             ex_data_runtime_cached_row_count(ip_plugin_rt->ex_data_rt);
     }
 
+    cJSON_Delete(json);
     return 0;
 
 ERROR:

@@ -46,8 +46,13 @@ static int compare_serial_rule(const void *a, const void *b)
 	struct serial_rule *rb=(struct serial_rule *)b;
 
 	int ret = strcmp(ra->table_name, rb->table_name);
+
 	if (0 == ret) {
-		ret = ra->rule_id - rb->rule_id;
+		uuid_t uuid_a;
+		uuid_t uuid_b;
+		uuid_parse(ra->rule_uuid_str, uuid_a);
+		uuid_parse(rb->rule_uuid_str, uuid_b);
+		ret = uuid_compare(uuid_a, uuid_b);
 	}
 
 	return ret;
@@ -183,8 +188,8 @@ static void read_rule_from_redis(redisContext *c, const char *output_path,
             rule_list[i].table_line[line_len - 1] = '\0';
         }
         
-		fprintf(table_fp, "%s\tkey=%lld\n", rule_list[i].table_line,
-				rule_list[i].rule_id);
+		fprintf(table_fp, "%s\tkey=%s\n", rule_list[i].table_line,
+				rule_list[i].rule_uuid_str);
 		line_count++;
 	}
 

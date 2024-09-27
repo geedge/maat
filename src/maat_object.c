@@ -296,7 +296,7 @@ object2object_item_new(const char *line, struct object2object_schema *o2o_schema
     }
     uuid_parse(tmp_obj->valuestring, o2o_item->object_uuid);
 
-    tmp_obj = cJSON_GetObjectItem(json, "include_object_uuids");
+    tmp_obj = cJSON_GetObjectItem(json, "included_sub_object_uuids");
     if (tmp_obj == NULL || tmp_obj->type != cJSON_Array) {
         log_fatal(logger, MODULE_OBJECT,
                   "[%s:%d] o2o table:<%s> has no included_sub_object_ids or format is not array in line:%s",
@@ -324,7 +324,7 @@ object2object_item_new(const char *line, struct object2object_schema *o2o_schema
 		goto error;
     }
 
-    tmp_obj = cJSON_GetObjectItem(json, "exclude_object_uuids");
+    tmp_obj = cJSON_GetObjectItem(json, "excluded_sub_object_uuids");
     if (tmp_obj == NULL || tmp_obj->type != cJSON_Array) {
         log_fatal(logger, MODULE_OBJECT,
                   "[%s:%d] o2o table:<%s> has no excluded_sub_object_ids or format is not array in line:%s",
@@ -352,8 +352,13 @@ object2object_item_new(const char *line, struct object2object_schema *o2o_schema
 		goto error;
     } 
 
+    cJSON_Delete(json);
+
     return o2o_item;
 error:
+    if (json) {
+        cJSON_Delete(json);
+    }
     FREE(o2o_item);
     return NULL;
 }
@@ -390,12 +395,12 @@ static size_t print_igraph_vector(igraph_vector_t *v, char *buff, size_t sz) {
 }
 
 static struct maat_object *
-object_topology_add_object(struct maat_object_topology *object_topo, uuid_t object_uuid)
+object_topology_add_object(struct maat_object_topology *object_topo, uuid_t *object_uuid)
 {
     assert(object_topo != NULL);
 
 	struct maat_object *object = ALLOC(struct maat_object, 1);
-    uuid_copy(object->object_uuid, object_uuid);
+    uuid_copy(object->object_uuid, *object_uuid);
 	object->vertex_id = object_topo->grp_vertex_id_generator++;
     utarray_new(object->incl_super_object_uuids, &ut_object_uuid_icd);
     utarray_new(object->excl_super_object_uuids, &ut_object_uuid_icd);
@@ -444,73 +449,73 @@ static void object_topology_del_object(struct maat_object_topology *object_topo,
 }
 
 static struct maat_object *
-object_topology_find_object(struct maat_object_topology *object_topo, uuid_t object_uuid)
+object_topology_find_object(struct maat_object_topology *object_topo, uuid_t *object_uuid)
 {
-    if (NULL == object_topo || uuid_is_null(object_uuid)) {
+    if (NULL == object_topo || uuid_is_null(*object_uuid)) {
         return NULL;
     }
 
     struct maat_object *object = NULL;
-    HASH_FIND(hh_object_uuid, object_topo->hash_by_object_uuid, (char*)&object_uuid, sizeof(uuid_t), object);
+    HASH_FIND(hh_object_uuid, object_topo->hash_by_object_uuid, (char*)object_uuid, sizeof(uuid_t), object);
 
     return object;
 }
 
 static void maat_object_reference_super_object(struct maat_object *object,
-                                             uuid_t super_object_uuid,
+                                             uuid_t *super_object_uuid,
                                              int is_exclude)
 {
-    if (NULL == object || uuid_is_null(super_object_uuid)) {
+    if (NULL == object || uuid_is_null(*super_object_uuid)) {
         return;
     }
 
     if (0 == is_exclude) {
         //include superior object
-        if (!utarray_find(object->incl_super_object_uuids, &super_object_uuid,
+        if (!utarray_find(object->incl_super_object_uuids, super_object_uuid,
                           compare_object_uuid)) {
-            utarray_push_back(object->incl_super_object_uuids, &super_object_uuid);
+            utarray_push_back(object->incl_super_object_uuids, super_object_uuid);
             utarray_sort(object->incl_super_object_uuids, compare_object_uuid);
         }
     } else {
         //exclude superior object
-        if (!utarray_find(object->excl_super_object_uuids, &super_object_uuid,
+        if (!utarray_find(object->excl_super_object_uuids, super_object_uuid,
                           compare_object_uuid)) {
-            utarray_push_back(object->excl_super_object_uuids, &super_object_uuid);
+            utarray_push_back(object->excl_super_object_uuids, super_object_uuid);
             utarray_sort(object->excl_super_object_uuids, compare_object_uuid);
         }
     }
 }
 
 static void maat_object_reference_sub_object(struct maat_object *object,
-                                           uuid_t sub_object_uuid,
+                                           uuid_t *sub_object_uuid,
                                            int is_exclude)
 {
-    if (NULL == object || uuid_is_null(sub_object_uuid)) {
+    if (NULL == object || uuid_is_null(*sub_object_uuid)) {
         return;
     }
 
     if (0 == is_exclude) {
         //include sub object
-        if (!utarray_find(object->incl_sub_object_uuids, &sub_object_uuid,
+        if (!utarray_find(object->incl_sub_object_uuids, sub_object_uuid,
                           compare_object_uuid)) {
-            utarray_push_back(object->incl_sub_object_uuids, &sub_object_uuid);
+            utarray_push_back(object->incl_sub_object_uuids, sub_object_uuid);
             utarray_sort(object->incl_sub_object_uuids, compare_object_uuid);
         }
     } else {
         //exclude sub object
-        if (!utarray_find(object->excl_sub_object_uuids, &sub_object_uuid,
+        if (!utarray_find(object->excl_sub_object_uuids, sub_object_uuid,
                           compare_object_uuid)) {
-            utarray_push_back(object->excl_sub_object_uuids, &sub_object_uuid);
+            utarray_push_back(object->excl_sub_object_uuids, sub_object_uuid);
             utarray_sort(object->excl_sub_object_uuids, compare_object_uuid);
         }
     }
 }
 
 static void maat_object_dereference_super_object(struct maat_object *object,
-                                               uuid_t super_object_uuid,
+                                               uuid_t *super_object_uuid,
                                                int is_exclude)
 {
-    if (NULL == object || uuid_is_null(super_object_uuid)) {
+    if (NULL == object || uuid_is_null(*super_object_uuid)) {
         return;
     }
 
@@ -518,7 +523,7 @@ static void maat_object_dereference_super_object(struct maat_object *object,
     uuid_t *tmp_uuid = NULL;
     if (0 == is_exclude) {
         //include superior object
-        tmp_uuid = utarray_find(object->incl_super_object_uuids, &super_object_uuid,
+        tmp_uuid = utarray_find(object->incl_super_object_uuids, super_object_uuid,
                               compare_object_uuid);
         if (tmp_uuid != NULL) {
             remove_idx = utarray_eltidx(object->incl_super_object_uuids, tmp_uuid);
@@ -526,7 +531,7 @@ static void maat_object_dereference_super_object(struct maat_object *object,
         }
     } else {
         //exclude superior object
-        tmp_uuid = utarray_find(object->excl_super_object_uuids, &super_object_uuid,
+        tmp_uuid = utarray_find(object->excl_super_object_uuids, super_object_uuid,
                               compare_object_uuid);
         if (tmp_uuid != NULL) {
             remove_idx = utarray_eltidx(object->excl_super_object_uuids, tmp_uuid);
@@ -536,10 +541,10 @@ static void maat_object_dereference_super_object(struct maat_object *object,
 }
 
 static void maat_object_dereference_sub_object(struct maat_object *object,
-                                             uuid_t sub_object_uuid,
+                                             uuid_t *sub_object_uuid,
                                              int is_exclude)
 {
-    if (NULL == object || uuid_is_null(sub_object_uuid)) {
+    if (NULL == object || uuid_is_null(*sub_object_uuid)) {
         return;
     }
 
@@ -547,7 +552,7 @@ static void maat_object_dereference_sub_object(struct maat_object *object,
     uuid_t *tmp_uuid = NULL;
     if (0 == is_exclude) {
         //include superior object
-        tmp_uuid = utarray_find(object->incl_sub_object_uuids, &sub_object_uuid,
+        tmp_uuid = utarray_find(object->incl_sub_object_uuids, sub_object_uuid,
                               compare_object_uuid);
         if (tmp_uuid != NULL) {
             remove_idx = utarray_eltidx(object->incl_sub_object_uuids, tmp_uuid);
@@ -555,7 +560,7 @@ static void maat_object_dereference_sub_object(struct maat_object *object,
         }
     } else {
         //exclude superior object
-        tmp_uuid = utarray_find(object->excl_sub_object_uuids, &sub_object_uuid,
+        tmp_uuid = utarray_find(object->excl_sub_object_uuids, sub_object_uuid,
                               compare_object_uuid);
         if (tmp_uuid != NULL) {
             remove_idx = utarray_eltidx(object->excl_sub_object_uuids, tmp_uuid);
@@ -565,7 +570,7 @@ static void maat_object_dereference_sub_object(struct maat_object *object,
 }
 
 static int object_topology_add_object_to_object(struct maat_object_topology *object_topo, 
-                                             uuid_t object_uuid, uuid_t sub_object_uuid,
+                                             uuid_t *object_uuid, uuid_t *sub_object_uuid,
                                              int is_exclude)
 {
     if (NULL == object_topo) {
@@ -593,8 +598,8 @@ static int object_topology_add_object_to_object(struct maat_object_topology *obj
     if (edge_id > 0) {
         char object_uuid_str[37] = {0};
         char sub_object_uuid_str[37] = {0};
-        uuid_unparse(object_uuid, object_uuid_str);
-        uuid_unparse(sub_object_uuid, sub_object_uuid_str);
+        uuid_unparse(*object_uuid, object_uuid_str);
+        uuid_unparse(*sub_object_uuid, sub_object_uuid_str);
 		log_fatal(object_topo->logger, MODULE_OBJECT,
                   "[%s:%d] Add object %s to object %s failed, relation already existed.",
 				  __FUNCTION__, __LINE__, sub_object_uuid_str, object_uuid_str);
@@ -612,8 +617,8 @@ static int object_topology_add_object_to_object(struct maat_object_topology *obj
 	if (!is_dag) {
         char object_uuid_str[37] = {0};
         char sub_object_uuid_str[37] = {0};
-        uuid_unparse(object_uuid, object_uuid_str);
-        uuid_unparse(sub_object_uuid, sub_object_uuid_str);
+        uuid_unparse(*object_uuid, object_uuid_str);
+        uuid_unparse(*sub_object_uuid, sub_object_uuid_str);
 		log_fatal(object_topo->logger, MODULE_OBJECT,
                   "[%s:%d] Sub object cycle detected, sub_object_id:%s, object_id:%s!",
                   __FUNCTION__, __LINE__, sub_object_uuid_str, object_uuid_str);
@@ -624,7 +629,7 @@ static int object_topology_add_object_to_object(struct maat_object_topology *obj
 }
 
 static int object_topology_del_object_from_object(struct maat_object_topology *object_topo, 
-                                               uuid_t object_uuid, uuid_t sub_object_uuid,
+                                               uuid_t *object_uuid, uuid_t *sub_object_uuid,
                                                int is_exclude)
 {
     if (NULL == object_topo) {
@@ -636,8 +641,8 @@ static int object_topology_del_object_from_object(struct maat_object_topology *o
 	if (NULL == sub_object) {
         char object_uuid_str[37] = {0};
         char sub_object_uuid_str[37] = {0};
-        uuid_unparse(object_uuid, object_uuid_str);
-        uuid_unparse(sub_object_uuid, sub_object_uuid_str);
+        uuid_unparse(*object_uuid, object_uuid_str);
+        uuid_unparse(*sub_object_uuid, sub_object_uuid_str);
 		log_fatal(object_topo->logger, MODULE_OBJECT,
 				  "[%s:%d] Del object %s from object %s failed, object %s not existed.",
 				  __FUNCTION__, __LINE__, sub_object_uuid_str, object_uuid_str, sub_object_uuid_str);
@@ -648,8 +653,8 @@ static int object_topology_del_object_from_object(struct maat_object_topology *o
 	if (NULL == object) {
         char object_uuid_str[37] = {0};
         char sub_object_uuid_str[37] = {0};
-        uuid_unparse(object_uuid, object_uuid_str);
-        uuid_unparse(sub_object_uuid, sub_object_uuid_str);
+        uuid_unparse(*object_uuid, object_uuid_str);
+        uuid_unparse(*sub_object_uuid, sub_object_uuid_str);
 		log_fatal(object_topo->logger, MODULE_OBJECT,
 				  "[%s:%d] Del object %s from object %s failed, object %s not existed.",
 				  __FUNCTION__, __LINE__, sub_object_uuid_str, object_uuid_str, object_uuid_str);
@@ -750,7 +755,7 @@ int object2object_runtime_update(void *o2o_runtime, void *o2o_schema,
         for (i = 0; i < utarray_len(o2o_item->incl_sub_object_uuids); i++) {
             sub_object_uuid = (uuid_t *)utarray_eltptr(o2o_item->incl_sub_object_uuids, i);
             ret = object_topology_del_object_from_object(o2o_rt->updating_object_topo,
-                                                      o2o_item->object_uuid, *sub_object_uuid, 0);
+                                                      &o2o_item->object_uuid, sub_object_uuid, 0);
             if (ret != 0) {
                 err_flag = 1;
             }
@@ -759,7 +764,7 @@ int object2object_runtime_update(void *o2o_runtime, void *o2o_schema,
         for (i = 0; i < utarray_len(o2o_item->excl_sub_object_uuids); i++) {
             sub_object_uuid = (uuid_t *)utarray_eltptr(o2o_item->excl_sub_object_uuids, i);
             ret = object_topology_del_object_from_object(o2o_rt->updating_object_topo,
-                                                      o2o_item->object_uuid, *sub_object_uuid, 1);
+                                                      &o2o_item->object_uuid, sub_object_uuid, 1);
             if (ret != 0) {
                 err_flag = 1;
             }
@@ -778,7 +783,7 @@ int object2object_runtime_update(void *o2o_runtime, void *o2o_schema,
         for (i = 0; i < utarray_len(o2o_item->incl_sub_object_uuids); i++) {
             sub_object_uuid = (uuid_t *)utarray_eltptr(o2o_item->incl_sub_object_uuids, i);
             ret = object_topology_add_object_to_object(o2o_rt->updating_object_topo,
-                                                    o2o_item->object_uuid, *sub_object_uuid, 0);
+                                                    &o2o_item->object_uuid, sub_object_uuid, 0);
             if (ret != 0) {
                 err_flag = 1;
             }
@@ -787,7 +792,7 @@ int object2object_runtime_update(void *o2o_runtime, void *o2o_schema,
         for (i = 0; i < utarray_len(o2o_item->excl_sub_object_uuids); i++) {
             sub_object_uuid = (uuid_t *)utarray_eltptr(o2o_item->excl_sub_object_uuids, i);
             ret = object_topology_add_object_to_object(o2o_rt->updating_object_topo,
-                                                    o2o_item->object_uuid, *sub_object_uuid, 1);
+                                                    &o2o_item->object_uuid, sub_object_uuid, 1);
             if (ret != 0) {
                 err_flag = 1;
             }
@@ -865,7 +870,7 @@ static void get_candidate_super_object_ids(struct maat_object_topology *object_t
     //Find super candidates
     for (p = (uuid_t *)utarray_front(hit_object_uuids); p != NULL;
          p = (uuid_t *)utarray_next(hit_object_uuids, p)) {
-        struct maat_object *object = object_topology_find_object(object_topo, *p);
+        struct maat_object *object = object_topology_find_object(object_topo, p);
         if (NULL == object) {
             //object_id not in object2object table
             continue;
@@ -986,7 +991,7 @@ static void verify_candidate_super_object_ids(struct maat_object_topology *objec
         }
         uuid_copy(prev_object_uuid, *p);
 
-        struct maat_object *object = object_topology_find_object(object_topo, *p);
+        struct maat_object *object = object_topology_find_object(object_topo, p);
         if (NULL == object) {
             continue;
         }
@@ -1029,7 +1034,7 @@ static void verify_candidate_super_object_ids(struct maat_object_topology *objec
     */
     for (p = (uuid_t *)utarray_front(candidate_object_uuids); p != NULL;
          p = (uuid_t *)utarray_next(candidate_object_uuids, p)) {
-        struct maat_object *object = object_topology_find_object(object_topo, *p);
+        struct maat_object *object = object_topology_find_object(object_topo, p);
         if (NULL == object) {
             continue;
         }
@@ -1174,7 +1179,7 @@ size_t object2object_runtime_get_super_objects(void *o2o_runtime, uuid_t *object
     size_t o2o_object_uuids_cnt = 0;
     
     for (size_t i = 0; i < n_object_uuids; i++) {
-        struct maat_object *object = object_topology_find_object(o2o_rt->object_topo, object_uuids[i]);
+        struct maat_object *object = object_topology_find_object(o2o_rt->object_topo, &object_uuids[i]);
         if (NULL == object) {
             continue;
         }

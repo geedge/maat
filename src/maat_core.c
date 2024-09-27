@@ -410,6 +410,7 @@ void *rule_monitor_loop(void *arg)
         be null terminated if it contains fewer bytes. */
     char maat_name[MAX_INSTANCE_NAME_LEN + 1] = {0};
     struct maat *maat_inst = (struct maat *)arg;
+    struct stat attrib;
 
     if (strlen(maat_inst->opts.inst_name) > 0) {
         snprintf(maat_name, sizeof(maat_name), "%s", maat_inst->opts.inst_name);
@@ -428,11 +429,12 @@ void *rule_monitor_loop(void *arg)
                  __FUNCTION__, __LINE__);
         maat_read_full_config(maat_inst);
     }
+    stat(maat_inst->opts.json_ctx.json_file, &attrib);//maat has read fullconfig either in maat_new(deffer==0) or above(deffer==1)
+    maat_inst->opts.json_ctx.last_md5_time = attrib.st_ctim;
     pthread_mutex_unlock(&(maat_inst->background_update_mutex));
 
     char md5_tmp[MD5_DIGEST_LENGTH * 2 + 1] = {0};
     char err_str[NAME_MAX] = {0};
-    struct stat attrib;
     cJSON *json_root = NULL;
 
     while (maat_inst->is_running) {

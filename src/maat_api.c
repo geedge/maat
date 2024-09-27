@@ -2034,7 +2034,7 @@ int maat_state_get_rule_table_names(struct maat_state *state, uuid_t *rule_ids,
     }
 
     for (size_t i = 0; i < n_rule_ids; i++) {
-        int table_id = rule_compile_state_get_rule_table_id(state->rule_compile_state, rule_ids[i]);
+        int table_id = rule_compile_state_get_rule_table_id(state->rule_compile_state, &rule_ids[i]);
         rule_table_names[i] = (char *)table_manager_get_table_name(state->maat_inst->tbl_mgr, table_id);
     }
     

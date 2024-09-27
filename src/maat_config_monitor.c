@@ -98,13 +98,19 @@ static void config_load_json_content(const cJSON *json_root, const char *table_n
 			if (rule == NULL) {
 				continue;
 			}
+			cJSON *rule_table = cJSON_GetObjectItem(rule, "rule_table_name");
 
 			char *rule_str = cJSON_PrintUnformatted(rule);
 			if (rule_str == NULL) {
 				continue;
 			}
 
-			update_fn(table_name, rule_str, u_param, MAAT_OP_ADD);
+			if (rule_table != NULL) {
+				update_fn(rule_table->valuestring, rule_str, u_param, MAAT_OP_ADD);
+			} else {
+				update_fn(table_name, rule_str, u_param, MAAT_OP_ADD);
+			}
+
 			FREE(rule_str);
 		}
 	}
@@ -274,6 +280,11 @@ void convert_maat_json_rule(cJSON **json_root, unsigned char *json_buff)
 
 			if (object_array == NULL) {
 				continue;
+			}
+
+			cJSON *negate_option = cJSON_GetObjectItem(tmp_condition, "negate_option");
+			if (negate_option == NULL) {
+				cJSON_AddBoolToObject(tmp_condition, "negate_option", 0);
 			}
 
 			cJSON_ArrayForEach(tmp_object, object_array) {

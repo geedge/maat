@@ -436,6 +436,8 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime,
             ex_data_runtime_cached_row_count(bool_plugin_rt->ex_data_rt);
     }
 
+    cJSON_Delete(json);
+
     return 0;
 
 ERROR:

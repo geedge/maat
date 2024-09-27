@@ -133,10 +133,10 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
     }
     uuid_parse(tmp_obj->valuestring, expr_item->object_uuid);
 
-    tmp_obj = cJSON_GetObjectItem(json, "keywords");
+    tmp_obj = cJSON_GetObjectItem(json, "expression");
     if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
         log_fatal(expr_rt->logger, MODULE_EXPR, 
-                  "[%s:%d] expr table:<%s> has no keywords in line:%s",
+                  "[%s:%d] expr table:<%s> has no expression in line:%s",
                   __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
@@ -144,7 +144,7 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
 
     if (len > MAX_KEYWORDS_STR_LEN) {
         log_fatal(expr_rt->logger, MODULE_EXPR, 
-                  "[%s:%d] expr table:<%s> keywords length too long in line:%s",
+                  "[%s:%d] expr table:<%s> expression length too long in line:%s",
                   __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto error;
     }
