@@ -3,7 +3,7 @@
     "object2object_table": "OBJECT2OBJECT",
     "rules": [
         {
-            "rule_id": "9b0d44a1-1e9e-7988-6ab2-c619d5906818",
+            "uuid": "9b0d44a1-1e9e-7988-6ab2-c619d5906818",
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -20,7 +20,7 @@
                                     "table_name": "HTTP_URL",
                                     "table_type": "expr",
                                     "table_content": {
-                                        "keywords": "MESA&Maat",
+                                        "expression": "MESA&Maat",
                                         "expr_type": "and"
                                     }
                                 }

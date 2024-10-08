@@ -465,7 +465,7 @@ long long ip_runtime_ipv6_rule_count(void *ip_runtime)
 }
 
 int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type, 
-                    uint8_t *ip_addr, int port, int attribute_id, struct maat_state *state)
+                    uint8_t *ip_addr, int port, const char *attribute_name, struct maat_state *state)
 {
     //clear rule_state->last_hit_object
     if (state != NULL && state->rule_compile_state != NULL) {
@@ -543,7 +543,7 @@ next:
                                   state->thread_id, 1);
     }
 
-    return rule_compile_state_update(state->rule_compile_state, state->maat_inst, attribute_id,
+    return rule_compile_state_update(state->rule_compile_state, state->maat_inst, attribute_name,
                                 state->rule_table_id, state->Nth_scan,
                                 hit_maat_items, real_hit_item_cnt);
 }

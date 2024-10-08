@@ -56,8 +56,6 @@ size_t table_manager_table_size(struct table_manager *tbl_mgr);
 size_t table_manager_table_num(struct table_manager *tbl_mgr);
 
 int table_manager_get_table_id(struct table_manager *tbl_mgr, const char *table_name);
-int table_manager_get_attribute_id(struct table_manager *tbl_mgr, const char *attribute_name);
-int table_manager_attribute_register(struct table_manager *tbl_mgr, const char *attribute_name, struct log_handle *logger);
 
 /**
  * @brief get table_name's all conjunction parents' table_id
@@ -77,7 +75,6 @@ int table_manager_get_conj_parent_table_ids(struct table_manager *tbl_mgr, const
 int maat_get_table_id(struct maat *maat_inst, const char *table_name);
 const char *table_manager_get_table_name(struct table_manager *tbl_mgr,
                                          int table_id);
-const char *table_manager_get_attribute_name(struct table_manager *tbl_mgr, int attr_id);
 
 const char *table_manager_get_table_schema_tag(struct table_manager *tbl_mgr, int table_id);
 

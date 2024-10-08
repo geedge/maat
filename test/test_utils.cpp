@@ -120,17 +120,44 @@ int rule_table_set_line(struct maat *maat_inst, const char *table_name,
                            const char *user_region, struct maat_cmd_condition conditions[],
                            int condition_num, int expire_after)
 {
-    char table_line[1024 * 16] = {0};
-    sprintf(table_line, "%lld\t0\t0\t0\t0\t0\t%s\t%d\t%d\t0.0", 
-            rule_id, user_region, condition_num, op);
+    cJSON *json_root = cJSON_CreateObject();
+    char uuid_str[UUID_STR_LEN] = {0};
+
+    uuid_unparse(rule_uuid, uuid_str);
+    cJSON_AddStringToObject(json_root, "uuid", uuid_str);
+    cJSON *conditions_array = cJSON_CreateArray();
+
+    for (int i = 0; i < condition_num; i++) {
+        cJSON *condition = cJSON_CreateObject();
+        cJSON_AddStringToObject(condition, "attribute_name", conditions[i].attribute_name);
+        if (conditions[i].negate_option) {
+            cJSON_AddStringToObject(condition, "negate_option", "true");
+        } else {
+            cJSON_AddStringToObject(condition, "negate_option", "false");
+        }
+        
+        cJSON *object_uuids_array = cJSON_CreateArray();
+        for (int j = 0; j < conditions[i].object_num; j++) {
+            cJSON_AddItemToArray(object_uuids_array, cJSON_CreateString(conditions[i].object_uuids_str[j]));
+        }
+        cJSON_AddItemToObject(condition, "object_uuids", object_uuids_array);
+        cJSON_AddItemToArray(conditions_array, condition);
+    }
+
+    cJSON_AddItemToObject(json_root, "conditions", conditions_array);
+
+    char *json_str = cJSON_PrintUnformatted(json_root);
 
     struct maat_cmd_line line_rule;
-    line_rule.rule_id = rule_id;
-    line_rule.table_line = table_line;
+    line_rule.rule_uuid_str = uuid_str;
+    line_rule.table_line = json_str;
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
 
-    return maat_cmd_set_line(maat_inst, &line_rule, op);
+    int ret = maat_cmd_set_line(maat_inst, &line_rule, op);
+    free(json_str);
+
+    return ret;
 }
 
 #if 0 //TODO

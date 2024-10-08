@@ -52,8 +52,6 @@ struct table_manager {
     struct maat_table *tbl[MAX_TABLE_NUM];
     size_t n_table;
 
-    UT_array *attr_array;
-
     struct rule_tag *accept_tags;
     size_t n_accept_tag;
 
@@ -62,8 +60,6 @@ struct table_manager {
     int o2o_table_id;
     struct maat_kv_store *tbl_name2id_map;
     struct maat_kv_store *conj_tbl_name2id_map;
-    struct maat_kv_store *attr_name2id_map;
-    struct maat_kv_store *sequence_map;
 
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
@@ -594,31 +590,6 @@ static int register_single_tbl_name2id(struct maat_kv_store *tbl_name2id_map,
     return 0;
 }
 
-static int register_single_attribute_name2id(struct maat_kv_store *attr_name2id_map,
-                                             const char *attr_name, int attr_id,
-                                             struct log_handle *logger)
-{
-    if (strlen(attr_name) >= NAME_MAX) {
-        log_fatal(logger, MODULE_TABLE,
-                  "[%s:%d] attribute:<%s> name length exceed maxium:%d",
-                  __FUNCTION__, __LINE__, attr_name, NAME_MAX);
-        return -1;
-    }
-
-    long long tmp_attr_id = -1;
-    int ret = maat_kv_read(attr_name2id_map, attr_name, &tmp_attr_id, 1);
-    if (ret > 0 && tmp_attr_id != attr_id) {
-        log_fatal(logger, MODULE_TABLE,
-                  "[%s:%d] attribute:<%s>(attr_id:%lld) has already been registered"
-                  ", can't register again",
-                  __FUNCTION__, __LINE__, attr_name, tmp_attr_id);
-        return -1;
-    }
-
-    maat_kv_register(attr_name2id_map, attr_name, attr_id);
-    return 0;
-}
-
 static int register_conjunction_tbl_name2id(struct maat_kv_store *conj_tbl_name2id_map,
                                              cJSON *root, struct log_handle *logger)
 {
@@ -744,45 +715,6 @@ int maat_default_rule_table_id(cJSON *json, struct log_handle *logger)
     return item->valueint;
 }
 
-static long long maat_table_get_sequence(struct maat_kv_store *sequence_map,
-                                         const char *sequence_name)
-{
-    long long sequence = 1;
-    int map_ret = maat_kv_read(sequence_map, sequence_name, &sequence, 1);
-    if (map_ret < 0) {
-        maat_kv_register(sequence_map, sequence_name, sequence);
-    } else {
-        sequence++;
-        int ret = maat_kv_write(sequence_map, sequence_name, sequence);
-        if (ret < 0) {
-            return -1;
-        }
-    }
-
-    return sequence;
-}
-
-int table_manager_attribute_register(struct table_manager *tbl_mgr, const char *attribute_name, struct log_handle *logger)
-{
-    int attr_id = maat_table_get_sequence(tbl_mgr->sequence_map, "attribute_id");
-
-    if (attr_id < 0) {
-        log_fatal(logger, MODULE_TABLE,
-                  "[%s:%d] attribute %s register get id failed", __FUNCTION__, __LINE__, attribute_name);
-        return -1;
-    }
-
-    if (register_single_attribute_name2id(tbl_mgr->attr_name2id_map, attribute_name, attr_id, logger) < 0) {
-        log_fatal(logger, MODULE_TABLE,
-                  "[%s:%d] attribute %s register failed", __FUNCTION__, __LINE__, attribute_name);
-        return -1;
-    }
-
-    utarray_insert(tbl_mgr->attr_array, &attribute_name, attr_id);
-
-    return attr_id;
-}
-
 struct table_manager *
 table_manager_create(const char *table_info_path, const char *accept_tags,
                      enum maat_expr_engine engine_type, struct maat_garbage_bin *garbage_bin,
@@ -828,11 +760,8 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
     tbl_mgr->logger = logger;
     tbl_mgr->tbl_name2id_map = maat_kv_store_new();
     tbl_mgr->conj_tbl_name2id_map = maat_kv_store_new();
-    tbl_mgr->attr_name2id_map = maat_kv_store_new();
-    tbl_mgr->sequence_map = maat_kv_store_new();
     tbl_mgr->engine_type = engine_type;
     tbl_mgr->ref_garbage_bin = garbage_bin;
-    utarray_new(tbl_mgr->attr_array, &ut_str_icd);
 
     ret = register_tbl_name2id(tbl_mgr->tbl_name2id_map, root, table_info_path, logger);
     if (ret < 0) {
@@ -1025,21 +954,6 @@ void table_manager_destroy(struct table_manager *tbl_mgr)
         tbl_mgr->conj_tbl_name2id_map = NULL;
     }
 
-    if (tbl_mgr->attr_name2id_map != NULL) {
-        maat_kv_store_free(tbl_mgr->attr_name2id_map);
-        tbl_mgr->attr_name2id_map = NULL;
-    }
-
-    if (tbl_mgr->sequence_map != NULL) {
-        maat_kv_store_free(tbl_mgr->sequence_map);
-        tbl_mgr->sequence_map = NULL;
-    }
-
-    if (tbl_mgr->attr_array != NULL) {
-        utarray_free(tbl_mgr->attr_array);
-        tbl_mgr->attr_array = NULL;
-    }
-
 	FREE(tbl_mgr);
 }
 
@@ -1070,21 +984,6 @@ int table_manager_get_table_id(struct table_manager *tbl_mgr, const char *table_
 	}
 
     return (int)table_id;
-}
-
-int table_manager_get_attribute_id(struct table_manager *tbl_mgr, const char *attr_name)
-{
-    if (NULL == tbl_mgr || NULL == attr_name) {
-        return -1;
-    }
-
-    long long attr_id = -1;
-    int ret = maat_kv_read(tbl_mgr->attr_name2id_map, attr_name, &attr_id, 1);
-    if (ret < 0) {
-        return -1;
-    }
-
-    return (int)attr_id;
 }
 
 int table_manager_get_conj_parent_table_ids(struct table_manager *tbl_mgr, const char *table_name,
@@ -1119,23 +1018,6 @@ const char *table_manager_get_table_name(struct table_manager *tbl_mgr, int tabl
     }
 
     return tbl_mgr->tbl[table_id]->table_name;
-}
-
-const char *table_manager_get_attribute_name(struct table_manager *tbl_mgr, int attr_id)
-{
-    if (NULL == tbl_mgr || attr_id < 0) {
-        return NULL;
-    }
-
-    if (NULL == tbl_mgr->attr_array) {
-        return NULL;
-    }
-
-    if (attr_id >= utarray_len(tbl_mgr->attr_array)) {
-        return NULL;
-    }
-
-    return *(char **)utarray_eltptr(tbl_mgr->attr_array, attr_id);
 }
 
 const char *table_manager_get_table_schema_tag(struct table_manager *tbl_mgr, int table_id)

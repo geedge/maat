@@ -25,7 +25,7 @@ const char *g_json_filename = "maat_json.json";
 size_t g_thread_num = 4;
 
 
-
+#if 0 //TODO
 int test_add_expr_command(struct maat *maat_inst, const char *expr_table, 
                           long long rule_id, int timeout,
                           const char *keywords)
@@ -57,6 +57,7 @@ int del_command(struct maat *maat_inst, int rule_id)
     return rule_table_set_line(maat_inst, "RULE_DEFAULT", MAAT_OP_DEL,
                                   rule_id, "null", 1, 0);
 }
+#endif
 
 const char *watched_json = "./json_update/maat.json";
 const char *old_json = "./json_update/old.json";
@@ -432,7 +433,8 @@ TEST_F(FlagScan, hitRepeatedRule) {
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 194);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000194");
 
     ret = maat_scan_not_logic(maat_inst, flag_table_name, flag_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -549,7 +551,9 @@ TEST_F(HsStringScan, Full) {
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 125);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000125");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -574,7 +578,9 @@ TEST_F(HsStringScan, Regex) {
     ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(results[0], 148);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000148");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -599,7 +605,9 @@ TEST_F(HsStringScan, RegexUnicode) {
     ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(results[0], 229);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000229");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -624,7 +632,9 @@ TEST_F(HsStringScan, BackslashR_N_Escape) {
     ret = maat_scan_string(maat_inst, table_name, attribute_name, payload, strlen(payload),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(results[0], 225);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000225");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -715,7 +725,9 @@ TEST_F(HsStringScan, BackslashCtrlCharactor)
     ret = maat_scan_string(maat_inst, table_name, attribute_name, payload, strlen(payload),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(results[0], 235);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000235");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -742,7 +754,9 @@ TEST_F(HsStringScan, Expr8) {
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 182);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000182");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -786,8 +800,11 @@ TEST_F(HsStringScan, HexBinCaseSensitive) {
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], 206);
-    EXPECT_EQ(results[1], 191);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000206");
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000191");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -824,7 +841,9 @@ TEST_F(HsStringScan, HexbinCombineString)
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 236);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000236");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -867,7 +886,9 @@ TEST_F(HsStringScan, BugReport20190325) {
                                &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 150);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000150");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -905,8 +926,11 @@ TEST_F(HsStringScan, PrefixAndSuffix) {
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], 151);
-    EXPECT_EQ(results[1], 152);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000151");
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000152");
 
     ret = maat_scan_not_logic(maat_inst, mail_addr_table_name, mail_addr_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -918,7 +942,8 @@ TEST_F(HsStringScan, PrefixAndSuffix) {
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 151);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000151");
 
     ret = maat_scan_not_logic(maat_inst, mail_addr_table_name, mail_addr_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -936,7 +961,8 @@ TEST_F(HsStringScan, PrefixAndSuffix) {
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 152);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000152");
 
     ret = maat_scan_not_logic(maat_inst, mail_addr_table_name, mail_addr_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -962,7 +988,9 @@ TEST_F(HsStringScan, MaatUnescape) {
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 132);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000132");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1012,7 +1040,9 @@ TEST_F(HsStringScan, OffsetChunk64) {
         }
     }
     EXPECT_EQ(pass_flag, 1);
-    EXPECT_EQ(results[0], 136);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000136");
     maat_stream_free(sp);
     fclose(fp);
     maat_state_free(state);
@@ -1059,7 +1089,9 @@ TEST_F(HsStringScan, OffsetChunk1460) {
         }
     }
     EXPECT_EQ(pass_flag, 1);
-    EXPECT_EQ(results[0], 136);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000136");
     maat_stream_free(sp);
     fclose(fp);
     maat_state_free(state);
@@ -1103,7 +1135,9 @@ TEST_F(HsStringScan, StreamScanUTF8) {
 	}
 
     EXPECT_EQ(pass_flag, 1);
-	EXPECT_EQ(results[0], 157);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000157");
 
     maat_stream_free(sp);
     fclose(fp);
@@ -1142,7 +1176,9 @@ TEST_F(HsStringScan, StreamInput) {
 	maat_stream_free(sp);
 
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
-	EXPECT_EQ(results[0], 125);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000125");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1337,7 +1373,9 @@ TEST_F(RsStringScan, Full) {
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 125);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000125");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1363,7 +1401,9 @@ TEST_F(RsStringScan, Regex) {
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 148);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000148");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1388,7 +1428,9 @@ TEST_F(RsStringScan, RegexUnicode) {
     ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(results[0], 229);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000229");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1413,7 +1455,9 @@ TEST_F(RsStringScan, BackslashR_N_Escape) {
     ret = maat_scan_string(maat_inst, table_name, attribute_name, payload, strlen(payload),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(results[0], 225);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000225");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1504,7 +1548,9 @@ TEST_F(RsStringScan, BackslashCtrlCharactor)
     ret = maat_scan_string(maat_inst, table_name, attribute_name, payload, strlen(payload),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(results[0], 235);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000235");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1530,7 +1576,9 @@ TEST_F(RsStringScan, Expr8) {
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 182);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000182");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1567,8 +1615,12 @@ TEST_F(RsStringScan, HexBinCaseSensitive) {
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], 206);
-    EXPECT_EQ(results[1], 191);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000206");
+
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000191");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1606,7 +1658,9 @@ TEST_F(RsStringScan, HexbinCombineString)
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 236);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000236");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1649,7 +1703,9 @@ TEST_F(RsStringScan, BugReport20190325) {
                                &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 150);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000150");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1687,8 +1743,12 @@ TEST_F(RsStringScan, PrefixAndSuffix) {
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], 151);
-    EXPECT_EQ(results[1], 152);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000151");
+
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000152");
 
     ret = maat_scan_not_logic(maat_inst, mail_addr_table_name, mail_addr_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1700,7 +1760,8 @@ TEST_F(RsStringScan, PrefixAndSuffix) {
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 151);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000151");
 
     ret = maat_scan_not_logic(maat_inst, mail_addr_table_name, mail_addr_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1718,7 +1779,8 @@ TEST_F(RsStringScan, PrefixAndSuffix) {
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 152);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000152");
 
     ret = maat_scan_not_logic(maat_inst, mail_addr_table_name, mail_addr_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1744,7 +1806,9 @@ TEST_F(RsStringScan, MaatUnescape) {
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 132);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000132");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1793,7 +1857,9 @@ TEST_F(RsStringScan, OffsetChunk64) {
         }
     }
     EXPECT_EQ(pass_flag, 1);
-    EXPECT_EQ(results[0], 136);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000136");
 
     maat_stream_free(sp);
     fclose(fp);
@@ -1841,7 +1907,9 @@ TEST_F(RsStringScan, OffsetChunk1460) {
     }
 
     EXPECT_EQ(pass_flag, 1);
-    EXPECT_EQ(results[0], 136);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000136");
 
     maat_stream_free(sp);
     fclose(fp);
@@ -1888,7 +1956,9 @@ TEST_F(RsStringScan, StreamScanUTF8) {
 	}
 
     EXPECT_EQ(pass_flag, 1);
-	EXPECT_EQ(results[0], 157);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000157");
 
     maat_stream_free(sp);
     fclose(fp);
@@ -1926,7 +1996,9 @@ TEST_F(RsStringScan, StreamInput) {
 
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-	EXPECT_EQ(results[0], 125);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000125");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -2386,7 +2458,9 @@ TEST_F(IPScan, MatchSingleIPv4) {
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 169);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000169");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -2416,7 +2490,9 @@ TEST_F(IPScan, IPv6Unspecified) {
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 210);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000210");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -2473,7 +2549,9 @@ TEST_F(IPScan, MatchSingleIPv6) {
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 210);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000210");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -2503,8 +2581,12 @@ TEST_F(IPScan, MatchIPv4Range) {
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], 208);
-    EXPECT_EQ(results[1], 154);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000208");
+
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000154");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -2538,7 +2620,9 @@ TEST_F(IPScan, MatchIPv4Port) {
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 232);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000232");
 
     maat_state_free(state);
     state = NULL;
@@ -2563,8 +2647,12 @@ TEST_F(IPScan, MatchIPv6Range) {
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], 210);
-    EXPECT_EQ(results[1], 155);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000210");
+
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000155");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -2594,8 +2682,12 @@ TEST_F(IPScan, MatchIPv6Port) {
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], 230);
-    EXPECT_EQ(results[1], 210);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000230");
+
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000210");
     
     maat_state_reset(state);
     //If the port is not present, should not match rules with port range. In this case, only rule 210 "::/0" should match.
@@ -2603,7 +2695,8 @@ TEST_F(IPScan, MatchIPv6Port) {
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 210);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000210");
 
     maat_state_free(state);
     state = NULL;
@@ -2823,7 +2916,9 @@ TEST_F(IntervalScan, SingleInteger) {
                                 ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 218);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000218");
     
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -2894,7 +2989,9 @@ TEST_F(ObjectScan, PhysicalTable) {
                               ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 226);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000226");
 
     maat_state_free(state);
     state = NULL;
@@ -2917,7 +3014,9 @@ TEST_F(ObjectScan, Attribute) {
                               ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 233);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000233");
 
     maat_state_free(state);
     state = NULL;
@@ -2944,7 +3043,9 @@ TEST_F(ObjectScan, SetScanRuleTable) {
                           ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 227);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000227");
 
     maat_state_free(state);
     state = NULL;
@@ -3019,7 +3120,9 @@ TEST_F(NOTLogic, OneRegion) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 143);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000143");
 
     maat_state_reset(state);
 	
@@ -3088,7 +3191,9 @@ TEST_F(NOTLogic, ScanNotAtLast) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 144);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000144");
  
     maat_state_free(state);
     state = NULL;
@@ -3125,7 +3230,9 @@ TEST_F(NOTLogic, ScanIrrelavantAtLast) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 144);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000144");
     
     maat_state_free(state);
     state = NULL;
@@ -3162,7 +3269,9 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyExpr) {
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 186);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000186");
 
     ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -3211,7 +3320,9 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyInteger) {
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 187);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000187");
 
     ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -3265,7 +3376,9 @@ TEST_F(NOTLogic, ScanNotIP) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 145);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000145");
 
     maat_state_reset(state);
 
@@ -3374,7 +3487,9 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 146);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000146");
 
     maat_state_free(state);
     state = NULL;
@@ -3421,7 +3536,9 @@ TEST_F(NOTLogic, NotPhysicalTable) {
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT); 
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 224);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000224");
 
     maat_state_free(state);
     state = NULL;
@@ -3516,7 +3633,9 @@ TEST_F(NOTLogic, EightNotCondition) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 147);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000147");
 
     maat_state_free(state);
     state = NULL;
@@ -3564,7 +3683,9 @@ TEST_F(NOTLogic, NotConditionAndExcludeObject1) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 216);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000216");
 
     maat_state_free(state);
     state = NULL;
@@ -3620,7 +3741,9 @@ TEST_F(NOTLogic, NotConditionAndExcludeObject2) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 217);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000217");
 
     maat_state_free(state);
     state = NULL;
@@ -3658,7 +3781,9 @@ TEST_F(NOTLogic, SingleNotCondition) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 222); 
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000222");
 
     maat_state_free(state);
     state = NULL;
@@ -3732,7 +3857,9 @@ TEST_F(NOTLogic, MultiNotConditions) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 223); 
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000223"); 
 
     maat_state_free(state);
     state = NULL;
@@ -3818,7 +3945,9 @@ TEST_F(NOTLogic, MultiObjectsInOneNotCondition) {
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 177);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000177");
 
     maat_state_free(state);
     state = NULL;
@@ -3873,7 +4002,9 @@ TEST_F(NOTLogic, MultiLiteralsInOneNotCondition) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 181);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000181");
 
     maat_state_reset(state);
 
@@ -3930,7 +4061,8 @@ TEST_F(NOTLogic, MultiLiteralsInOneNotCondition) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 181);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000181");
 
     maat_state_free(state);
     state = NULL;
@@ -4037,7 +4169,9 @@ TEST_F(NOTLogic, SameAttributeInMultiCondition) {
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 185);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000185");
 
     maat_state_reset(state);
 
@@ -4134,7 +4268,9 @@ TEST_F(ExcludeLogic, ScanExcludeAtFirst) {
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 199);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000199");
 
     ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -4173,7 +4309,9 @@ TEST_F(ExcludeLogic, ScanExcludeAtLast) {
 						
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
 	EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 200);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000200");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -4201,7 +4339,9 @@ TEST_F(ExcludeLogic, ScanIrrelavantAtLast) {
                                &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 200);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000200");
 
     ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -4237,7 +4377,10 @@ TEST_F(ExcludeLogic, ScanAttribute) {
                              ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 202);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000202");
+
     maat_state_reset(state);
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
@@ -4249,7 +4392,8 @@ TEST_F(ExcludeLogic, ScanAttribute) {
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 202);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000202");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -4331,7 +4475,9 @@ TEST_F(ExcludeLogic, ScanWithMultiCondition) {
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 203);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000203");
 
     ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -4400,7 +4546,9 @@ TEST_F(ExcludeLogic, ExcludeInDifferentLevel) {
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 204);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000204");
 
     ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -5464,13 +5612,12 @@ TEST_F(RuleTable, RuleRuleUpdate) {
     struct maat *maat_inst = RuleTable::_shared_maat_inst;
 
     const char *rule_table_name = "RULE_DEFAULT";
-    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name,
-                                     MAAT_OP_ADD, rule_id, "null", 1, 0);
+    uuid_t rule_uuid;
+    uuid_generate(rule_uuid);
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, rule_uuid, "null", NULL, 0, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = rule_table_set_line(maat_inst, rule_table_name,
-                                 MAAT_OP_DEL, rule_id, "null", 1, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, rule_uuid, "null", NULL, 0, 0);
     EXPECT_EQ(ret, 1);
 }
 
@@ -5489,8 +5636,12 @@ TEST_F(RuleTable, Conjunction1) {
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], 197);
-    EXPECT_EQ(results[1], 141);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000197");
+
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000141");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -5519,8 +5670,12 @@ TEST_F(RuleTable, Conjunction2) {
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], 197);
-    EXPECT_EQ(results[1], 141);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000197");
+
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000141");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -5703,7 +5858,9 @@ TEST_F(Policy, RuleEXData) {
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 198);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000198");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -5750,7 +5907,9 @@ TEST_F(Policy, SubObject) {
                          &n_hit_result, state);	
 	
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
-	EXPECT_EQ(results[0], 153);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000153");
 	
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -5979,8 +6138,12 @@ TEST_F(TableInfo, Conjunction) {
                                &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], 134);
-    EXPECT_EQ(results[1], 133);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000134");
+
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000133");
 
     ret = maat_scan_not_logic(maat_inst, conj_table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -6159,7 +6322,9 @@ TEST_F(ObjectHierarchy, AttributeOfOnePhysical)
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 160);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000160");
 
     ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -6209,7 +6374,9 @@ TEST_F(ObjectHierarchy, OneObjectInTwoAttribute) {
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 163);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000163");
 
     ret = maat_scan_not_logic(maat_inst, table_name, res_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -6248,7 +6415,9 @@ TEST_F(ObjectHierarchy, MultiObjectsInOneCondition) {
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 178);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000178");
 
     ret = maat_scan_not_logic(maat_inst, table_name, dst_asn_sttribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -6271,7 +6440,8 @@ TEST_F(ObjectHierarchy, MultiObjectsInOneCondition) {
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 178);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000178");
 
     ret = maat_scan_not_logic(maat_inst, table_name, dst_asn_sttribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -6294,7 +6464,8 @@ TEST_F(ObjectHierarchy, MultiObjectsInOneCondition) {
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 178);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000178");
 
     ret = maat_scan_not_logic(maat_inst, table_name, dst_asn_sttribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -6335,7 +6506,9 @@ TEST_F(ObjectHierarchy, MultiLiteralsInOneCondition) {
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 180);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000180");
 
     maat_state_reset(state);
 
@@ -6350,7 +6523,8 @@ TEST_F(ObjectHierarchy, MultiLiteralsInOneCondition) {
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 180);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000180");
 
     maat_state_reset(state);
 
@@ -6369,7 +6543,8 @@ TEST_F(ObjectHierarchy, MultiLiteralsInOneCondition) {
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 180);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000180");
 
     maat_state_free(state);
     state = NULL;
@@ -10430,7 +10605,9 @@ TEST_F(MaatRollback, FullConfigRollback) {
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 125);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000125");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -10461,7 +10638,8 @@ TEST_F(MaatRollback, FullConfigRollback) {
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 125);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000125");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -10488,7 +10666,9 @@ TEST_F(MaatRollback, FullConfigRollbackWhenScanUnfinished) {
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 125);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000125");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -10519,7 +10699,8 @@ TEST_F(MaatRollback, FullConfigRollbackWhenScanUnfinished) {
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 125);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000125");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);

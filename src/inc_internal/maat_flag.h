@@ -48,7 +48,7 @@ long long flag_runtime_rule_count(void *flag_runtime);
  * @retval the num of hit object_id
 */
 int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id, long long flag,
-                      int attribute_id, struct maat_state *state);
+                      const char *attribute_name, struct maat_state *state);
 
 void flag_runtime_perf_stat(struct flag_runtime *flag_rt, struct timespec *start,
                             struct timespec *end, int thread_id);

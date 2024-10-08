@@ -50,12 +50,12 @@ long long expr_runtime_get_version(void *expr_runtime);
  * @retval the num of hit object_id
 */
 int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *data, 
-                      size_t data_len, int attribute_id, struct maat_state *state);
+                      size_t data_len, const char *attribute_name, struct maat_state *state);
 
 struct expr_runtime_stream *expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id);
 
 int expr_runtime_stream_scan(struct expr_runtime_stream *expr_rt_stream, const char *data,
-                             size_t data_len, int attribute_id, struct maat_state *state);
+                             size_t data_len, const char *attribute_name, struct maat_state *state);
 
 void expr_runtime_stream_close(struct expr_runtime_stream *expr_rt_stream);
 

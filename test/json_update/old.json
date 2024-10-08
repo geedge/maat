@@ -20,7 +20,7 @@
                                     "table_name": "HTTP_URL",
                                     "table_type": "expr",
                                     "table_content": {
-                                        "keywords": "hello&world",
+                                        "expression": "hello&world",
                                         "expr_type": "and"
                                     }
                                 }

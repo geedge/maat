@@ -405,7 +405,7 @@ long long interval_runtime_rule_count(void *interval_runtime)
 }
 
 int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id, 
-                          long long integer, int attribute_id, struct maat_state *state)
+                          long long integer, const char *attribute_name, struct maat_state *state)
 {
     //clear rule_state->last_hit_object
     if (state != NULL && state->rule_compile_state != NULL) {
@@ -462,7 +462,7 @@ next:
                                   state->thread_id, 1);
     }
 
-    return rule_compile_state_update(state->rule_compile_state, state->maat_inst, attribute_id,
+    return rule_compile_state_update(state->rule_compile_state, state->maat_inst, attribute_name,
                                 state->rule_table_id, state->Nth_scan,
                                 hit_maat_items, real_hit_item_cnt);
 }

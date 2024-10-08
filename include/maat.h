@@ -25,12 +25,14 @@ extern "C"
 #include <netinet/in.h>
 #include <uuid/uuid.h>
 
+#define MAX_ATTR_NAME_LEN  128
+
 /* maat instance handle */
 struct maat;
 
 struct maat_hit_path {
     int Nth_scan;
-    char *attribute_name;    // 0 is not a attribute.
+    char attribute_name[MAX_ATTR_NAME_LEN];    // 0 is not a attribute.
     int negate_option;     // 1 means negate condition(condition)
     int condition_index; // 0 ~ 7
     uuid_t item_uuid;
@@ -42,7 +44,7 @@ struct maat_hit_path {
 struct maat_hit_object {
     uuid_t item_uuid;
     uuid_t object_uuid;
-    char *attribute_name;
+    char attribute_name[MAX_ATTR_NAME_LEN];
 };
 
 enum maat_scan_status {

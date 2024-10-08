@@ -44,7 +44,7 @@
             "gc_timeout_s":3,
             "key_type":"integer",
             "key_len":8,
-            "key_name": "rule_id"
+            "key_name": "uuid"
         }
     },
     {

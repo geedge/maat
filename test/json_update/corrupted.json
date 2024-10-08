@@ -3,7 +3,7 @@
     "object_table": "OBJECT",
     "rules": [
         {
-            "rule_id": "9c5ee166-3af6-fb23-f8f8-8c7062ed3717",
+            "uuid": "9c5ee166-3af6-fb23-f8f8-8c7062ed3717",
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -21,7 +21,7 @@
                                     "table_name": "HTTP_URL",
                                     "table_type": "expr",
                                     "table_content": {
-                                        "keywords": "hello&world",
+                                        "expression": "hello&world",
                                         "expr_type": "none"
                                     }
                                 }
