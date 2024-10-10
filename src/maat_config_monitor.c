@@ -219,7 +219,7 @@ void convert_maat_json_rule(cJSON **json_root, unsigned char *json_buff)
 			cJSON *table_name = cJSON_GetObjectItem(tmp_item, "table_name");
 			cJSON *table_content = cJSON_GetObjectItem(tmp_item, "table_content");
 			cJSON *new_item = cJSON_CreateObject();
-			cJSON *new_table_content = cJSON_Duplicate(table_content, 0);
+			cJSON *new_table_content = cJSON_Duplicate(table_content, 1);
 
 			if (object_id_obj == NULL) {
 				char uuid_str[UUID_STR_LEN];

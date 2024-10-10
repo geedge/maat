@@ -22,7 +22,7 @@
                                     "table_type": "expr",
                                     "table_content": {
                                         "expression": "hello&world",
-                                        "expr_type": "none"
+                                        "expr_type": "and"
                                     }
                                 }
                             ]

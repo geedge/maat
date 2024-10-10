@@ -211,34 +211,28 @@ fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema,
     size_t n_tag = table_manager_accept_tags_count(schema->ref_tbl_mgr);
     cJSON *tmp_obj = NULL;
 
-    tmp_obj = cJSON_GetObjectItem(json, "tag");
+    tmp_obj = cJSON_GetObjectItem(json, "effective_range");
     if (tmp_obj != NULL && n_tag > 0) {
-        if (tmp_obj->type != cJSON_String) {
+
+        char *tag_str = cJSON_Print(tmp_obj);
+
+        int ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
+        FREE(tag_str);
+        
+        if (TAG_MATCH_ERR == ret) {
             log_fatal(logger, MODULE_FQDN_PLUGIN,
-                      "[%s:%d] fqdn_plugin table:<%s> has invalid tag format"
-                      " in line:%s", __FUNCTION__, __LINE__, table_name,
-                      cJSON_Print(json));
+                        "[%s:%d] fqdn_plugin table:<%s> has invalid tag"
+                        " format in line:%s", __FUNCTION__, __LINE__,
+                        table_name, cJSON_Print(json));
             return TAG_MATCH_ERR;
         }
 
-        const char *tag = tmp_obj->valuestring;
-        if (strlen(tag) > 2) {
-            int ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag);
-            if (TAG_MATCH_ERR == ret) {
-                log_fatal(logger, MODULE_FQDN_PLUGIN,
-                          "[%s:%d] fqdn_plugin table:<%s> has invalid tag"
-                          " format in line:%s", __FUNCTION__, __LINE__,
-                          table_name, cJSON_Print(json));
-                return TAG_MATCH_ERR;
-            }
-
-            if (TAG_MATCH_UNMATCHED == ret) {
-                log_fatal(logger, MODULE_FQDN_PLUGIN,
-                          "[%s:%d] fqdn_plugin table:<%s> has unmatched tag"
-                          " in line:%s", __FUNCTION__, __LINE__, table_name,
-                          cJSON_Print(json));
-                return TAG_MATCH_UNMATCHED;
-            }
+        if (TAG_MATCH_UNMATCHED == ret) {
+            log_fatal(logger, MODULE_FQDN_PLUGIN,
+                        "[%s:%d] fqdn_plugin table:<%s> has unmatched tag"
+                        " in line:%s", __FUNCTION__, __LINE__, table_name,
+                        cJSON_Print(json));
+            return TAG_MATCH_UNMATCHED;
         }
     }
 

@@ -376,42 +376,29 @@ static int plugin_accept_tag_match(struct plugin_schema *schema,
                                    const char *table_name, const char *line,
                                    struct log_handle *logger)
 {
-    size_t tag_len = 0;
     size_t n_tag = table_manager_accept_tags_count(schema->ref_tbl_mgr);
     cJSON *tmp_obj = NULL;
     int ret = 0;
     cJSON *json = cJSON_Parse(line);
 
-    tmp_obj = cJSON_GetObjectItem(json, "tag");
+    tmp_obj = cJSON_GetObjectItem(json, "effective_range");
 
     if (tmp_obj != NULL && n_tag > 0) {
-        if (tmp_obj->type != cJSON_String) {
+        char *tag_str = cJSON_Print(tmp_obj);
+        ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
+        FREE(tag_str);
+        if (TAG_MATCH_ERR == ret) {
             log_fatal(logger, MODULE_PLUGIN,
-                      "[%s:%d] table: <%s> has invalid tag format in json, line %s",
-                      __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                        "[%s:%d] table: <%s> has invalid tag format in table_line:%s",
+                        __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
             return TAG_MATCH_ERR;
         }
 
-        tag_len = strlen(tmp_obj->valuestring);
-
-        if (tag_len > 2) {
-            char *tag_str = ALLOC(char, tag_len + 1);
-            memcpy(tag_str, tmp_obj->valuestring, tag_len);
-            ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
-            FREE(tag_str);
-            if (TAG_MATCH_ERR == ret) {
-                log_fatal(logger, MODULE_PLUGIN,
-                          "[%s:%d] table: <%s> has invalid tag format in table_line:%s",
-                          __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
-                return TAG_MATCH_ERR;
-            }
-
-            if (TAG_MATCH_UNMATCHED == ret) {
-                log_fatal(logger, MODULE_PLUGIN,
-                          "[%s:%d] table: <%s> has unmatched tag in table_line:%s",
-                          __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
-                return TAG_MATCH_UNMATCHED;
-            }
+        if (TAG_MATCH_UNMATCHED == ret) {
+            log_fatal(logger, MODULE_PLUGIN,
+                        "[%s:%d] table: <%s> has unmatched tag in table_line:%s",
+                        __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+            return TAG_MATCH_UNMATCHED;
         }
     }
 
@@ -440,9 +427,9 @@ static int plugin_table_line_get_ip_key(struct plugin_schema *schema,
     int ret = 0;
 
     tmp_obj = cJSON_GetObjectItem(json, "addr_type");
-    if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
+    if (tmp_obj == NULL || tmp_obj->type != cJSON_Number) {
         log_fatal(logger, MODULE_PLUGIN,
-                  "[%s:%d] plugin table:<%s> has no addr_type or not string format in table_line:%s",
+                  "[%s:%d] plugin table:<%s> has no addr_type or not number format in table_line:%s",
                   __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
         goto ERROR;
     }
@@ -451,7 +438,7 @@ static int plugin_table_line_get_ip_key(struct plugin_schema *schema,
     // snprintf() write at most (key_len+1) bytes (including the terminating null{'\0}) to ip_key.
     snprintf(ip_key, src_key_len + 1, "%s", src_key);
 
-    int addr_type = atoi(tmp_obj->valuestring);
+    int addr_type = tmp_obj->valueint;
     if (IPV4 == addr_type) {
         uint32_t ipv4_addr;
         ret = inet_pton(AF_INET, ip_key, &ipv4_addr);

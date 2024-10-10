@@ -37,6 +37,11 @@ make_serial_rule(const char *table_name, const char *line, void *u_para, enum ma
         return -1;
     }
     cJSON *rule_uuid = cJSON_GetObjectItem(json, "uuid");
+    
+    if (NULL == rule_uuid) {
+        rule_uuid = cJSON_GetObjectItem(json, "object_uuid");//for object2object table
+    }
+
     if (NULL == rule_uuid || rule_uuid->type != cJSON_String) {
         return -1;
     }

@@ -41,10 +41,8 @@ struct expr_schema {
 
 enum expr_type {
     EXPR_TYPE_INVALID = -1,
-    EXPR_TYPE_STRING = 0,
-	EXPR_TYPE_AND,
+	EXPR_TYPE_AND = 0,
     EXPR_TYPE_REGEX,
-    EXPR_TYPE_OFFSET,
     EXPR_TYPE_MAX
 };
 
@@ -93,30 +91,10 @@ struct expr_runtime_stream {
     struct expr_matcher_stream *handle;
 };
 
-static enum expr_type int_to_expr_type(int expr_type) {
-    enum expr_type type = EXPR_TYPE_INVALID;
-
-    switch (expr_type) {
-    case 0:
-    case 1:
-    case 3:
-        type = EXPR_TYPE_AND;
-        break;
-    case 2:
-        type = EXPR_TYPE_REGEX;
-        break;
-    default:
-        break;
-    }
-
-    return type;
-}
-
 static struct expr_item *
 expr_item_new(struct expr_schema *expr_schema, const char *table_name,
               const cJSON *json, struct expr_runtime *expr_rt, uuid_t item_uuid)
 {
-    int expr_type = -1;
     struct expr_item *expr_item = ALLOC(struct expr_item, 1);
     cJSON *tmp_obj = NULL;
     size_t len = 0;
@@ -158,8 +136,14 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
         goto error;
     }
 
-    expr_type = atoi(tmp_obj->valuestring);
-    expr_item->expr_type = int_to_expr_type(expr_type);
+    if (strncmp(tmp_obj->valuestring, "and", 3) == 0) {
+        expr_item->expr_type = EXPR_TYPE_AND;
+    } else if (strncmp(tmp_obj->valuestring, "regex", 5) == 0) {
+        expr_item->expr_type = EXPR_TYPE_REGEX;
+    } else {
+        expr_item->expr_type = EXPR_TYPE_INVALID;
+    }
+
     if (expr_item->expr_type == EXPR_TYPE_INVALID) {
         log_fatal(expr_rt->logger, MODULE_EXPR,
                   "[%s:%d] expr table:<%s> has invalid expr_type in line:%s",

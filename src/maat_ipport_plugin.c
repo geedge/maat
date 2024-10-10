@@ -602,7 +602,17 @@ int ipport_plugin_runtime_get_ex_data(void *ipport_plugin_runtime,
     }
 
     struct ipport_result results[n_ex_data];
-	int n_hit_item = ipport_matcher_match(ipport_plugin_rt->matcher, ip_addr,
+    struct ip_addr ip_data;
+	if (ip_addr->ip_type == IPV4) {
+        ip_data.ip_type = IPV4;
+		ip_data.ipv4 = ntohl(ip_addr->ipv4);
+	} else {
+        ip_data.ip_type = IPV6;
+        memcpy(ip_data.ipv6, ip_addr->ipv6, sizeof(ip_data.ipv6));
+		ipv6_ntoh(ip_data.ipv6);
+	}
+    
+	int n_hit_item = ipport_matcher_match(ipport_plugin_rt->matcher, &ip_data,
                                           port, results, n_ex_data);
     if (n_hit_item <= 0) {
         return n_hit_item;

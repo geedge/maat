@@ -239,12 +239,12 @@ TEST_F(FlagScan, basic) {
                              ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    char uuid_str1[UUID_STR_LEN] = {0};
-    char uuid_str2[UUID_STR_LEN] = {0};
-    uuid_unparse(results[0], uuid_str1);
-    uuid_unparse(results[1], uuid_str2);
-    EXPECT_TRUE(strcmp(uuid_str1, "00000000-0000-0000-0000-000000000207") == 0);
-    EXPECT_TRUE(strcmp(uuid_str2, "00000000-0000-0000-0000-000000000192") == 0);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000207");
+
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000192");
     
     ret = maat_scan_not_logic(maat_inst, flag_table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -264,10 +264,11 @@ TEST_F(FlagScan, basic) {
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    uuid_unparse(results[0], uuid_str1);
-    uuid_unparse(results[1], uuid_str2);
-    EXPECT_TRUE(strcmp(uuid_str1, "00000000-0000-0000-0000-000000000207") == 0);
-    EXPECT_TRUE(strcmp(uuid_str2, "00000000-0000-0000-0000-000000000192") == 0);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000207");
+
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000192");
 
     ret = maat_scan_not_logic(maat_inst, flag_table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -3508,12 +3509,12 @@ TEST_F(NOTLogic, NotPhysicalTable) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     // scan hit string1(KEYWORDS_TABLE) & hit string2(HTTP_RESPONSE_KEYWORDS) => not hit rule
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, string1, 
+    int ret = maat_scan_string(maat_inst, table_name, table_name, string1, 
                                strlen(string1), results, ARRAY_SIZE, 
                                &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, table_name, table_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -3524,11 +3525,11 @@ TEST_F(NOTLogic, NotPhysicalTable) {
     maat_state_reset(state);
 
     //scan not hit string1(KEYWORDS_TABLE) & hit string2(HTTP_RESPONSE_KEYWORDS) => hit rule224
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, string3, strlen(string3),
+    ret = maat_scan_string(maat_inst, table_name, table_name, string3, strlen(string3),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, table_name, table_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -4430,7 +4431,8 @@ TEST_F(ExcludeLogic, ScanWithMultiCondition) {
     int thread_id = 0;
     struct maat *maat_inst = ExcludeLogic::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-    const char *ip_attribute_name = "ATTRIBUTE_IP_PLUS_TABLE";
+    const char *src_ip_attribute_name = "ATTRIBUTE_IP_PLUS_SOURCE";
+    const char *dst_ip_attribute_name = "ATTRIBUTE_IP_PLUS_DESTINATION";
     const char *ip_table_name = "IP_PLUS_CONFIG";
 
     int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
@@ -4439,20 +4441,20 @@ TEST_F(ExcludeLogic, ScanWithMultiCondition) {
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.50.43", &ip_addr);
 
-    int ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
+    int ret = maat_scan_ipv4(maat_inst, ip_table_name, src_ip_attribute_name, ip_addr, results,
                             ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, src_ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     inet_pton(AF_INET, "47.92.108.93", &ip_addr);
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, ARRAY_SIZE,
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, dst_ip_attribute_name, ip_addr, results, ARRAY_SIZE,
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, dst_ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -4493,27 +4495,28 @@ TEST_F(ExcludeLogic, ExcludeInDifferentLevel) {
     int thread_id = 0;
     struct maat *maat_inst = ExcludeLogic::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-    const char *ip_attribute_name = "ATTRIBUTE_IP_PLUS_TABLE";
+    const char *src_ip_attribute_name = "ATTRIBUTE_IP_PLUS_SOURCE";
+    const char *dst_ip_attribute_name = "ATTRIBUTE_IP_PLUS_DESTINATION";
     const char *ip_table_name = "IP_PLUS_CONFIG";
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "100.64.2.1", &ip_addr);
 
-    int ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
+    int ret = maat_scan_ipv4(maat_inst, ip_table_name, src_ip_attribute_name, ip_addr, results,
                              ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, src_ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     inet_pton(AF_INET, "100.64.2.6", &ip_addr);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, dst_ip_attribute_name, ip_addr, results,
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, dst_ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -4564,17 +4567,30 @@ void maat_read_entry_start_cb(int update_type, void *u_para)
 void maat_read_entry_cb(const char *table_name, const char *table_line, enum maat_operation op, void *u_para)
 {
 	char ip_str[16] = {0};
-	int entry_id = -1, seq = -1;
+	int entry_id = -1;
 	unsigned int ip_uint = 0;
 	int is_valid = 0;
 	unsigned int local_ip_nr = 16820416;//192.168.0.1
+    cJSON *json = cJSON_Parse(table_line);
 
-	sscanf(table_line, "%d\t%s\t%d\t%d", &seq,ip_str, &entry_id, &is_valid);
-	inet_pton(AF_INET, ip_str, &ip_uint);
-	if (local_ip_nr == ip_uint) {
+    EXPECT_TRUE(json != NULL);
+
+    cJSON *tmp_obj = cJSON_GetObjectItem(json, "ip");
+    EXPECT_TRUE(tmp_obj != NULL);
+    strcpy(ip_str, tmp_obj->valuestring);
+    inet_pton(AF_INET, ip_str, &ip_uint);
+    if (local_ip_nr == ip_uint) {
+        tmp_obj = cJSON_GetObjectItem(json, "is_valid");
+        EXPECT_TRUE(tmp_obj != NULL);
+        is_valid = tmp_obj->valueint;
+        tmp_obj = cJSON_GetObjectItem(json, "entry_id");
+        EXPECT_TRUE(tmp_obj != NULL);
+        entry_id = tmp_obj->valueint;
         EXPECT_EQ(is_valid, 1);
         EXPECT_EQ(entry_id, 101);
-	}
+    }
+
+    cJSON_Delete(json);
 }
 
 void maat_read_entry_finish_cb(void *u_para)
@@ -4643,19 +4659,35 @@ TEST_F(PluginTable, Callback) {
 struct plugin_ud {
 	char key[32];
     char value[32];
-    int id;
+    uuid_t uuid;
 };
 
 void plugin_EX_new_cb(const char *table_name, const char *key, 
                       const char *table_line, void **ad, long argl, void *argp)
 {
 	int *counter = (int *)argp;
-    int valid = 0, tag = 0;
 	struct plugin_ud *ud = ALLOC(struct plugin_ud, 1);
-    
-	int ret = sscanf(table_line, "%d\t%s\t%s\t%d\t%d",
-                     &(ud->id), ud->key, ud->value, &valid, &tag);
-    EXPECT_EQ(ret, 5);
+
+    cJSON *json = cJSON_Parse(table_line);
+    EXPECT_TRUE(json != NULL);
+
+    cJSON *tmp_obj = cJSON_GetObjectItem(json, "uuid");
+    EXPECT_TRUE(tmp_obj != NULL);
+    uuid_parse(tmp_obj->valuestring, ud->uuid);
+
+    tmp_obj = cJSON_GetObjectItem(json, "key");
+    EXPECT_TRUE(tmp_obj != NULL);
+    if (tmp_obj->type == cJSON_Number) {
+        snprintf(ud->key, sizeof(ud->key), "%d", tmp_obj->valueint);
+    } else {
+        strncpy(ud->key, tmp_obj->valuestring, sizeof(ud->key));
+    }
+
+    tmp_obj = cJSON_GetObjectItem(json, "city");
+    EXPECT_TRUE(tmp_obj != NULL);
+    strncpy(ud->value, tmp_obj->valuestring, sizeof(ud->value));
+
+    cJSON_Delete(json);
 
     *ad = ud;
 	(*counter)++;
@@ -4696,14 +4728,17 @@ TEST_F(PluginTable, EX_DATA) {
                                                            key1, strlen(key1));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "Shijiazhuang");
-    EXPECT_EQ(ud->id, 1);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(ud->uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000001");
 
     const char *key2 = "ShanDong";
     ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_name,
                                                            key2, strlen(key2));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "Jinan");
-    EXPECT_EQ(ud->id, 3);
+    uuid_unparse(ud->uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000003");
 }
 
 TEST_F(PluginTable, LONG_KEY_TYPE) {
@@ -4725,14 +4760,17 @@ TEST_F(PluginTable, LONG_KEY_TYPE) {
                                                            (char *)&key1, sizeof(long long));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "Shijiazhuang");
-    EXPECT_EQ(ud->id, 1);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(ud->uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000001");
 
     long long key2 = 33333333;
     ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_name,
                                                            (char *)&key2, sizeof(long long));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "Jinan");
-    EXPECT_EQ(ud->id, 3);
+    uuid_unparse(ud->uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000003");
 
     int key3 = 22222222;
     ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_name,
@@ -4759,14 +4797,17 @@ TEST_F(PluginTable, INT_KEY_TYPE) {
                                                            (char *)&key1, sizeof(key1));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "China");
-    EXPECT_EQ(ud->id, 1);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(ud->uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000001");
 
     int key2 = 102;
     ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_name,
                                                            (char *)&key2, sizeof(key2));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "America");
-    EXPECT_EQ(ud->id, 2);
+    uuid_unparse(ud->uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000002");
 
     long long key3 = 103;
     ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_name,
@@ -4797,7 +4838,9 @@ TEST_F(PluginTable, IP_KEY_TYPE) {
                                                            sizeof(ipv4_addr1));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "XiZang");
-    EXPECT_EQ(ud->id, 4);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(ud->uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000001");
 
     uint32_t ipv4_addr2;
     ret = inet_pton(AF_INET, "100.64.1.2", &ipv4_addr2);
@@ -4808,7 +4851,8 @@ TEST_F(PluginTable, IP_KEY_TYPE) {
                                                            sizeof(ipv4_addr2));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "XinJiang");
-    EXPECT_EQ(ud->id, 4);
+    uuid_unparse(ud->uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000002");
 
     uint8_t ipv6_addr1[16];
     ret = inet_pton(AF_INET6, "2001:da8:205:1::101", ipv6_addr1);
@@ -4819,7 +4863,8 @@ TEST_F(PluginTable, IP_KEY_TYPE) {
                                                            sizeof(ipv6_addr1));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "GuiZhou");
-    EXPECT_EQ(ud->id, 6);
+    uuid_unparse(ud->uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000003");
 
     uint8_t ipv6_addr2[16];
     ret = inet_pton(AF_INET6, "1001:da8:205:1::101", ipv6_addr2);
@@ -4830,7 +4875,8 @@ TEST_F(PluginTable, IP_KEY_TYPE) {
                                                            sizeof(ipv6_addr2));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "SiChuan");
-    EXPECT_EQ(ud->id, 6);
+    uuid_unparse(ud->uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000004");
 }
 
 class IPPluginTable : public testing::Test
@@ -4880,7 +4926,7 @@ struct maat *IPPluginTable::_shared_maat_inst;
 struct log_handle *IPPluginTable::logger;
 
 struct ip_plugin_ud {
-	long long rule_id;
+	uuid_t rule_uuid;
 	char *buffer;
     size_t buf_len;
 };
@@ -4888,21 +4934,23 @@ void ip_plugin_ex_new_cb(const char *table_name, const char *key,
                          const char *table_line, void **ad, long argl, void *argp)
 {
 	int *counter = (int *)argp;
-	size_t column_offset=0, column_len=0;
 	struct ip_plugin_ud *ud = ALLOC(struct ip_plugin_ud, 1);
 
-	int ret = get_column_pos(table_line, 1, &column_offset, &column_len);
-	EXPECT_EQ(ret, 0);
+    cJSON *json = cJSON_Parse(table_line);
+    EXPECT_TRUE(json != NULL);
 
-	ud->rule_id = atoll(table_line + column_offset);
+    cJSON *tmp_obj = cJSON_GetObjectItem(json, "uuid");
+    EXPECT_TRUE(tmp_obj != NULL);
+    uuid_parse(tmp_obj->valuestring, ud->rule_uuid);
 
-	ret = get_column_pos(table_line, 4, &column_offset, &column_len);	
-	EXPECT_EQ(ret, 0);
+    tmp_obj = cJSON_GetObjectItem(json, "buffer");
+    EXPECT_TRUE(tmp_obj != NULL);
+    ud->buf_len = strlen(tmp_obj->valuestring);
+    ud->buffer = ALLOC(char, ud->buf_len + 1);
+    strncpy(ud->buffer, tmp_obj->valuestring, ud->buf_len);
 
-	ud->buffer = ALLOC(char, column_len + 1);
-	strncpy(ud->buffer, table_line + column_offset, column_len);
+    cJSON_Delete(json);
 
-    ud->buf_len = column_len + 1;
 	*ad = ud;
 	(*counter)++;
 }
@@ -4911,7 +4959,7 @@ void ip_plugin_ex_free_cb(const char *table_name, void **ad, long argl, void *ar
 {
 	struct ip_plugin_ud *ud = (struct ip_plugin_ud *)(*ad);
 
-    ud->rule_id = 0;
+    uuid_clear(ud->rule_uuid);
     memset(ud->buffer, 0, ud->buf_len);
     ud->buf_len = 0;
 
@@ -4949,8 +4997,12 @@ TEST_F(IPPluginTable, EX_DATA) {
     ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_name, &ipv4, 
                                            (void **)results, ARRAY_SIZE);
     EXPECT_EQ(ret, 2);
-    EXPECT_EQ(results[0]->rule_id, 101);
-    EXPECT_EQ(results[1]->rule_id, 102);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0]->rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000101");
+
+    uuid_unparse(results[1]->rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000102");
 
     struct ip_addr ipv6;
     ipv6.ip_type = IPv6;
@@ -4960,8 +5012,11 @@ TEST_F(IPPluginTable, EX_DATA) {
 	ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_name, &ipv6, 
                                            (void**)results, ARRAY_SIZE);
 	EXPECT_EQ(ret, 2);
-	EXPECT_EQ(results[0]->rule_id, 104);
-	EXPECT_EQ(results[1]->rule_id, 103);
+    uuid_unparse(results[0]->rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000104");
+
+    uuid_unparse(results[1]->rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000103");
 
 	//Reproduce BugReport-Liumengyan-20210515
 	inet_pton(AF_INET6, "240e:97c:4010:104::17", &(ipv6.ipv6));
@@ -5017,7 +5072,7 @@ struct maat *IPPortPluginTable::_shared_maat_inst;
 struct log_handle *IPPortPluginTable::logger;
 
 struct ipport_plugin_ud {
-	long long rule_id;
+	uuid_t rule_uuid;
 	char *buffer;
     size_t buf_len;
 };
@@ -5026,21 +5081,17 @@ void ipport_plugin_ex_new_cb(const char *table_name, const char *key,
                          const char *table_line, void **ad, long argl, void *argp)
 {
 	int *counter = (int *)argp;
-	size_t column_offset=0, column_len=0;
 	struct ipport_plugin_ud *ud = ALLOC(struct ipport_plugin_ud, 1);
 
-	int ret = get_column_pos(table_line, 1, &column_offset, &column_len);
-	EXPECT_EQ(ret, 0);
+    cJSON *json = cJSON_Parse(table_line);
+    EXPECT_TRUE(json != NULL);
 
-	ud->rule_id = atoll(table_line + column_offset);
+    cJSON *tmp_obj = cJSON_GetObjectItem(json, "uuid");
+    EXPECT_TRUE(tmp_obj != NULL);
+    uuid_parse(tmp_obj->valuestring, ud->rule_uuid);
 
-	ret = get_column_pos(table_line, 5, &column_offset, &column_len);	
-	EXPECT_EQ(ret, 0);
+    cJSON_Delete(json);
 
-	ud->buffer = ALLOC(char, column_len + 1);
-	strncpy(ud->buffer, table_line + column_offset, column_len);
-
-    ud->buf_len = column_len + 1;
 	*ad = ud;
 	(*counter)++;
 }
@@ -5049,11 +5100,13 @@ void ipport_plugin_ex_free_cb(const char *table_name, void **ad, long argl, void
 {
 	struct ipport_plugin_ud *ud = (struct ipport_plugin_ud *)(*ad);
 
-    ud->rule_id = 0;
-    memset(ud->buffer, 0, ud->buf_len);
-    ud->buf_len = 0;
-
-	free(ud->buffer);
+    uuid_clear(ud->rule_uuid);
+    if (ud->buffer) {
+        memset(ud->buffer, 0, ud->buf_len);
+        ud->buf_len = 0;
+        free(ud->buffer);
+    }
+	
 	free(ud);
 	*ad = NULL;
 }
@@ -5089,7 +5142,9 @@ TEST_F(IPPortPluginTable, EX_DATA) {
     ret = maat_ipport_plugin_table_get_ex_data(maat_inst, table_name, &ipv4, port,
                                                (void **)results, ARRAY_SIZE);
     EXPECT_EQ(ret, 1);
-    EXPECT_EQ(results[0]->rule_id, 103);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0]->rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000103");
 
     struct ip_addr ipv6;
     ipv6.ip_type = IPv6;
@@ -5099,7 +5154,8 @@ TEST_F(IPPortPluginTable, EX_DATA) {
 	ret = maat_ipport_plugin_table_get_ex_data(maat_inst, table_name, &ipv6, port,
                                               (void**)results, ARRAY_SIZE);
 	EXPECT_EQ(ret, 1);
-	EXPECT_EQ(results[0]->rule_id, 104);
+    uuid_unparse(results[0]->rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000104");
 
     inet_pton(AF_INET6, "240e:97c:4010:104::17", ipv6.ipv6);
     ret = maat_ipport_plugin_table_get_ex_data(maat_inst, table_name, &ipv6, port,
@@ -5156,7 +5212,7 @@ struct log_handle *FQDNPluginTable::logger;
 #define FQDN_PLUGIN_EX_DATA
 struct fqdn_plugin_ud
 {
-	int rule_id;
+	uuid_t rule_uuid;
 	int catid;
 };
 
@@ -5164,17 +5220,20 @@ void fqdn_plugin_ex_new_cb(const char *table_name, const char *key,
                            const char *table_line, void **ad, long argl, void *argp)
 {
 	int *counter = (int *)argp;
-	size_t column_offset = 0, column_len = 0;
 	struct fqdn_plugin_ud *ud = ALLOC(struct fqdn_plugin_ud, 1);
 
-	int ret = get_column_pos(table_line, 1, &column_offset, &column_len);
-	EXPECT_EQ(ret, 0);
+    cJSON *json = cJSON_Parse(table_line);
+    EXPECT_TRUE(json != NULL);
 
-	ud->rule_id = atoi(table_line + column_offset);
-	ret = get_column_pos(table_line, 3, &column_offset, &column_len);	
-	EXPECT_EQ(ret, 0);
+    cJSON *tmp_obj = cJSON_GetObjectItem(json, "uuid");
+    EXPECT_TRUE(tmp_obj != NULL);
+    uuid_parse(tmp_obj->valuestring, ud->rule_uuid);
 
-	sscanf(table_line + column_offset, "catid=%d", &ud->catid);
+    tmp_obj = cJSON_GetObjectItem(json, "buffer");
+    EXPECT_TRUE(tmp_obj != NULL);
+    sscanf(tmp_obj->valuestring, "catid=%d", &ud->catid);
+
+    cJSON_Delete(json);
 
 	*ad = ud;
 	(*counter)++;
@@ -5184,7 +5243,7 @@ void fqdn_plugin_ex_free_cb(const char *table_name, void **ad, long argl, void *
 {
 	struct fqdn_plugin_ud *u = (struct fqdn_plugin_ud *)(*ad);
 
-    u->rule_id = 0;
+    uuid_clear(u->rule_uuid);
     u->catid = 0;
 
 	free(u);
@@ -5216,8 +5275,12 @@ TEST_F(FQDNPluginTable, EX_DATA) {
 	ret = maat_fqdn_plugin_table_get_ex_data(maat_inst, table_name, "www.example1.com",
                                             (void**)result, 4);
 	ASSERT_EQ(ret, 2);
-	EXPECT_EQ(result[0]->rule_id, 201);
-	EXPECT_EQ(result[1]->rule_id, 202);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(result[0]->rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000201");
+
+    uuid_unparse(result[1]->rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000202");
 
 	ret = maat_fqdn_plugin_table_get_ex_data(maat_inst, table_name, "www.example3.com",
                                             (void**)result, 4);
@@ -5226,11 +5289,13 @@ TEST_F(FQDNPluginTable, EX_DATA) {
 	ret = maat_fqdn_plugin_table_get_ex_data(maat_inst, table_name, "r3---sn-i3belne6.example2.com",
                                             (void**)result, 4);
 	ASSERT_EQ(ret, 2);
-	EXPECT_TRUE(result[0]->rule_id == 205 || result[0]->rule_id == 204);
+    uuid_unparse(result[0]->rule_uuid, uuid_str);
+    EXPECT_TRUE(strcmp(uuid_str, "00000000-0000-0000-0000-000000000204") == 0 || 
+                strcmp(uuid_str, "00000000-0000-0000-0000-000000000205") == 0);
 }
 
 struct bool_plugin_ud {
-	int id;
+	uuid_t uuid;
 	char *name;
     size_t name_len;
 };
@@ -5238,19 +5303,22 @@ void bool_plugin_ex_new_cb(const char *table_name, const char *key,
                            const char *table_line, void **ad, long argl, void *argp)
 {
 	int *counter=(int *)argp;
-	size_t column_offset=0, column_len=0;
 	struct bool_plugin_ud *ud = ALLOC(struct bool_plugin_ud, 1);
-	
-    int ret = get_column_pos(table_line, 1, &column_offset, &column_len);
-	EXPECT_EQ(ret, 0);
 
-	ud->id = atoi(table_line + column_offset);
-	ret = get_column_pos(table_line, 3, &column_offset, &column_len);	
-	EXPECT_EQ(ret, 0);
+    cJSON *json = cJSON_Parse(table_line);
+    EXPECT_TRUE(json != NULL);
 
-	ud->name = ALLOC(char, column_len + 1);
-	memcpy(ud->name, table_line+column_offset, column_len);
-	ud->name_len = column_len + 1;
+    cJSON *tmp_obj = cJSON_GetObjectItem(json, "uuid");
+    EXPECT_TRUE(tmp_obj != NULL);
+    uuid_parse(tmp_obj->valuestring, ud->uuid);
+
+    tmp_obj = cJSON_GetObjectItem(json, "buffer");
+    EXPECT_TRUE(tmp_obj != NULL);
+    ud->name_len = strlen(tmp_obj->valuestring);
+    ud->name = ALLOC(char, ud->name_len + 1);
+    strncpy(ud->name, tmp_obj->valuestring, ud->name_len);
+
+    cJSON_Delete(json);
     
 	*ad = ud;
 	(*counter)++;
@@ -5259,7 +5327,7 @@ void bool_plugin_ex_free_cb(const char *table_name, void **ad, long argl, void *
 {
 	struct bool_plugin_ud *u = (struct bool_plugin_ud *)(*ad);
 	
-    u->id = 0;
+    uuid_clear(u->uuid);
 	memset(u->name, 0, u->name_len);
     u->name_len = 0;
 
@@ -5344,7 +5412,9 @@ TEST_F(BoolPluginTable, EX_DATA) {
 	ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_name, items_2,
                                              3, (void**)result, 6);
 	EXPECT_EQ(ret, 1);
-	EXPECT_EQ(result[0]->id, 301);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(result[0]->uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000301");
 
 	unsigned long long items_3[]={101, 102, 1000};
 	ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_name, items_3,
@@ -5355,8 +5425,9 @@ TEST_F(BoolPluginTable, EX_DATA) {
 	ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_name, items_4,
                                              sizeof(items_4)/sizeof(unsigned long long),
                                              (void**)result, 6);
-	EXPECT_EQ(ret, 1);	
-	EXPECT_EQ(result[0]->id, 305);
+	EXPECT_EQ(ret, 1);
+    uuid_unparse(result[0]->uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000305");
 }
 
 class Attribute : public testing::Test
@@ -5573,18 +5644,15 @@ void rule_ex_param_new(const char *table_name, const char *key,
 	int *counter = (int *)argp;
 	*ad = NULL;
 
-	struct rule_ex_param *param = ALLOC(struct rule_ex_param, 1);
-	
-    int rule_id = 0;
-    int service_id = 0;
-    int action = 0;
-    int do_blacklist = 0;
-    int do_log = 0;
-    char tags[1024] = {0};
+    cJSON *json = cJSON_Parse(table_line);
+    EXPECT_TRUE(json != NULL);
 
-	sscanf(table_line, "%d\t%d\t%d\t%d\t%d\t%s\t%*[^:]:%[^,],%d", 
-           &rule_id, &service_id, &action, &do_blacklist, &do_log, 
-           tags, param->name, &(param->id));
+    cJSON *tmp_obj = cJSON_GetObjectItem(json, "action_parameter");
+    EXPECT_TRUE(tmp_obj != NULL);
+
+	struct rule_ex_param *param = ALLOC(struct rule_ex_param, 1);
+
+	sscanf(tmp_obj->valuestring, "%*[^:]:%[^,],%d", param->name, &(param->id));
     
 	(*counter)++;
 	*ad = param;
@@ -5751,12 +5819,14 @@ struct log_handle *Policy::logger;
 void accept_tags_entry_cb(const char *table_name, const char *table_line, enum maat_operation op, void *u_para)
 {
 	int* callback_times = (int *)u_para;
-	char status[32] = {0};
-	int entry_id = -1, seq = -1;
-	int is_valid = 0;
 
-	sscanf(table_line, "%d\t%s\t%d\t%d", &seq,status, &entry_id, &is_valid);
-	EXPECT_STREQ(status, "SUCCESS");
+    cJSON *json = cJSON_Parse(table_line);
+    EXPECT_TRUE(json != NULL);
+
+    cJSON *tmp_obj = cJSON_GetObjectItem(json, "status");
+    EXPECT_TRUE(tmp_obj != NULL);
+	EXPECT_STREQ(tmp_obj->valuestring, "SUCCESS");
+
 	(*callback_times)++;
 }
 
@@ -5867,7 +5937,7 @@ TEST_F(Policy, RuleEXData) {
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     void *ex_data = maat_plugin_table_get_ex_data(maat_inst, plugin_table_name, 
-                                                 (char *)&results[0], sizeof(long long));
+                                                 uuid_str, strlen(uuid_str));
     ASSERT_TRUE(ex_data!=NULL);
     struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
 	EXPECT_EQ(param->id, 7799);
@@ -6129,7 +6199,7 @@ TEST_F(TableInfo, Conjunction) {
     const char *scan_data = "soq is using table conjunction function."
                             "http://www.3300av.com/novel/27122.txt";
     const char *conj_table_name = "HTTP_HOST";
-    const char *attribute_name = "HTTP_HOST";
+    const char *attribute_name = "HTTP_URL";
     struct maat *maat_inst = TableInfo::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -6142,7 +6212,7 @@ TEST_F(TableInfo, Conjunction) {
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000134");
 
-    uuid_unparse(results[0], uuid_str);
+    uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000133");
 
     ret = maat_scan_not_logic(maat_inst, conj_table_name, attribute_name, results, ARRAY_SIZE,

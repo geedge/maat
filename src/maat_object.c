@@ -290,67 +290,71 @@ object2object_item_new(const char *line, struct object2object_schema *o2o_schema
     tmp_obj = cJSON_GetObjectItem(json, "object_uuid");
     if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
         log_fatal(logger, MODULE_OBJECT,
-                  "[%s:%d] o2o table:<%s> has no object_id or format is not string in line:%s",
+                  "[%s:%d] o2o table:<%s> has no object_uuid or format is not string in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
     uuid_parse(tmp_obj->valuestring, o2o_item->object_uuid);
 
     tmp_obj = cJSON_GetObjectItem(json, "included_sub_object_uuids");
-    if (tmp_obj == NULL || tmp_obj->type != cJSON_Array) {
-        log_fatal(logger, MODULE_OBJECT,
-                  "[%s:%d] o2o table:<%s> has no included_sub_object_ids or format is not array in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-
-    for (int i = 0; i < cJSON_GetArraySize(tmp_obj); i++) {
-        cJSON *item = cJSON_GetArrayItem(tmp_obj, i);
-        if (item == NULL || item->type != cJSON_String) {
+    if (tmp_obj) {
+        if (tmp_obj->type != cJSON_Array) {
             log_fatal(logger, MODULE_OBJECT,
-                      "[%s:%d] o2o table:<%s> included_sub_object_ids format error in line:%s",
-                      __FUNCTION__, __LINE__, table_name, line);
+                    "[%s:%d] o2o table:<%s> included_sub_object_ids format is not array in line:%s",
+                    __FUNCTION__, __LINE__, table_name, line);
             goto error;
         }
-        uuid_t object_uuid;
-        uuid_parse(item->valuestring, object_uuid);
-        utarray_push_back(o2o_item->incl_sub_object_uuids, &object_uuid);
-    }
 
-    if (utarray_len(o2o_item->incl_sub_object_uuids) > MAX_OBJECT_CNT) {
-        log_fatal(logger, MODULE_OBJECT,
-				  "[%s:%d] o2r table:<%s> included_sub_object_ids exceed maximum:%d in line:%s",
-				  __FUNCTION__, __LINE__, table_name, MAX_OBJECT_CNT, line);
-		goto error;
+        for (int i = 0; i < cJSON_GetArraySize(tmp_obj); i++) {
+            cJSON *item = cJSON_GetArrayItem(tmp_obj, i);
+            if (item == NULL || item->type != cJSON_String) {
+                log_fatal(logger, MODULE_OBJECT,
+                        "[%s:%d] o2o table:<%s> included_sub_object_ids format error in line:%s",
+                        __FUNCTION__, __LINE__, table_name, line);
+                goto error;
+            }
+            uuid_t object_uuid;
+            uuid_parse(item->valuestring, object_uuid);
+            utarray_push_back(o2o_item->incl_sub_object_uuids, &object_uuid);
+        }
+
+        if (utarray_len(o2o_item->incl_sub_object_uuids) > MAX_OBJECT_CNT) {
+            log_fatal(logger, MODULE_OBJECT,
+                    "[%s:%d] o2r table:<%s> included_sub_object_ids exceed maximum:%d in line:%s",
+                    __FUNCTION__, __LINE__, table_name, MAX_OBJECT_CNT, line);
+            goto error;
+        }
     }
 
     tmp_obj = cJSON_GetObjectItem(json, "excluded_sub_object_uuids");
-    if (tmp_obj == NULL || tmp_obj->type != cJSON_Array) {
-        log_fatal(logger, MODULE_OBJECT,
-                  "[%s:%d] o2o table:<%s> has no excluded_sub_object_ids or format is not array in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-
-    for (int i = 0; i < cJSON_GetArraySize(tmp_obj); i++) {
-        cJSON *item = cJSON_GetArrayItem(tmp_obj, i);
-        if (item == NULL || item->type != cJSON_String) {
+    if (tmp_obj) {
+        if (tmp_obj->type != cJSON_Array) {
             log_fatal(logger, MODULE_OBJECT,
-                      "[%s:%d] o2o table:<%s> excluded_sub_object_ids format error in line:%s",
-                      __FUNCTION__, __LINE__, table_name, line);
+                    "[%s:%d] o2o table:<%s> excluded_sub_object_ids format is not array in line:%s",
+                    __FUNCTION__, __LINE__, table_name, line);
             goto error;
         }
-        uuid_t object_uuid;
-        uuid_parse(item->valuestring, object_uuid);
-        utarray_push_back(o2o_item->excl_sub_object_uuids, &object_uuid);
-    }
 
-    if (utarray_len(o2o_item->excl_sub_object_uuids) > MAX_OBJECT_CNT) {
-        log_fatal(logger, MODULE_OBJECT,
-				  "[%s:%d] o2r table:<%s> excluded_sub_object_ids exceed maximum:%d in line:%s",
-				  __FUNCTION__, __LINE__, table_name, MAX_OBJECT_CNT, line);
-		goto error;
-    } 
+        for (int i = 0; i < cJSON_GetArraySize(tmp_obj); i++) {
+            cJSON *item = cJSON_GetArrayItem(tmp_obj, i);
+            if (item == NULL || item->type != cJSON_String) {
+                log_fatal(logger, MODULE_OBJECT,
+                        "[%s:%d] o2o table:<%s> excluded_sub_object_ids format error in line:%s",
+                        __FUNCTION__, __LINE__, table_name, line);
+                goto error;
+            }
+            uuid_t object_uuid;
+            uuid_parse(item->valuestring, object_uuid);
+            utarray_push_back(o2o_item->excl_sub_object_uuids, &object_uuid);
+        }
+
+        if (utarray_len(o2o_item->excl_sub_object_uuids) > MAX_OBJECT_CNT) {
+            log_fatal(logger, MODULE_OBJECT,
+                    "[%s:%d] o2r table:<%s> excluded_sub_object_ids exceed maximum:%d in line:%s",
+                    __FUNCTION__, __LINE__, table_name, MAX_OBJECT_CNT, line);
+            goto error;
+        }
+    }
 
     cJSON_Delete(json);
 

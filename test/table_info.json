@@ -42,8 +42,7 @@
         "schema_tag": "{\"rule_plugin\": \"plugin\"}",
          "custom": {
             "gc_timeout_s":3,
-            "key_type":"integer",
-            "key_len":8,
+            "key_type":"pointer",
             "key_name": "uuid"
         }
     },
@@ -54,9 +53,8 @@
         "table_type":"plugin",
          "custom": {
             "gc_timeout_s":3,
-            "key_type":"integer",
-            "key_len":8,
-            "key_name":"TODO"
+            "key_type":"pointer",
+            "key_name":"uuid"
         }
     },
     {
@@ -89,10 +87,14 @@
         "table_type":"plugin",
          "custom": {
             "gc_timeout_s":3,
-            "key_type":"integer",
-            "key_len":8,
-            "key_name":"TODO"
+            "key_type":"pointer",
+            "key_name":"uuid"
         }
+    },
+    {
+        "table_id":15,
+        "table_name":"HTTP_SIGNATURE",
+        "table_type":"expr"
     },
     {
         "table_id":16,
@@ -105,9 +107,8 @@
         "table_type":"plugin",
         "custom": {
             "gc_timeout_s":3,
-            "key_type":"integer",
-            "key_len":8,
-            "key_name":"TODO"
+            "key_type":"pointer",
+            "key_name":"uuid"
         }
     },
     {
@@ -128,7 +129,7 @@
         "custom": {
             "gc_timeout_s":3,
             "key_type":"pointer",
-            "key_name":"TODO"
+            "key_name":"key"
         }
     },
     {
@@ -138,7 +139,7 @@
         "custom": {
             "gc_timeout_s":3,
             "key_type":"pointer",
-            "key_name":"TODO"
+            "key_name":"uuid"
         }
     },
     {
@@ -163,7 +164,7 @@
         "table_type":"ip_plugin",
         "custom": {
             "gc_timeout_s": 3,
-            "key_name":"TODO"
+            "key_name":"uuid"
         }
     },
     {
@@ -182,7 +183,7 @@
         "table_type":"fqdn_plugin",
         "custom": {
             "gc_timeout_s": 3,
-            "key_name":"TODO"
+            "key_name":"uuid"
         }
     },
     {
@@ -206,7 +207,7 @@
         "table_type":"bool_plugin",
         "custom": {
             "gc_timeout_s": 3,
-            "key_name":"TODO"
+            "key_name":"uuid"
         }
     },
     {
@@ -222,7 +223,7 @@
             "gc_timeout_s":3,
             "key_type":"integer",
             "key_len":8,
-            "key_name":"TODO"
+            "key_name":"key"
         }
     },
     {
@@ -233,7 +234,7 @@
             "gc_timeout_s":3,
             "key_type":"integer",
             "key_len":4,
-            "key_name":"TODO"
+            "key_name":"key"
         }
     },
     {
@@ -243,7 +244,7 @@
          "custom": {
             "gc_timeout_s":3,
             "key_type":"ip_addr",
-            "key_name":"TODO"
+            "key_name":"key"
         }
     },
     {
@@ -277,7 +278,7 @@
         "table_type":"ipport_plugin",
         "custom": {
             "gc_timeout_s": 3,
-            "key_name":"TODO"
+            "key_name":"uuid"
         }
     },
     {

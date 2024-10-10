@@ -348,11 +348,12 @@ static int rule_accept_tag_match(struct rule_schema *schema, const char *line,
     cJSON *tmp_obj = NULL;
     cJSON *table_json = cJSON_Parse(line);
 
-    tmp_obj = cJSON_GetObjectItem(table_json, "tag");
+    tmp_obj = cJSON_GetObjectItem(table_json, "effective_range");
 
     if (tmp_obj && n_tag > 0) {
-        char *tag_str = tmp_obj->valuestring;
+        char *tag_str = cJSON_Print(tmp_obj);
         int ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
+        FREE(tag_str);
         if (TAG_MATCH_ERR == ret) {
             log_fatal(logger, MODULE_RULE,
                       "[%s:%d] table: <%s> has invalid tag format in line:%s",
@@ -1627,7 +1628,7 @@ static int rule_sort_para_compare(const struct rule_sort_para *a,
 	if (a->condition_num != b->condition_num) {
 		return (a->condition_num - b->condition_num);
 	} else {
-        return uuid_compare(a->rule_uuid, b->rule_uuid);
+        return uuid_compare(b->rule_uuid, a->rule_uuid);
 	}
 }
 
@@ -1779,8 +1780,11 @@ void rule_compile_state_not_logic_update(struct rule_compile_state *rule_compile
 
     struct condition_id_kv *condition_id_kv = NULL;
     for (size_t i = 0; i < utarray_len(tbl_object->object_uuids); i++) {
-        uuid_t *object_uuid = utarray_eltptr(tbl_object->object_uuids, i);
         struct condition_query_key key;
+
+        uuid_t *object_uuid = utarray_eltptr(tbl_object->object_uuids, i);
+        memset(&key, 0, sizeof(key));
+        
         snprintf(key.attribute_name, sizeof(key.attribute_name), "%s", attribute_name);
         key.negate_option = 1;
         uuid_copy(key.object_uuid, *object_uuid);
