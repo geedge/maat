@@ -19,6 +19,7 @@ extern "C"
 #include <stdlib.h>
 #include <stddef.h>
 #include <arpa/inet.h>
+#include <uuid/uuid.h>
 
 #include "uthash/utarray.h"
 #include "cJSON/cJSON.h"
@@ -117,6 +118,7 @@ int system_cmd_gzip(const char *src_file, const char *dst_file);
 int system_cmd_encrypt(const char *src_file, const char *dst_file, const char *password);
 
 int ids_str2longlong_array(const char *ids_str, UT_array *ids_array);
+void print_uuid_str(uuid_t uuid);
 
 #ifdef __cplusplus
 }

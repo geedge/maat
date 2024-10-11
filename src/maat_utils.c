@@ -616,3 +616,10 @@ int ids_str2longlong_array(const char *ids_str, UT_array *ids_array)
 
     return 0;
 }
+
+void print_uuid_str(uuid_t uuid)
+{
+	char uuid_str[37] = {0};
+	uuid_unparse(uuid, uuid_str);
+	printf("%s\n", uuid_str);
+}

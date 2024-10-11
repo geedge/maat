@@ -383,7 +383,7 @@ static int plugin_accept_tag_match(struct plugin_schema *schema,
 
     tmp_obj = cJSON_GetObjectItem(json, "effective_range");
 
-    if (tmp_obj != NULL && n_tag > 0) {
+    if ((tmp_obj != NULL && cJSON_GetArraySize(tmp_obj) > 0) && n_tag > 0) {
         char *tag_str = cJSON_Print(tmp_obj);
         ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
         FREE(tag_str);

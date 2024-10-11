@@ -5988,7 +5988,6 @@ TEST_F(Policy, SubObject) {
 	maat_state_free(state);
 }
 
-#if 0 //TODO: fix the test case
 TEST_F(Policy, EvaluationOrder) {
     const char *url = "cavemancircus.com/2019/12/27/pretty-girls-6/";
     uuid_t results[ARRAY_SIZE];
@@ -6003,69 +6002,96 @@ TEST_F(Policy, EvaluationOrder) {
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 3);
-    EXPECT_EQ(results[0], 166);
-    EXPECT_EQ(results[1], 168);
-    EXPECT_EQ(results[2], 167);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000166");
+
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000168");
+
+    uuid_unparse(results[2], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000167");
 
     struct maat_hit_path hit_path[128];
     memset(hit_path, 0, sizeof(hit_path));
     size_t n_hit_path = maat_state_get_hit_paths(state, hit_path, 128);
     EXPECT_EQ(n_hit_path, 6);
 
-    EXPECT_EQ(hit_path[0].attribute_id, table_id);
-    EXPECT_EQ(hit_path[0].sub_object_id, 158);
-    EXPECT_EQ(hit_path[0].top_object_id, 158);
-    EXPECT_EQ(hit_path[0].condition_index, 2);
-    EXPECT_EQ(hit_path[0].rule_id, 168);
+    EXPECT_STREQ(hit_path[0].attribute_name, attribute_name);
+    uuid_unparse(hit_path[0].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000157");
+    uuid_unparse(hit_path[0].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000157");
+    EXPECT_EQ(hit_path[0].condition_index, 0);
+    uuid_unparse(hit_path[0].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000166");
 
-    EXPECT_EQ(hit_path[1].attribute_id, table_id);
-    EXPECT_EQ(hit_path[1].sub_object_id, 157);
-    EXPECT_EQ(hit_path[1].top_object_id, 157);
-    EXPECT_EQ(hit_path[1].condition_index, 0);
-    EXPECT_EQ(hit_path[1].rule_id, 166);
+    EXPECT_STREQ(hit_path[1].attribute_name, attribute_name);
+    uuid_unparse(hit_path[1].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000155");
+    EXPECT_EQ(uuid_is_null(hit_path[1].top_object_uuid), 1);
+    EXPECT_EQ(hit_path[1].condition_index, -1);
+    EXPECT_EQ(uuid_is_null(hit_path[1].rule_uuid), 1);
 
-    EXPECT_EQ(hit_path[2].attribute_id, table_id);
-    EXPECT_EQ(hit_path[2].sub_object_id, 155);
-    EXPECT_EQ(hit_path[2].top_object_id, -1);
-    EXPECT_EQ(hit_path[2].condition_index, -1);
-    EXPECT_EQ(hit_path[2].rule_id, -1);
 
-    EXPECT_EQ(hit_path[3].attribute_id, table_id);
-    EXPECT_EQ(hit_path[3].sub_object_id, 158);
-    EXPECT_EQ(hit_path[3].top_object_id, 158);
-    EXPECT_EQ(hit_path[3].condition_index, 6);
-    EXPECT_EQ(hit_path[3].rule_id, 168);
+    EXPECT_STREQ(hit_path[2].attribute_name, attribute_name);
+    uuid_unparse(hit_path[2].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000158");
+    uuid_unparse(hit_path[2].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000158");
+    EXPECT_EQ(hit_path[2].condition_index, 0);
+    uuid_unparse(hit_path[2].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000168");
+    
 
-    EXPECT_EQ(hit_path[4].attribute_id, table_id);
-    EXPECT_EQ(hit_path[4].sub_object_id, 158);
-    EXPECT_EQ(hit_path[4].top_object_id, 158);
-    EXPECT_EQ(hit_path[4].condition_index, 1);
-    EXPECT_EQ(hit_path[4].rule_id, 167);
+    EXPECT_STREQ(hit_path[3].attribute_name, attribute_name);
+    uuid_unparse(hit_path[3].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000158");
+    uuid_unparse(hit_path[3].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000158");
+    EXPECT_EQ(hit_path[3].condition_index, 1);
+    uuid_unparse(hit_path[3].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000168");
 
-    EXPECT_EQ(hit_path[5].attribute_id, table_id);
-    EXPECT_EQ(hit_path[5].sub_object_id, 158);
-    EXPECT_EQ(hit_path[5].top_object_id, 158);
-    EXPECT_EQ(hit_path[5].condition_index, 3);
-    EXPECT_EQ(hit_path[5].rule_id, 167);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    EXPECT_STREQ(hit_path[4].attribute_name, attribute_name);
+    uuid_unparse(hit_path[4].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000158");
+    uuid_unparse(hit_path[4].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000158");
+    EXPECT_EQ(hit_path[4].condition_index, 0);
+    uuid_unparse(hit_path[4].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000167");
+
+
+    EXPECT_STREQ(hit_path[5].attribute_name, attribute_name);
+    uuid_unparse(hit_path[5].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000158");
+    uuid_unparse(hit_path[5].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000158");
+    EXPECT_EQ(hit_path[5].condition_index, 1);
+    uuid_unparse(hit_path[5].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000167");
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.23.23", &ip_addr);
 
-    table_id = maat_get_table_id(maat_inst, "IP_PLUS_CONFIG");
-    ASSERT_GT(table_id, 0);
+    const char *ip_plus_table_name = "IP_PLUS_CONFIG";
+    const char *ip_plus_attribute_name = "IP_PLUS_CONFIG";
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results, ARRAY_SIZE,
+    ret = maat_scan_ipv4(maat_inst, ip_plus_table_name, ip_plus_attribute_name, ip_addr, results, ARRAY_SIZE,
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 165);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000165");
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_plus_table_name, ip_plus_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -6074,7 +6100,9 @@ TEST_F(Policy, EvaluationOrder) {
 
 TEST_F(Policy, NotConditionHitPath) {
     const char *url_table_name = "HTTP_URL";
-    const char *ip_table_name = "ATTRIBUTE_IP_CONFIG";
+    const char *url_attribute_name = "HTTP_URL";
+    const char *ip_table_name = "IP_CONFIG";
+    const char *ip_attribute_name = "ATTRIBUTE_IP_CONFIG";
     const char *url = "www.youtube.com";
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
@@ -6082,28 +6110,24 @@ TEST_F(Policy, NotConditionHitPath) {
     struct maat *maat_inst = Policy::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int url_table_id = maat_get_table_id(maat_inst, url_table_name);
-	ASSERT_GT(url_table_id, 0);
-
-    int ret = maat_scan_string(maat_inst, url_table_id, url, strlen(url),
+    int ret = maat_scan_string(maat_inst, url_table_name, url_attribute_name, url, strlen(url),
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
-    ASSERT_GT(ip_table_id, 0);
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.101.101", &ip_addr);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results,
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 228);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000228");
 
     struct maat_hit_path hit_path[128];
     memset(hit_path, 0, sizeof(hit_path));
@@ -6111,40 +6135,50 @@ TEST_F(Policy, NotConditionHitPath) {
     EXPECT_EQ(n_hit_path, 4);
 
     EXPECT_EQ(hit_path[0].Nth_scan, 1);
-    EXPECT_EQ(hit_path[0].attribute_id, url_table_id);
+    EXPECT_STREQ(hit_path[0].attribute_name, url_attribute_name);
     EXPECT_EQ(hit_path[0].negate_option, 0);
-    EXPECT_EQ(hit_path[0].condition_index, 1);
-    EXPECT_EQ(hit_path[0].sub_object_id, 249);
-    EXPECT_EQ(hit_path[0].top_object_id, 249);
-    EXPECT_EQ(hit_path[0].rule_id, 228);
+    EXPECT_EQ(hit_path[0].condition_index, 0);
+    uuid_unparse(hit_path[0].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000249");
+    uuid_unparse(hit_path[0].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000249");
+    uuid_unparse(hit_path[0].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000228");
+
 
     EXPECT_EQ(hit_path[1].Nth_scan, 2);
-    EXPECT_EQ(hit_path[1].attribute_id, ip_table_id);
+    EXPECT_STREQ(hit_path[1].attribute_name, ip_attribute_name);
     EXPECT_EQ(hit_path[1].negate_option, 1);
     EXPECT_EQ(hit_path[1].condition_index, -1);
-    EXPECT_EQ(hit_path[1].sub_object_id, 100);
-    EXPECT_EQ(hit_path[1].top_object_id, 144);
-    EXPECT_EQ(hit_path[1].rule_id, -1);
+    uuid_unparse(hit_path[1].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000100");
+    uuid_unparse(hit_path[1].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000502");
+    EXPECT_EQ(uuid_is_null(hit_path[1].rule_uuid), 1);
 
     EXPECT_EQ(hit_path[2].Nth_scan, 2);
-    EXPECT_EQ(hit_path[2].attribute_id, ip_table_id);
+    EXPECT_STREQ(hit_path[2].attribute_name, ip_attribute_name);
     EXPECT_EQ(hit_path[2].negate_option, 1);
     EXPECT_EQ(hit_path[2].condition_index, -1);
-    EXPECT_EQ(hit_path[2].sub_object_id, 100);
-    EXPECT_EQ(hit_path[2].top_object_id, -1);
-    EXPECT_EQ(hit_path[2].rule_id, -1);
+    uuid_unparse(hit_path[2].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000100");
+    EXPECT_EQ(uuid_is_null(hit_path[2].top_object_uuid), 1);
+    EXPECT_EQ(uuid_is_null(hit_path[2].rule_uuid), 1);
+
 
     EXPECT_EQ(hit_path[3].Nth_scan, 2);
-    EXPECT_EQ(hit_path[3].attribute_id, ip_table_id);
+    EXPECT_STREQ(hit_path[3].attribute_name, ip_attribute_name);
     EXPECT_EQ(hit_path[3].negate_option, 1);
-    EXPECT_EQ(hit_path[3].condition_index, 2);
-    EXPECT_EQ(hit_path[3].sub_object_id, 250);
-    EXPECT_EQ(hit_path[3].top_object_id, 250);
-    EXPECT_EQ(hit_path[3].rule_id, 228);
+    EXPECT_EQ(hit_path[3].condition_index, 1);
+    uuid_unparse(hit_path[3].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000250");
+    uuid_unparse(hit_path[3].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000250");
+    uuid_unparse(hit_path[3].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000228");
 
     maat_state_free(state);
 }
-#endif
 
 class TableInfo : public testing::Test
 {

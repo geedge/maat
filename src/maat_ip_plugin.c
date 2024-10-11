@@ -111,7 +111,7 @@ ip_plugin_accept_tag_match(struct ip_plugin_schema *schema,
     size_t n_tag = table_manager_accept_tags_count(schema->ref_tbl_mgr);
 
     tmp_obj = cJSON_GetObjectItem(json, "effective_range");
-    if (tmp_obj && n_tag > 0) {
+    if ((tmp_obj && cJSON_GetArraySize(tmp_obj) > 0) && n_tag > 0) {
         char *tag_str = cJSON_Print(tmp_obj);
 
         int ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);

@@ -92,9 +92,9 @@ struct rule_runtime {
 };
 
 struct condition_literal {
-    long long object_ids[MAX_OBJECT_CNT];
+    uuid_t object_uuids[MAX_OBJECT_CNT];
     int object_cnt;
-    int attribute_id;
+    char attribute_name[MAX_ATTR_NAME_LEN];
 };
 
 struct rule_condition {
@@ -350,7 +350,7 @@ static int rule_accept_tag_match(struct rule_schema *schema, const char *line,
 
     tmp_obj = cJSON_GetObjectItem(table_json, "effective_range");
 
-    if (tmp_obj && n_tag > 0) {
+    if ((tmp_obj && cJSON_GetArraySize(tmp_obj) > 0) && n_tag > 0) {
         char *tag_str = cJSON_Print(tmp_obj);
         int ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
         FREE(tag_str);
@@ -1023,7 +1023,7 @@ static int maat_rule_has_condition_query_key(struct maat_rule *rule,
 
 static size_t
 maat_rule_get_hit_condition_index(struct maat_rule *rule, 
-                                  const char *attribute_name, uuid_t hit_object_uuid,
+                                  const char *attribute_name, uuid_t *hit_object_uuid,
                                   int *condition_idx_array, size_t array_size)
 {
     size_t hit_condition_cnt = 0;
@@ -1040,12 +1040,11 @@ maat_rule_get_hit_condition_index(struct maat_rule *rule,
             continue;
         }
 
-        uuid_t *tmp_object_uuid = bsearch(&hit_object_uuid, tmp_condition->object_uuids,
+        uuid_t *tmp_object_uuid = bsearch(hit_object_uuid, tmp_condition->object_uuids,
                                             tmp_condition->object_cnt, sizeof(uuid_t),
                                             compare_object_uuid);
         if (tmp_object_uuid != NULL) {
             condition_idx_array[hit_condition_cnt++] = i;
-            break;
         }
     }
 
@@ -1086,7 +1085,7 @@ static void populate_hit_path_with_rule(struct maat_hit_path *hit_path_array,
         // find out which condition in rule hit
         n_condition_index =
             maat_rule_get_hit_condition_index(rule, attribute_name,
-                                              hit_path_array[idx].top_object_uuid,
+                                              &hit_path_array[idx].top_object_uuid,
                                               condition_index_array,
                                               MAX_ITEMS_PER_BOOL_EXPR);
         hit_path_array[idx].condition_index = condition_index_array[0];
@@ -1106,7 +1105,7 @@ static void populate_hit_path_with_rule(struct maat_hit_path *hit_path_array,
             hit_path_array[n_hit_path + new_hit_path_cnt] = tmp_path;
             new_hit_path_cnt++;
             n_condition_index =
-                maat_rule_get_hit_condition_index(rule, attribute_name, tmp_path.top_object_uuid,
+                maat_rule_get_hit_condition_index(rule, attribute_name, &tmp_path.top_object_uuid,
                                                   condition_index_array, MAX_ITEMS_PER_BOOL_EXPR);
             hit_path_array[n_hit_path + new_hit_path_cnt - 1].condition_index = condition_index_array[0];
             if (n_condition_index > 1) {

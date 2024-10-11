@@ -906,9 +906,8 @@
 			"conditions": [
 				{
 					"attribute_name": "KEYWORDS_TABLE",
-					"object_uuids":[
-						"00000000-0000-0000-0000-000000000111"
-					]
+					"object_name": "TakeMeHome",
+					"object_uuid": "00000000-0000-0000-0000-000000000111"
 				}
 			]
 		},
@@ -978,6 +977,7 @@
 			"action": 1,
 			"do_blacklist": 1,
 			"do_log": 1,
+			"effective_range":{},
 			"action_parameter": "offset_string",
 			"is_valid": "yes",
 			"conditions": [
@@ -1008,6 +1008,7 @@
 			"action": 1,
 			"do_blacklist": 1,
 			"do_log": 1,
+			"effective_range":{},
 			"action_parameter": "offset_string",
 			"is_valid": "yes",
 			"conditions": [
