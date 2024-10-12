@@ -99,9 +99,7 @@ struct condition_literal {
 
 struct rule_condition {
 	long long condition_id;
-    uuid_t object_uuids[MAX_OBJECT_CNT];
-    int object_cnt;
-    char attribute_name[MAX_ATTR_NAME_LEN];
+    UT_array *literals;
 	char negate_option;      // 1 byte
 	char in_use;        // 1 byte
     char pad[6];        // for 8 bytes alignment
@@ -153,6 +151,7 @@ struct rule_compile_state {
 };
 
 UT_icd ut_condition_id_icd = {sizeof(long long), NULL, NULL, NULL};
+UT_icd ut_condition_literal_icd = {sizeof(struct condition_literal), NULL, NULL, NULL};
 UT_icd ut_rule_object_uuid_icd = {sizeof(uuid_t), NULL, NULL, NULL};
 UT_icd ut_maat_hit_object_icd = {sizeof(struct maat_hit_object), NULL, NULL, NULL};
 UT_icd ut_hit_path_icd = {sizeof(struct internal_hit_path), NULL, NULL, NULL};
@@ -180,6 +179,11 @@ static void maat_rule_free(struct maat_rule *rule)
 
 	for (int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
 		condition = rule->conditions + i;
+
+        if (condition->literals != NULL) {
+            utarray_free(condition->literals);
+            condition->literals = NULL;
+        }
 
 		condition->in_use = 0;
         condition->condition_id = 0;
@@ -231,7 +235,7 @@ static struct maat_rule *maat_rule_new(struct rule_runtime *rule_rt, struct rule
 	struct maat_rule *rule = ALLOC(struct maat_rule, 1);
     struct log_handle *logger = rule_rt->logger;
     cJSON *tmp_obj = NULL;
-    cJSON *conditions = NULL;
+    cJSON *conditions_obj = NULL;
     cJSON *table_json = cJSON_Parse(table_line);
     int table_id = table_manager_get_table_id(schema->ref_tbl_mgr, table_name);
 
@@ -247,19 +251,20 @@ static struct maat_rule *maat_rule_new(struct rule_runtime *rule_rt, struct rule
     uuid_copy(rule->rule_uuid, rule_uuid);
 
     for(int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {	
+        utarray_new(rule->conditions[i].literals, &ut_condition_literal_icd);
 		rule->conditions[i].in_use = 0;
         rule->conditions[i].condition_id = 0;
 	}
 
-    conditions = cJSON_GetObjectItem(table_json, "conditions");
-    if (conditions == NULL || conditions->type != cJSON_Array) {
+    conditions_obj = cJSON_GetObjectItem(table_json, "and_conditions");
+    if (conditions_obj == NULL || conditions_obj->type != cJSON_Array) {
         log_fatal(logger, MODULE_RULE,
-                  "[%s:%d] table: <%s> has no conditions or not array format",
+                  "[%s:%d] table: <%s> has no and_conditions or not array format",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
-    rule->condition_num = cJSON_GetArraySize(conditions);
+    rule->condition_num = cJSON_GetArraySize(conditions_obj);
     if (rule->condition_num > MAX_ITEMS_PER_BOOL_EXPR) {
         log_fatal(logger, MODULE_RULE,
                   "[%s:%d] table: <%s> condition_num:%d exceed maximum:%d",
@@ -268,24 +273,8 @@ static struct maat_rule *maat_rule_new(struct rule_runtime *rule_rt, struct rule
     }
 
     for (int i = 0; i < rule->condition_num; i++) {
-        cJSON *condition_obj = cJSON_GetArrayItem(conditions, i);
+        cJSON *condition_obj = cJSON_GetArrayItem(conditions_obj, i);
         struct rule_condition *condition = rule->conditions + i;
-
-        tmp_obj = cJSON_GetObjectItem(condition_obj, "attribute_name");
-        if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
-            log_fatal(rule_rt->logger, MODULE_RULE,
-                        "[%s:%d] table: <%s> has no attribute_name or not string format",
-                        __FUNCTION__, __LINE__, table_name);
-            goto error;
-        }
-
-        if (strlen(tmp_obj->valuestring) >= sizeof(condition->attribute_name)) {
-            log_fatal(logger, MODULE_RULE,
-                      "[%s:%d] table: <%s> attribute_name:%s length exceed maximum:%d",
-                      __FUNCTION__, __LINE__, table_name, tmp_obj->valuestring, sizeof(condition->attribute_name));
-            goto error;
-        }
-        snprintf(condition->attribute_name, sizeof(condition->attribute_name), "%s", tmp_obj->valuestring);
 
         tmp_obj = cJSON_GetObjectItem(condition_obj, "negate_option");
         if (tmp_obj) {
@@ -299,30 +288,55 @@ static struct maat_rule *maat_rule_new(struct rule_runtime *rule_rt, struct rule
                             __FUNCTION__, __LINE__, table_name, tmp_obj->valuestring);
                 goto error;
             }
-        }        
-
-        if (condition->negate_option == CONDITION_NEGATE_OPTION_SET) {
-            int ret = validate_table_not_condition(rule_rt, schema->ref_tbl_mgr, condition->attribute_name, MAAT_OP_ADD, logger);
-            if (ret < 0) {
-                log_fatal(logger, MODULE_RULE,
-                          "[%s:%d] table: <%s> validate negate_option failed, line: %s",
-                          __FUNCTION__, __LINE__, table_name, table_line);
-                goto error;
-            }
         }
 
-        tmp_obj = cJSON_GetObjectItem(condition_obj, "object_uuids");
-        if (tmp_obj && tmp_obj->type == cJSON_Array) {
-            int n_object_ids = cJSON_GetArraySize(tmp_obj);
+        cJSON *or_conditions_obj = cJSON_GetObjectItem(condition_obj, "or_conditions");
+        cJSON *literal_obj = NULL;
+        cJSON_ArrayForEach(literal_obj, or_conditions_obj) {
+            struct condition_literal tmp_literal;
+            memset(&tmp_literal, 0, sizeof(tmp_literal));
 
-            condition->object_cnt = n_object_ids;
+            tmp_obj = cJSON_GetObjectItem(literal_obj, "attribute_name");
+            if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
+                log_fatal(rule_rt->logger, MODULE_RULE,
+                            "[%s:%d] table: <%s> has no attribute_name or not string format",
+                            __FUNCTION__, __LINE__, table_name);
+                goto error;
+            }
 
-            for (int j = 0; j < n_object_ids; j++) {
-                cJSON *object_id_obj = cJSON_GetArrayItem(tmp_obj, j);
-                if (object_id_obj && object_id_obj->type == cJSON_String) {
-                    uuid_parse(object_id_obj->valuestring, condition->object_uuids[j]);
+            if (strlen(tmp_obj->valuestring) >= sizeof(tmp_literal.attribute_name)) {
+                log_fatal(logger, MODULE_RULE,
+                        "[%s:%d] table: <%s> attribute_name:%s length exceed maximum:%d",
+                        __FUNCTION__, __LINE__, table_name, tmp_obj->valuestring, sizeof(tmp_literal.attribute_name));
+                goto error;
+            }
+            snprintf(tmp_literal.attribute_name, sizeof(tmp_literal.attribute_name), "%s", tmp_obj->valuestring);  
+
+            if (condition->negate_option == CONDITION_NEGATE_OPTION_SET) {
+                int ret = validate_table_not_condition(rule_rt, schema->ref_tbl_mgr, tmp_literal.attribute_name, MAAT_OP_ADD, logger);
+                if (ret < 0) {
+                    log_fatal(logger, MODULE_RULE,
+                            "[%s:%d] table: <%s> validate negate_option failed, line: %s",
+                            __FUNCTION__, __LINE__, table_name, table_line);
+                    goto error;
                 }
             }
+
+            tmp_obj = cJSON_GetObjectItem(literal_obj, "object_uuids");
+            if (tmp_obj && tmp_obj->type == cJSON_Array) {
+                int n_object_ids = cJSON_GetArraySize(tmp_obj);
+
+                tmp_literal.object_cnt = n_object_ids;
+
+                for (int j = 0; j < n_object_ids; j++) {
+                    cJSON *object_id_obj = cJSON_GetArrayItem(tmp_obj, j);
+                    if (object_id_obj && object_id_obj->type == cJSON_String) {
+                        uuid_parse(object_id_obj->valuestring, tmp_literal.object_uuids[j]);
+                    }
+                }
+            }
+
+            utarray_push_back(condition->literals, &tmp_literal);
         }
 
         condition->in_use = 1;
@@ -676,32 +690,37 @@ build_condition_id_kv_hash(struct rule_runtime *rule_rt, int negate_option)
                 }
             }
 
-            for (size_t k = 0; k < condition->object_cnt; k++) {
-                struct condition_query_key key;
-                struct condition_id_kv *condition_id_kv = NULL;
+            struct condition_literal *tmp_literal = NULL;
+            for (size_t j = 0; j < utarray_len(condition->literals); j++) {
+                tmp_literal = (struct condition_literal *)utarray_eltptr(condition->literals, j);
 
-                memset(&key, 0, sizeof(key));
+                for (size_t k = 0; k < tmp_literal->object_cnt; k++) {
+                    struct condition_query_key key;
+                    struct condition_id_kv *condition_id_kv = NULL;
 
-                memcpy(key.attribute_name, condition->attribute_name, sizeof(key.attribute_name));
-                key.negate_option = condition->negate_option;
-                uuid_copy(key.object_uuid, condition->object_uuids[k]);
-                
-                HASH_FIND(hh, condition_id_kv_hash, &key, sizeof(struct condition_query_key),
-                            condition_id_kv);
-                if (NULL == condition_id_kv) {
-                    condition_id_kv = ALLOC(struct condition_id_kv, 1);
-                    condition_id_kv->key = key;
-                    utarray_new(condition_id_kv->condition_ids, &ut_condition_id_icd);
-                    HASH_ADD_KEYPTR(hh, condition_id_kv_hash, &condition_id_kv->key,
-                                    sizeof(condition_id_kv->key), condition_id_kv);
+                    memset(&key, 0, sizeof(key));
+
+                    memcpy(key.attribute_name, tmp_literal->attribute_name, sizeof(key.attribute_name));
+                    key.negate_option = condition->negate_option;
+                    uuid_copy(key.object_uuid, tmp_literal->object_uuids[k]);
+                    
+                    HASH_FIND(hh, condition_id_kv_hash, &key, sizeof(struct condition_query_key),
+                                condition_id_kv);
+                    if (NULL == condition_id_kv) {
+                        condition_id_kv = ALLOC(struct condition_id_kv, 1);
+                        condition_id_kv->key = key;
+                        utarray_new(condition_id_kv->condition_ids, &ut_condition_id_icd);
+                        HASH_ADD_KEYPTR(hh, condition_id_kv_hash, &condition_id_kv->key,
+                                        sizeof(condition_id_kv->key), condition_id_kv);
+                    }
+
+                    if (utarray_find(condition_id_kv->condition_ids, &(condition->condition_id),
+                                        compare_condition_id)) {
+                        continue;
+                    }
+                    utarray_push_back(condition_id_kv->condition_ids, &(condition->condition_id));
+                    utarray_sort(condition_id_kv->condition_ids, compare_condition_id);
                 }
-
-                if (utarray_find(condition_id_kv->condition_ids, &(condition->condition_id),
-                                    compare_condition_id)) {
-                    continue;
-                }
-                utarray_push_back(condition_id_kv->condition_ids, &(condition->condition_id));
-                utarray_sort(condition_id_kv->condition_ids, compare_condition_id);
             }
         }
     }
@@ -1001,20 +1020,24 @@ static int maat_rule_has_condition_query_key(struct maat_rule *rule,
 			continue;
 		}
 
+        struct condition_literal *tmp_literal = NULL;
+        for (size_t j = 0; j < utarray_len(condition->literals); j++) {
+            tmp_literal = (struct condition_literal *)utarray_eltptr(condition->literals, j);
 
-        if (strncmp(condition->attribute_name, key->attribute_name, sizeof(key->attribute_name)) != 0) {
-            continue;
-        }
+            if (strncmp(tmp_literal->attribute_name, key->attribute_name, sizeof(key->attribute_name)) != 0) {
+                continue;
+            }
 
-        if (condition->negate_option != key->negate_option) {
-            continue;
-        }
+            if (condition->negate_option != key->negate_option) {
+                continue;
+            }
 
-        uuid_t *tmp_object_uuid = bsearch(&(key->object_uuid), condition->object_uuids,
-                                            condition->object_cnt, sizeof(uuid_t),
-                                            compare_object_uuid);
-        if (tmp_object_uuid != NULL) {
-            return 1;
+            uuid_t *tmp_object_uuid = bsearch(&(key->object_uuid), tmp_literal->object_uuids,
+                                                tmp_literal->object_cnt, sizeof(uuid_t),
+                                                compare_object_uuid);
+            if (tmp_object_uuid != NULL) {
+                return 1;
+            }
         }
 	}
 
@@ -1035,16 +1058,21 @@ maat_rule_get_hit_condition_index(struct maat_rule *rule,
             continue;
         }
 
+        struct condition_literal *tmp_literal = NULL;
+        for (size_t j = 0; j < utarray_len(tmp_condition->literals); j++) {
+            tmp_literal = (struct condition_literal *)utarray_eltptr(tmp_condition->literals, j);
+        
+            if (strncmp(tmp_literal->attribute_name, attribute_name, sizeof(tmp_literal->attribute_name)) != 0) {
+                continue;
+            }
 
-        if (strncmp(tmp_condition->attribute_name, attribute_name, sizeof(tmp_condition->attribute_name)) != 0) {
-            continue;
-        }
-
-        uuid_t *tmp_object_uuid = bsearch(hit_object_uuid, tmp_condition->object_uuids,
-                                            tmp_condition->object_cnt, sizeof(uuid_t),
-                                            compare_object_uuid);
-        if (tmp_object_uuid != NULL) {
-            condition_idx_array[hit_condition_cnt++] = i;
+            uuid_t *tmp_object_uuid = bsearch(hit_object_uuid, tmp_literal->object_uuids,
+                                                tmp_literal->object_cnt, sizeof(uuid_t),
+                                                compare_object_uuid);
+            if (tmp_object_uuid != NULL) {
+                condition_idx_array[hit_condition_cnt++] = i;
+                break;
+            }
         }
     }
 
@@ -1457,7 +1485,10 @@ static void rule_runtime_del_rule(struct rule_runtime *rule_rt,
         for (int i = 0; i < rule->condition_num; i++) {
             struct rule_condition *condition = rule->conditions + i;
             if (condition->in_use && condition->negate_option == CONDITION_NEGATE_OPTION_SET) {
-                validate_table_not_condition(rule_rt, schema->ref_tbl_mgr, condition->attribute_name, MAAT_OP_DEL, logger);
+                for (size_t j = 0; j < utarray_len(condition->literals); j++) {
+                    struct condition_literal *literal = (struct condition_literal *)utarray_eltptr(condition->literals, j);
+                    validate_table_not_condition(rule_rt, schema->ref_tbl_mgr, literal->attribute_name, MAAT_OP_DEL, logger);
+                }
             }
         }
 

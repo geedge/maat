@@ -214,6 +214,72 @@ static void object_info_free(struct object_info *object_name_map)
 	}
 }
 
+static void convert_condition(struct object_info *object_name_map, cJSON *condition, cJSON *top_items, int *object_gen_id, int *item_gen_id)
+{
+	cJSON *object_uuid_array = cJSON_CreateArray();
+	cJSON *object_name = cJSON_GetObjectItem(condition, "object_name");
+	cJSON *object_uuid = cJSON_GetObjectItem(condition, "object_uuid");
+
+	if (object_name && object_uuid) {
+		object_info_add(object_name_map, object_name->valuestring, object_uuid->valuestring);
+	}
+
+	if (object_uuid) {
+		cJSON_AddItemToArray(object_uuid_array, cJSON_CreateString(object_uuid->valuestring));
+	} else if (object_name) {
+		struct object_info *object_info = object_info_find(object_name_map, object_name->valuestring);
+		if (object_info) {
+			cJSON_AddItemToArray(object_uuid_array, cJSON_CreateString(object_info->object_uuid));
+		}
+	}
+
+	cJSON *object_array = cJSON_GetObjectItem(condition, "objects");
+	cJSON *tmp_object = NULL;
+	cJSON_ArrayForEach(tmp_object, object_array) {//convert objects in condition
+		//find items, generate item_id and object_id
+		cJSON *object_id_obj = cJSON_GetObjectItem(tmp_object, "uuid");
+		cJSON *object_name_obj = cJSON_GetObjectItem(tmp_object, "object_name");
+		cJSON *items = cJSON_GetObjectItem(tmp_object, "items");
+		cJSON *item = NULL;
+		char obj_uuid_str[UUID_STR_LEN];
+		memset(obj_uuid_str, 0, sizeof(obj_uuid_str));
+		if (object_id_obj != NULL) {
+			snprintf(obj_uuid_str, sizeof(obj_uuid_str), "%s", object_id_obj->valuestring);
+		} else {
+			snprintf(obj_uuid_str, sizeof(obj_uuid_str), "00000000-0000-0000-0000-00000000%d", (*object_gen_id)++);
+		}
+
+		if (object_name_obj) {
+			object_info_add(object_name_map, object_name_obj->valuestring, obj_uuid_str);
+		}
+
+		cJSON_ArrayForEach(item, items) {
+			cJSON *table_name = cJSON_GetObjectItem(item, "table_name");
+			cJSON *tmp_item = cJSON_CreateObject();
+			cJSON_AddItemToObject(tmp_item, "table_name", cJSON_CreateString(table_name->valuestring));
+
+			cJSON *dup = cJSON_Duplicate(cJSON_GetObjectItem(item, "table_content"), 1);
+
+			if (cJSON_GetObjectItem(dup, "uuid") == NULL) {
+				char uuid_str[UUID_STR_LEN];
+				snprintf(uuid_str, sizeof(uuid_str), "00000000-0000-0000-0000-00000000%d", (*item_gen_id)++);
+				cJSON_AddStringToObject(dup, "uuid", uuid_str);
+			}
+			cJSON_AddStringToObject(dup, "object_uuid", obj_uuid_str);
+
+			cJSON_AddItemToObject(tmp_item, "table_content", dup);
+			cJSON_AddItemToArray(top_items, tmp_item);
+		}
+
+		cJSON_AddItemToArray(object_uuid_array, cJSON_CreateString(obj_uuid_str));
+	}
+	//replace object content with object_id
+	cJSON_DeleteItemFromObject(condition, "objects");
+	cJSON_AddItemToObject(condition, "object_uuids", object_uuid_array);
+
+	return;
+}
+
 void convert_maat_json_rule(cJSON **json_root, unsigned char *json_buff)
 {
 	*json_root = cJSON_Parse((const char *)json_buff);
@@ -307,74 +373,29 @@ void convert_maat_json_rule(cJSON **json_root, unsigned char *json_buff)
 	*/	
 	cJSON *tmp_rule = NULL;
 	cJSON_ArrayForEach(tmp_rule, rules) {
-		cJSON *tmp_condition = NULL;
-		cJSON *condition_array = cJSON_GetObjectItem(tmp_rule, "conditions");
-		cJSON_ArrayForEach(tmp_condition, condition_array) {
-			cJSON *tmp_object = NULL;
-			cJSON *object_uuid_array = cJSON_CreateArray();
+		cJSON *tmp_and_condition = NULL;
+		cJSON *condition_array = cJSON_GetObjectItem(tmp_rule, "and_conditions");
+		cJSON_ArrayForEach(tmp_and_condition, condition_array) {
 
-			cJSON *negate_option = cJSON_GetObjectItem(tmp_condition, "negate_option");
+			cJSON *negate_option = cJSON_GetObjectItem(tmp_and_condition, "negate_option");
 			if (negate_option == NULL) {
-				cJSON_AddBoolToObject(tmp_condition, "negate_option", 0);
+				cJSON_AddBoolToObject(tmp_and_condition, "negate_option", 0);
 			}
 
-			cJSON *object_name = cJSON_GetObjectItem(tmp_condition, "object_name");
-			cJSON *object_uuid = cJSON_GetObjectItem(tmp_condition, "object_uuid");
-			if (object_name && object_uuid) {
-				object_info_add(object_name_map, object_name->valuestring, object_uuid->valuestring);
+			cJSON *or_conditions = cJSON_GetObjectItem(tmp_and_condition, "or_conditions");
+			if (or_conditions) {
+				cJSON *tmp_or_condition = NULL;
+				cJSON_ArrayForEach(tmp_or_condition, or_conditions) {
+					convert_condition(object_name_map, tmp_or_condition, top_items, &object_gen_id, &item_gen_id);
+				}
+			} else {
+				cJSON *tmp_or_condition = cJSON_Duplicate(tmp_and_condition, 1);
+				convert_condition(object_name_map, tmp_or_condition, top_items, &object_gen_id, &item_gen_id);
+				
+				or_conditions = cJSON_CreateArray();
+				cJSON_AddItemToArray(or_conditions, tmp_or_condition);
+				cJSON_AddItemToObject(tmp_and_condition, "or_conditions", or_conditions);
 			}
-
-			if (object_uuid) {
-				cJSON_AddItemToArray(object_uuid_array, cJSON_CreateString(object_uuid->valuestring));
-			} else if (object_name) {
-				struct object_info *object_info = object_info_find(object_name_map, object_name->valuestring);
-				if (object_info) {
-					cJSON_AddItemToArray(object_uuid_array, cJSON_CreateString(object_info->object_uuid));
-				}
-			}
-			
-			cJSON *object_array = cJSON_GetObjectItem(tmp_condition, "objects");
-			cJSON_ArrayForEach(tmp_object, object_array) {//convert objects in rule
-				//find items, generate item_id and object_id
-				cJSON *object_id_obj = cJSON_GetObjectItem(tmp_object, "uuid");
-				cJSON *object_name_obj = cJSON_GetObjectItem(tmp_object, "object_name");
-				cJSON *items = cJSON_GetObjectItem(tmp_object, "items");
-				cJSON *item = NULL;
-				char obj_uuid_str[UUID_STR_LEN];
-				memset(obj_uuid_str, 0, sizeof(obj_uuid_str));
-				if (object_id_obj != NULL) {
-					snprintf(obj_uuid_str, sizeof(obj_uuid_str), "%s", object_id_obj->valuestring);
-				} else {
-					snprintf(obj_uuid_str, sizeof(obj_uuid_str), "00000000-0000-0000-0000-00000000%d", object_gen_id++);
-				}
-
-				if (object_name_obj) {
-					object_info_add(object_name_map, object_name_obj->valuestring, obj_uuid_str);
-				}
-
-				cJSON_ArrayForEach(item, items) {
-					cJSON *table_name = cJSON_GetObjectItem(item, "table_name");
-					cJSON *tmp_item = cJSON_CreateObject();
-					cJSON_AddItemToObject(tmp_item, "table_name", cJSON_CreateString(table_name->valuestring));
-
-					cJSON *dup = cJSON_Duplicate(cJSON_GetObjectItem(item, "table_content"), 1);
-
-					if (cJSON_GetObjectItem(dup, "uuid") == NULL) {
-						char uuid_str[UUID_STR_LEN];
-						snprintf(uuid_str, sizeof(uuid_str), "00000000-0000-0000-0000-00000000%d", item_gen_id++);
-						cJSON_AddStringToObject(dup, "uuid", uuid_str);
-					}
-					cJSON_AddStringToObject(dup, "object_uuid", obj_uuid_str);
-
-					cJSON_AddItemToObject(tmp_item, "table_content", dup);
-					cJSON_AddItemToArray(top_items, tmp_item);
-				}
-
-				cJSON_AddItemToArray(object_uuid_array, cJSON_CreateString(obj_uuid_str));
-			}
-			//replace object content with object_id
-			cJSON_DeleteItemFromObject(tmp_condition, "objects");
-			cJSON_AddItemToObject(tmp_condition, "object_uuids", object_uuid_array);
 		}
 			
 	}

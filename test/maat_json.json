@@ -645,7 +645,7 @@
 			"do_log": 1,
 			"action_parameter": "escaped\\bdata:have\\ba\\bspace\\band\\ba\\b\\&\\bsymbol.",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "IP_CONFIG",
 					"object_uuids": [
@@ -681,7 +681,7 @@
 			"do_log": 1,
 			"action_parameter": "anything",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "IP_CONFIG",
 					"object_uuids": [
@@ -716,7 +716,7 @@
 			"do_log": 1,
 			"action_parameter": "anything",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL",
 					"objects": [
@@ -746,7 +746,7 @@
 			"do_log": 1,
 			"action_parameter": "anything",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL",
 					"objects": [
@@ -782,7 +782,7 @@
 			"do_log": 1,
 			"action_parameter": "StringScan.ExprPlus",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_SIGNATURE",
 					"objects": [
@@ -813,7 +813,7 @@
 			"do_log": 1,
 			"action_parameter": "utf8_中文",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL",
 					"objects": [
@@ -843,7 +843,7 @@
 			"do_log": 1,
 			"action_parameter": "utf8_维语",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "KEYWORDS_TABLE",
 					"objects": [
@@ -873,7 +873,7 @@
 			"do_log": 1,
 			"action_parameter": "utf8_维语2",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "KEYWORDS_TABLE",
 					"objects": [
@@ -903,7 +903,7 @@
 			"do_log": 1,
 			"action_parameter": "string\\bunescape",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "KEYWORDS_TABLE",
 					"object_name": "TakeMeHome",
@@ -919,7 +919,7 @@
 			"do_log": 1,
 			"action_parameter": "13018_table_conjunction_test_part1\bnow_its_very_very_long0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL",
 					"objects": [
@@ -949,7 +949,7 @@
 			"do_log": 1,
 			"action_parameter": "table_conjunction_test_part2",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL",
 					"objects": [
@@ -980,7 +980,7 @@
 			"effective_range":{},
 			"action_parameter": "offset_string",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "IMAGE_FP",
 					"objects": [
@@ -1011,7 +1011,7 @@
 			"effective_range":{},
 			"action_parameter": "offset_string",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "IMAGE_FP",
 					"objects": [
@@ -1042,7 +1042,7 @@
 			"effective_range": {"tag_sets":[[{"tag":"location","value":["北京/朝阳/华严北里","上海/浦东/陆家嘴"]},{"tag":"isp","value":["电信","联通"]}],[{"tag":"location","value":["北京"]},{"tag":"isp","value":["联通"]}]]},
 			"action_parameter": "Not\\baccepted\\btags",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL",
 					"objects": [
@@ -1073,7 +1073,7 @@
 			"effective_range": "{\"tag_sets\":[[{\"tag\":\"location\",\"value\":[\"北京/朝阳/华严北里\"]},{\"tag\":\"isp\",\"value\":[\"电信\",\"移动\"]}]]}",
 			"action_parameter": "Accepted\\btags",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL",
 					"objects": [
@@ -1103,7 +1103,7 @@
 			"do_log": 1,
 			"action_parameter": "file_streams",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "KEYWORDS_TABLE",
 					"objects": [
@@ -1134,7 +1134,7 @@
 			"action_parameter": "Something:I\\bhave\\ba\\bname,7799",
 			"rule_table_name": "RULE_ALIAS",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"o2r_table_name": "OBJECT2RULE_ALIAS",
 					"attribute_name": "HTTP_URL",
@@ -1165,7 +1165,7 @@
 			"do_log": 1,
 			"action_parameter": "StringScan.UTF8EncodedURL",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL",
 					"objects": [
@@ -1195,7 +1195,7 @@
 			"do_log": 1,
 			"action_parameter": "NOTLogic.OneRegion",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL_FILTER",
 					"negate_option": false,
@@ -1246,7 +1246,7 @@
 			"do_log": 1,
 			"action_parameter": "NOTLogic.ScanNotAtLast",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL_FILTER",
 					"negate_option": false,
@@ -1297,7 +1297,7 @@
 			"do_log": 1,
 			"action_parameter": "NOTLogic.ScanNotIP",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL",
 					"negate_option": false,
@@ -1335,7 +1335,7 @@
 			"do_log": 1,
 			"action_parameter": "NOTLogic.NotExprConditionAndNotIPCondition",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL_FILTER",
 					"negate_option": false,
@@ -1396,7 +1396,7 @@
 			"do_log": 1,
 			"action_parameter": "NOTLogic.8NotCondition",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_RESPONSE_KEYWORDS_1",
 					"negate_option": true,
@@ -1575,7 +1575,7 @@
 			"do_log": 1,
 			"action_parameter": "StringScan.Regex",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL",
 					"objects": [
@@ -1605,7 +1605,7 @@
 			"do_log": 0,
 			"action_parameter": "StringScan.BugReport20190325",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "TROJAN_PAYLOAD",
 					"objects": [
@@ -1654,7 +1654,7 @@
 			"do_log": 0,
 			"action_parameter": "StringScan.PrefixAndSuffix",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "MAIL_ADDR",
 					"objects": [
@@ -1684,7 +1684,7 @@
 			"do_log": 0,
 			"action_parameter": "StringScan.PrefixAndSuffix",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "MAIL_ADDR",
 					"object_uuids": [
@@ -1707,7 +1707,7 @@
 			"do_log": 0,
 			"action_parameter": "Policy.SubObject",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "MAIL_ADDR",
 					"negate_option": false,
@@ -1732,7 +1732,7 @@
 			"do_log": 0,
 			"action_parameter": "ipv4_plus",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "IP_PLUS_CONFIG",
 					"negate_option": false,
@@ -1762,7 +1762,7 @@
 			"do_log": 0,
 			"action_parameter": "ipv6_plus",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "IP_PLUS_CONFIG",
 					"negate_option": false,
@@ -1792,7 +1792,7 @@
 			"do_log": 0,
 			"action_parameter": "StringScan.StreamScanUTF8",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "TROJAN_PAYLOAD",
 					"objects": [
@@ -1822,7 +1822,7 @@
 			"do_log": 0,
 			"action_parameter": "IPScan.IPv4_CIDR",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "IP_PLUS_CONFIG",
 					"objects": [
@@ -1851,7 +1851,7 @@
 			"do_log": 0,
 			"action_parameter": "IPScan.IPv6_CIDR",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "IP_PLUS_CONFIG",
 					"objects": [
@@ -1880,7 +1880,7 @@
 			"do_log": 0,
 			"action_parameter": "AttributeWithOnePhysical",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_RESPONSE_KEYWORDS",
 					"negate_option": false,
@@ -1918,7 +1918,7 @@
 			"do_log": 0,
 			"action_parameter": "OneObjectInTwoAttribute",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_REQUEST_HEADER",
 					"negate_option": false,
@@ -1943,7 +1943,7 @@
 			"do_log": 1,
 			"action_parameter": "CharsetWindows1251",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "KEYWORDS_TABLE",
 					"objects": [
@@ -1974,7 +1974,7 @@
 			"action_parameter": "EvaluationOrder",
 			"is_valid": "yes",
 			"evaluation_order": "2.111",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL",
 					"objects": [
@@ -2024,7 +2024,7 @@
 			"action_parameter": "EvaluationOrder",
 			"is_valid": "yes",
 			"evaluation_order": "100.233",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL",
 					"objects": [
@@ -2055,7 +2055,7 @@
 			"action_parameter": "EvaluationOrder",
 			"is_valid": "yes",
 			"evaluation_order": "300.999",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL",
 					"condition_index": 1,
@@ -2081,7 +2081,7 @@
 			"action_parameter": "EvaluationOrder",
 			"is_valid": "yes",
 			"evaluation_order": "0",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL",
 					"object_uuids": [
@@ -2106,7 +2106,7 @@
 			"do_log": 0,
 			"action_parameter": "IPScan.IPv4_Any",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "IP_PLUS_CONFIG",
 					"condition_index": 0,
@@ -2137,7 +2137,7 @@
 			"do_log": 0,
 			"action_parameter": "IPScan.IPv4_attribute_name.source",
 			"is_valid": "no",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "IP_PLUS_CONFIG",
 					"negate_option": false,
@@ -2167,7 +2167,7 @@
 			"do_log": 0,
 			"action_parameter": "IPScan.IPv4_attribute_name.destination",
 			"is_valid": "no",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "IP_PLUS_CONFIG",
 					"negate_option": false,
@@ -2195,9 +2195,9 @@
 			"action": 1,
 			"do_blacklist": 1,
 			"do_log": 1,
-			"action_parameter": "NOTLogic.MulticonditionsInOneNotCondition",
+			"action_parameter": "NOTLogic.Multiand_conditionsInOneNotCondition",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "ASN_NOT_LOGIC",
                     "negate_option": true,
@@ -2226,7 +2226,7 @@
 			"do_log": 1,
 			"action_parameter": "Hierarchy.MultiObjectInOneCondition",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "SOURCE_IP_ASN",
 					"object_uuids": [
@@ -2255,24 +2255,25 @@
 			"do_log": 1,
 			"action_parameter": "Hierarchy.MultiObjectInOneCondition",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
-					"attribute_name": "SOURCE_IP_ASN",
-                    "negate_option": false,
-					"object_uuids": [
-						"00000000-0000-0000-0000-000000000001",
-						"00000000-0000-0000-0000-000000000003",
-						"00000000-0000-0000-0000-000000000004"
-					],
-					"condition_index": 0
-				},
-				{
-					"attribute_name": "SOURCE_IP_GEO",
-                    "negate_option": false,
-					"object_uuids": [
-                        "00000000-0000-0000-0000-000000000015"
-                    ],
-					"condition_index": 0
+					"negate_option": false,
+					"or_conditions":[
+						{
+							"attribute_name": "SOURCE_IP_ASN",
+							"object_uuids": [
+								"00000000-0000-0000-0000-000000000001",
+								"00000000-0000-0000-0000-000000000003",
+								"00000000-0000-0000-0000-000000000004"
+							]
+						},
+						{
+							"attribute_name": "SOURCE_IP_GEO",
+							"object_uuids": [
+								"00000000-0000-0000-0000-000000000015"
+							]
+						}
+					]
 				},
 				{
 					"attribute_name": "IP_CONFIG",
@@ -2292,32 +2293,33 @@
 			"do_log": 1,
 			"action_parameter": "NOTLogic.MultiLiteralsInOneNotCondition",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
-					"attribute_name": "SOURCE_IP_ASN",
-                    "negate_option": true,
-					"object_uuids": [
-						"00000000-0000-0000-0000-000000000001",
-						"00000000-0000-0000-0000-000000000003",
-						"00000000-0000-0000-0000-000000000004"
-					],
-					"condition_index": 0
-				},
-				{
-					"attribute_name": "IP_PLUS_CONFIG",
-                    "negate_option": true,
-					"object_uuids": [
-                        "00000000-0000-0000-0000-000000000014"
-                    ],
-					"condition_index": 0
+					"negate_option": true,
+					"or_conditions": [
+						{
+							"attribute_name": "SOURCE_IP_ASN",
+							"object_uuids": [
+								"00000000-0000-0000-0000-000000000001",
+								"00000000-0000-0000-0000-000000000003",
+								"00000000-0000-0000-0000-000000000004"
+							]
+						},
+						{
+							"attribute_name": "IP_PLUS_CONFIG",
+							"negate_option": true,
+							"object_uuids": [
+								"00000000-0000-0000-0000-000000000014"
+							]
+						}
+					]
 				},
 				{
 					"attribute_name": "SOURCE_IP_GEO",
                     "negate_option": false,
 					"object_uuids": [
                         "00000000-0000-0000-0000-000000000015"
-                    ],
-					"condition_index": 1
+                    ]
 				}
 			]
 		},
@@ -2329,7 +2331,7 @@
 			"do_log": 1,
 			"action_parameter": "8-expr",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "KEYWORDS_TABLE",
 					"objects": [
@@ -2360,7 +2362,7 @@
 			"do_log": 0,
 			"action": 0,
 			"service": 0,
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "IP_CONFIG",
 					"objects": [
@@ -2389,24 +2391,25 @@
 			"do_log": 1,
 			"action_parameter": "NOTLogic.SameAttributeInMultiCondition",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
-					"attribute_name": "DESTINATION_IP_ASN",
-                    "negate_option": true,
-					"object_uuids": [
-						"00000000-0000-0000-0000-000000000001",
-						"00000000-0000-0000-0000-000000000003",
-						"00000000-0000-0000-0000-000000000004"
-					],
-					"condition_index": 0
-				},
-				{
-					"attribute_name": "SOURCE_IP_GEO",
-                    "negate_option": true,
-					"object_uuids": [
-                        "00000000-0000-0000-0000-000000000015"
-                    ],
-					"condition_index": 0
+					"negate_option": true,
+					"or_conditions": [
+						{
+							"attribute_name": "DESTINATION_IP_ASN",
+							"object_uuids": [
+								"00000000-0000-0000-0000-000000000001",
+								"00000000-0000-0000-0000-000000000003",
+								"00000000-0000-0000-0000-000000000004"
+							]
+						},
+						{
+							"attribute_name": "SOURCE_IP_GEO",
+							"object_uuids": [
+								"00000000-0000-0000-0000-000000000015"
+							]
+						}
+					]
 				},
 				{
 					"attribute_name": "DESTINATION_IP_ASN",
@@ -2442,7 +2445,7 @@
 			"do_log": 1,
 			"action_parameter": "NOTLogic.ScanHitAtLast",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL_FILTER",
 					"negate_option": true,
@@ -2492,7 +2495,7 @@
 			"do_log": 1,
 			"action_parameter": "NOTLogic.ScanHitAtLast",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL_FILTER",
 					"negate_option": true,
@@ -2542,7 +2545,7 @@
 			"do_log": 1,
 			"action_parameter": "NOTLogic.ScanHitAtLast",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL_FILTER",
 					"negate_option": true,
@@ -2592,7 +2595,7 @@
 			"service": 0,
 			"do_blacklist": 0,
 			"action_parameter": "StringScan.ShouldNotHitExprPlus",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "APP_PAYLOAD",
 					"objects": [
@@ -2623,7 +2626,7 @@
 			"do_log": 0,
 			"action_parameter": "StringScan.HexBinCaseSensitive",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "KEYWORDS_TABLE",
 					"objects": [
@@ -2653,7 +2656,7 @@
 			"do_log": 0,
 			"action_parameter": "anything",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "FLAG_CONFIG",
 					"objects": [
@@ -2683,7 +2686,7 @@
 			"do_log": 0,
 			"action_parameter": "anything",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "FLAG_CONFIG",
 					"objects": [
@@ -2732,7 +2735,7 @@
 			"do_log": 0,
 			"action_parameter": "anything",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "FLAG_CONFIG",
 					"objects": [
@@ -2762,7 +2765,7 @@
 			"do_log": 1,
 			"action_parameter": "Something:I\\bhave\\ba\\bname,8866",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL",
 					"objects": [
@@ -2793,7 +2796,7 @@
 			"action_parameter": "Something:I have a name,7799",
 			"rule_table_name": "RULE_FIREWALL_DEFAULT",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"o2r_table_name": "OBJECT2RULE_FIREWALL",
 					"attribute_name": "HTTP_URL",
@@ -2824,7 +2827,7 @@
 			"do_log": 1,
 			"action_parameter": "ExcludeLogic.ScanNotAtLast",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL",
 					"object_name": "ExcludeLogicObject199",
@@ -2842,7 +2845,7 @@
 			"do_log": 1,
 			"action_parameter": "ExcludeLogic.OneRegion",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL",
 					"object_uuids": [
@@ -2859,7 +2862,7 @@
 			"do_log": 1,
 			"action_parameter": "null",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "ATTRIBUTE_IP_PLUS_TABLE",
 					"object_name": "ExcludeLogicObject202",
@@ -2878,7 +2881,7 @@
 			"do_log": 1,
 			"action_parameter": "null",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "ATTRIBUTE_IP_PLUS_SOURCE",
 					"objects": [
@@ -2932,7 +2935,7 @@
 			"do_log": 1,
 			"action_parameter": "null",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "ATTRIBUTE_IP_PLUS_SOURCE",
 					"objects": [
@@ -2985,7 +2988,7 @@
 			"do_log": 0,
 			"action_parameter": "StringScan.RegexExpressionIllegal",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "KEYWORDS_TABLE",
 					"objects": [
@@ -3015,7 +3018,7 @@
 			"do_log": 0,
 			"action_parameter": "duplicateRuleFor191",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "KEYWORDS_TABLE",
 					"objects": [
@@ -3045,7 +3048,7 @@
 			"do_log": 0,
 			"action_parameter": "duplicateRuleFor192",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "FLAG_CONFIG",
 					"objects": [
@@ -3075,7 +3078,7 @@
 			"do_log": 0,
 			"action_parameter": "duplicateRuleFor154",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "IP_PLUS_CONFIG",
 					"negate_option": false,
@@ -3105,7 +3108,7 @@
 			"do_log": 0,
 			"action_parameter": "ipv6_::",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "IP_PLUS_CONFIG",
 					"objects": [
@@ -3134,7 +3137,7 @@
 			"do_log": 0,
 			"action_parameter": "ip_perf_test",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "IP_PERF_CONFIG",
 					"negate_option": false,
@@ -3164,7 +3167,7 @@
 			"do_log": 1,
 			"action_parameter": "integer_perf_test",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "INTEGER_PERF_CONFIG",
 					"objects": [
@@ -3193,7 +3196,7 @@
 			"do_log": 1,
 			"action_parameter": "expr_perf_test",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "EXPR_LITERAL_PERF_CONFIG",
 					"objects": [
@@ -3223,7 +3226,7 @@
 			"do_log": 0,
 			"action_parameter": "flag_perf_test",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "FLAG_PERF_CONFIG",
 					"objects": [
@@ -3253,7 +3256,7 @@
 			"do_log": 1,
 			"action_parameter": "expr_perf_test",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "EXPR_REGEX_PERF_CONFIG",
 					"objects": [
@@ -3283,7 +3286,7 @@
 			"do_log": 0,
 			"action_parameter": "NOTCondition&ExcludeObject",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL_FILTER",
                     "negate_option": false,
@@ -3323,7 +3326,7 @@
 			"do_log": 0,
 			"action_parameter": "NOTCondition&ExcludeObject",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL_FILTER",
 					"negate_option": true,
@@ -3363,7 +3366,7 @@
 			"do_log": 1,
 			"action_parameter": "anything",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "CONTENT_SIZE",
 					"objects": [
@@ -3392,7 +3395,7 @@
 			"do_log": 1,
 			"action_parameter": "anything",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_DUMMY",
 					"negate_option": false,
@@ -3571,7 +3574,7 @@
 			"do_log": 1,
 			"action_parameter": "anything",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_DUMMY",
 					"negate_option": false,
@@ -3645,7 +3648,7 @@
 			"do_log": 0,
 			"action_parameter": "NOTLogic.SingleNotCondition",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_NOT_LOGIC_1",
 					"negate_option": true,
@@ -3677,7 +3680,7 @@
 			"do_log": 0,
 			"action_parameter": "NOTLogic.MultiNotCondition",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_NOT_LOGIC",
 					"negate_option": true,
@@ -3751,7 +3754,7 @@
 			"do_log": 0,
 			"action_parameter": "NOTLogic.NotPhysicalTable",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "KEYWORDS_TABLE",
 					"negate_option": true,
@@ -3804,7 +3807,7 @@
 			"do_log": 0,
 			"action_parameter": "Payload escape",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "KEYWORDS_TABLE",
 					"negate_option": false,
@@ -3836,7 +3839,7 @@
 			"do_log": 1,
 			"action_parameter": "maat_scan_object",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "KEYWORDS_TABLE",
 					"object_name": "226_url_object",
@@ -3855,7 +3858,7 @@
 			"action_parameter": "maat_scan_object",
 			"rule_table_name": "RULE_FIREWALL_DEFAULT",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "KEYWORDS_TABLE",
 					"object_name": "227_url_object",
@@ -3873,7 +3876,7 @@
 			"do_log": 1,
 			"action_parameter": "NotConditionHitPath",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL",
 					"negate_option": false,
@@ -3925,7 +3928,7 @@
 			"do_log": 1,
 			"action_parameter": "StringScan.Regex",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_URL",
 					"objects": [
@@ -3955,7 +3958,7 @@
 			"do_log": 0,
 			"action_parameter": "ipv6_::",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "IP_PLUS_CONFIG",
 					"objects": [
@@ -3985,7 +3988,7 @@
 			"do_log": 0,
 			"action_parameter": "should_not_hit",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "IP_PLUS_CONFIG",
 					"objects": [
@@ -4015,7 +4018,7 @@
 			"do_log": 0,
 			"action_parameter": "should_not_hit",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "IP_PLUS_CONFIG",
 					"objects": [
@@ -4045,7 +4048,7 @@
 			"do_log": 1,
 			"action_parameter": "maat_scan_object",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "HTTP_RESPONSE_KEYWORDS",
 					"object_name": "233_url_object",
@@ -4063,7 +4066,7 @@
 			"do_log": 0,
 			"action_parameter": "Payload escape",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "KEYWORDS_TABLE",
 					"negate_option": false,
@@ -4095,7 +4098,7 @@
 			"do_log": 0,
 			"action_parameter": "Payload escape",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "KEYWORDS_TABLE",
 					"negate_option": false,
@@ -4127,7 +4130,7 @@
 			"do_log": 0,
 			"action_parameter": "StringScan.HexBinCombineString",
 			"is_valid": "yes",
-			"conditions": [
+			"and_conditions": [
 				{
 					"attribute_name": "KEYWORDS_TABLE",
 					"objects": [

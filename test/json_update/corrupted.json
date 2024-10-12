@@ -10,7 +10,7 @@
             "do_log": 1,
             "user_region": "anything",
             "is_valid": "yes",
-            "conditions": [
+            "and_conditions": [
                 {
                     "object_name": "Untitled",
                     "attribute_name": "HTTP_URL",
