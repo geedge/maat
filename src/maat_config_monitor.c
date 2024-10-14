@@ -186,35 +186,35 @@ void config_monitor_traverse(long long current_version, const cJSON *json_root,
 	}
 }
 
-static void object_info_add(struct object_info *object_name_map, const char *object_name, const char *object_uuid)
+static void object_info_add(struct object_info **object_name_map, const char *object_name, const char *object_uuid)
 {
 	struct object_info *object_info = NULL;
-	HASH_FIND_STR(object_name_map, object_name, object_info);
+	HASH_FIND_STR(*object_name_map, object_name, object_info);
 	if (object_info == NULL) {
 		object_info = ALLOC(struct object_info, 1);
 		strncpy(object_info->object_name, object_name, sizeof(object_info->object_name));
 		strncpy(object_info->object_uuid, object_uuid, sizeof(object_info->object_uuid));
-		HASH_ADD_STR(object_name_map, object_name, object_info);
+		HASH_ADD_STR(*object_name_map, object_name, object_info);
 	}
 }
 
-static struct object_info *object_info_find(struct object_info *object_name_map, const char *object_name)
+static struct object_info *object_info_find(struct object_info **object_name_map, const char *object_name)
 {
 	struct object_info *object_info = NULL;
-	HASH_FIND_STR(object_name_map, object_name, object_info);
+	HASH_FIND_STR(*object_name_map, object_name, object_info);
 	return object_info;
 }
 
-static void object_info_free(struct object_info *object_name_map)
+static void object_info_free(struct object_info **object_name_map)
 {
 	struct object_info *object_info, *tmp;
-	HASH_ITER(hh, object_name_map, object_info, tmp) {
-		HASH_DEL(object_name_map, object_info);
+	HASH_ITER(hh, *object_name_map, object_info, tmp) {
+		HASH_DEL(*object_name_map, object_info);
 		FREE(object_info);
 	}
 }
 
-static void convert_condition(struct object_info *object_name_map, cJSON *condition, cJSON *top_items, int *object_gen_id, int *item_gen_id)
+static void convert_condition(struct object_info **object_name_map, cJSON *condition, cJSON *top_items, int *object_gen_id, int *item_gen_id)
 {
 	cJSON *object_uuid_array = cJSON_CreateArray();
 	cJSON *object_name = cJSON_GetObjectItem(condition, "object_name");
@@ -386,11 +386,11 @@ void convert_maat_json_rule(cJSON **json_root, unsigned char *json_buff)
 			if (or_conditions) {
 				cJSON *tmp_or_condition = NULL;
 				cJSON_ArrayForEach(tmp_or_condition, or_conditions) {
-					convert_condition(object_name_map, tmp_or_condition, top_items, &object_gen_id, &item_gen_id);
+					convert_condition(&object_name_map, tmp_or_condition, top_items, &object_gen_id, &item_gen_id);
 				}
 			} else {
 				cJSON *tmp_or_condition = cJSON_Duplicate(tmp_and_condition, 1);
-				convert_condition(object_name_map, tmp_or_condition, top_items, &object_gen_id, &item_gen_id);
+				convert_condition(&object_name_map, tmp_or_condition, top_items, &object_gen_id, &item_gen_id);
 				
 				or_conditions = cJSON_CreateArray();
 				cJSON_AddItemToArray(or_conditions, tmp_or_condition);
@@ -400,7 +400,7 @@ void convert_maat_json_rule(cJSON **json_root, unsigned char *json_buff)
 			
 	}
 
-	object_info_free(object_name_map);
+	object_info_free(&object_name_map);
 }
 
 int load_maat_json_rule_file(struct maat *maat_inst, const char *json_filename, 
@@ -463,6 +463,8 @@ int load_maat_json_rule_file(struct maat *maat_inst, const char *json_filename,
 	maat_inst->opts.input_mode = DATA_SOURCE_JSON_FILE;
 	
 	convert_maat_json_rule(json_root, json_buff);
+
+	FREE(json_buff);
 
 	return 0;	
 }

@@ -118,16 +118,20 @@ ip_plugin_accept_tag_match(struct ip_plugin_schema *schema,
         FREE(tag_str);
         
         if (TAG_MATCH_ERR == ret) {
+            char *json_str = cJSON_Print(json);
             log_fatal(logger, MODULE_IP_PLUGIN,
                       "[%s:%d] ip_plugin table:<%s> has invalid tag format"
-                      " in line:%s", __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                      " in line:%s", __FUNCTION__, __LINE__, table_name, json_str);
+            FREE(json_str);
             return TAG_MATCH_ERR;
         }
 
         if (TAG_MATCH_UNMATCHED == ret) {
+            char *json_str = cJSON_Print(json);
             log_fatal(logger, MODULE_IP_PLUGIN,
                       "[%s:%d] ip_plugin table:<%s> has unmatched tag in line:%s",
-                      __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                      __FUNCTION__, __LINE__, table_name, json_str);
+            FREE(json_str);
             return TAG_MATCH_UNMATCHED;
         }
     }
@@ -151,18 +155,22 @@ ip_plugin_rule_new(struct ip_plugin_schema *schema, const char *table_name,
 
     tmp_obj = cJSON_GetObjectItem(json, schema->key_name);
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
+        char *json_str = cJSON_Print(json);
         log_fatal(logger, MODULE_IP_PLUGIN, 
                   "[%s:%d] ip_plugin table:<%s> has no key %s or invalid format in line:%s",
-                  __FUNCTION__, __LINE__, table_name, schema->key_name, cJSON_Print(json));
+                  __FUNCTION__, __LINE__, table_name, schema->key_name, json_str);
+        FREE(json_str);
         goto error;
     }
     uuid_parse(tmp_obj->valuestring, ip_plugin_rule->rule_uuid);
     
     tmp_obj = cJSON_GetObjectItem(json, "ip");
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
+        char *json_str = cJSON_Print(json);
         log_fatal(logger, MODULE_IP_PLUGIN, 
                   "[%s:%d] ip_plugin table:<%s> has no ip field or invalid format in line:%s",
-                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                  __FUNCTION__, __LINE__, table_name, json_str);
+        FREE(json_str);
         goto error;
     }
     strncpy(ip_str, tmp_obj->valuestring, strlen(tmp_obj->valuestring));
@@ -176,20 +184,24 @@ ip_plugin_rule_new(struct ip_plugin_schema *schema, const char *table_name,
     if (IPv4 == ip_plugin_rule->type) {
         ret = ip_format2range(ip_str, ip_plugin_rule->type, &ip_plugin_rule->ipv4_rule.start_ip, &ip_plugin_rule->ipv4_rule.end_ip);
         if (ret < 0) {
+            char *json_str = cJSON_Print(json);
             log_fatal(logger, MODULE_IP_PLUGIN, 
                       "[%s:%d] ip_plugin table:<%s>> ip_format2range(ip4)"
                       " failed in line:%s", __FUNCTION__, __LINE__,
-                      table_name, cJSON_Print(json));
+                      table_name, json_str);
+            FREE(json_str);
             goto error;
         }
     } else {
         //ipv6
         ret = ip_format2range(ip_str, ip_plugin_rule->type, ip_plugin_rule->ipv6_rule.start_ip, ip_plugin_rule->ipv6_rule.end_ip);
         if (ret < 0) {
+            char *json_str = cJSON_Print(json);
             log_fatal(logger, MODULE_IP_PLUGIN, 
                       "[%s:%d] ip_plugin table:<%s> ip_format2range(ip6)"
                       " failed in line:%s", __FUNCTION__, __LINE__,
-                      table_name, cJSON_Print(json));
+                      table_name, json_str);
+            FREE(json_str);
             goto error;
         }
     }

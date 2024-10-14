@@ -202,18 +202,21 @@ flag_item_new(struct flag_schema *schema, const char *table_name,
 
     tmp_obj = cJSON_GetObjectItem(json, "object_uuid");
     if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
+        char *json_str = cJSON_Print(json);
         log_fatal(flag_rt->logger, MODULE_FLAG, 
                   "[%s:%d] flag table:<%s> has no object_id in json:%s",
-                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                  __FUNCTION__, __LINE__, table_name, json_str);
         goto error;
     }
     uuid_parse(tmp_obj->valuestring, item->object_uuid);
 
     tmp_obj = cJSON_GetObjectItem(json, "flag");
     if (tmp_obj == NULL || tmp_obj->type != cJSON_Number) {
+        char *json_str = cJSON_Print(json);
         log_fatal(flag_rt->logger, MODULE_FLAG, 
                   "[%s:%d] flag table:<%s> has no flag in json:%s",
-                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                  __FUNCTION__, __LINE__, table_name, json_str);
+        FREE(json_str);
         goto error;
     }
 
@@ -221,9 +224,11 @@ flag_item_new(struct flag_schema *schema, const char *table_name,
 
     tmp_obj = cJSON_GetObjectItem(json, "mask");
     if (tmp_obj == NULL || tmp_obj->type != cJSON_Number) {
+        char *json_str = cJSON_Print(json);
         log_fatal(flag_rt->logger, MODULE_FLAG, 
                   "[%s:%d] flag table:<%s> has no mask in json:%s",
-                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                  __FUNCTION__, __LINE__, table_name, json_str);
+        FREE(json_str);
         goto error;
     }
     

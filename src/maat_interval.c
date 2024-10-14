@@ -173,18 +173,22 @@ interval_item_new(struct interval_schema *schema, const char *table_name,
 
     tmp_obj = cJSON_GetObjectItem(json, "object_uuid");
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
+        char *json_str = cJSON_Print(json);
         log_fatal(interval_rt->logger, MODULE_INTERVAL, 
                   "[%s:%d] interval table:<%s> has no object_id in line:%s",
-                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                  __FUNCTION__, __LINE__, table_name, json_str);
+        FREE(json_str);
         goto error;
     }
     uuid_parse(tmp_obj->valuestring, item->object_uuid);
 
     tmp_obj = cJSON_GetObjectItem(json, "interval");
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
+        char *json_str = cJSON_Print(json);
         log_fatal(interval_rt->logger, MODULE_INTERVAL, 
                   "[%s:%d] interval table:<%s> has no interval in line:%s",
-                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                  __FUNCTION__, __LINE__, table_name, json_str);
+        FREE(json_str);
         goto error;
     }
     memcpy(port_str, tmp_obj->valuestring, strlen(tmp_obj->valuestring));

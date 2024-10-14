@@ -5104,10 +5104,10 @@ void ipport_plugin_ex_free_cb(const char *table_name, void **ad, long argl, void
     if (ud->buffer) {
         memset(ud->buffer, 0, ud->buf_len);
         ud->buf_len = 0;
-        free(ud->buffer);
+        FREE(ud->buffer);
     }
 	
-	free(ud);
+	FREE(ud);
 	*ad = NULL;
 }
 
@@ -5656,6 +5656,8 @@ void rule_ex_param_new(const char *table_name, const char *key,
     
 	(*counter)++;
 	*ad = param;
+
+    cJSON_Delete(json);
 }
 
 void rule_ex_param_free(const char *table_name, void **ad, long argl, void *argp)
@@ -5828,6 +5830,8 @@ void accept_tags_entry_cb(const char *table_name, const char *table_line, enum m
 	EXPECT_STREQ(tmp_obj->valuestring, "SUCCESS");
 
 	(*callback_times)++;
+
+    cJSON_Delete(json);
 }
 
 TEST_F(Policy, PluginRuleTags1) {

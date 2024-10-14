@@ -104,35 +104,43 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
 
     tmp_obj = cJSON_GetObjectItem(json, "object_uuid");
     if (tmp_obj == NULL && tmp_obj->type != cJSON_String) {
+        char *json_str = cJSON_Print(json);
         log_fatal(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> has no object_id in line:%s",
-                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                  __FUNCTION__, __LINE__, table_name, json_str);
+        FREE(json_str);
         goto error;
     }
     uuid_parse(tmp_obj->valuestring, expr_item->object_uuid);
 
     tmp_obj = cJSON_GetObjectItem(json, "expression");
     if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
+        char *json_str = cJSON_Print(json);
         log_fatal(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> has no expression in line:%s",
-                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                  __FUNCTION__, __LINE__, table_name, json_str);
+        FREE(json_str);
         goto error;
     }
     len = strlen(tmp_obj->valuestring);
 
     if (len > MAX_KEYWORDS_STR_LEN) {
+        char *json_str = cJSON_Print(json);
         log_fatal(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> expression length too long in line:%s",
-                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                  __FUNCTION__, __LINE__, table_name, json_str);
+        FREE(json_str);
         goto error;
     }
     memcpy(expr_item->keywords, tmp_obj->valuestring, len);
 
     tmp_obj = cJSON_GetObjectItem(json, "expr_type");
     if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
+        char *json_str = cJSON_Print(json);
         log_fatal(expr_rt->logger, MODULE_EXPR,
                   "[%s:%d] expr table:<%s> has no expr_type in line:%s",
-                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                  __FUNCTION__, __LINE__, table_name, json_str);
+        FREE(json_str);
         goto error;
     }
 
@@ -145,9 +153,11 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
     }
 
     if (expr_item->expr_type == EXPR_TYPE_INVALID) {
+        char *json_str = cJSON_Print(json);
         log_fatal(expr_rt->logger, MODULE_EXPR,
                   "[%s:%d] expr table:<%s> has invalid expr_type in line:%s",
-                 __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                 __FUNCTION__, __LINE__, table_name, json_str);
+        FREE(json_str);
         goto error;
     } else if (expr_item->expr_type == EXPR_TYPE_REGEX) {
         ret = expr_matcher_verify_regex_expression(expr_item->keywords, expr_rt->logger);
@@ -603,10 +613,12 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
     uuid_t item_uuid;
     uuid_parse(tmp_obj->valuestring, item_uuid);
     if (uuid_is_null(item_uuid)) {
+        char *json_str = cJSON_Print(json);
         log_fatal(expr_rt->logger, MODULE_EXPR,
                   "[%s:%d] expr table:<%s> item_id wrong"
                   " in table_line:%s", __FUNCTION__, __LINE__, table_name,
-                  cJSON_Print(json));
+                  json_str);
+        FREE(json_str);
         expr_rt->update_err_cnt++;
         goto ERROR;
     }

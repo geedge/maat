@@ -220,18 +220,22 @@ fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema,
         FREE(tag_str);
         
         if (TAG_MATCH_ERR == ret) {
+            char *json_str = cJSON_Print(json);
             log_fatal(logger, MODULE_FQDN_PLUGIN,
                         "[%s:%d] fqdn_plugin table:<%s> has invalid tag"
                         " format in line:%s", __FUNCTION__, __LINE__,
-                        table_name, cJSON_Print(json));
+                        table_name, json_str);
+            FREE(json_str);
             return TAG_MATCH_ERR;
         }
 
         if (TAG_MATCH_UNMATCHED == ret) {
+            char *json_str = cJSON_Print(json);
             log_fatal(logger, MODULE_FQDN_PLUGIN,
                         "[%s:%d] fqdn_plugin table:<%s> has unmatched tag"
                         " in line:%s", __FUNCTION__, __LINE__, table_name,
-                        cJSON_Print(json));
+                        json_str);
+            FREE(json_str);
             return TAG_MATCH_UNMATCHED;
         }
     }
@@ -255,18 +259,22 @@ fqdn_plugin_rule_new(const cJSON *json, struct fqdn_plugin_schema *schema,
 
     tmp_obj = cJSON_GetObjectItem(json, schema->key_name);
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
+        char *json_str = cJSON_Print(json);
         log_fatal(logger, MODULE_FQDN_PLUGIN, 
                   "[%s:%d] fqdn_plugin table:<%s> has no key_name or invalid format in line:%s",
-                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                  __FUNCTION__, __LINE__, table_name, json_str);
+        FREE(json_str);
         goto error;
     }
     uuid_parse(tmp_obj->valuestring, fqdn_plugin_rule->uuid);
 
     tmp_obj = cJSON_GetObjectItem(json, "fqdn");
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
+        char *json_str = cJSON_Print(json);
         log_fatal(logger, MODULE_FQDN_PLUGIN, 
                   "[%s:%d] fqdn_plugin table:<%s> has no fqdn in line:%s",
-                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                  __FUNCTION__, __LINE__, table_name, json_str);
+        FREE(json_str);
         goto error;
     }
 

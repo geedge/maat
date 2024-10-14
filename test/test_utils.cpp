@@ -24,6 +24,8 @@ make_serial_rule(const char *table_name, const char *line, void *u_para, enum ma
 	struct serial_rule *s_rule=(struct serial_rule *)u_para;
     redisContext *ctx = s_rule->ref_ctx;
 	char *buff = ALLOC(char, strlen(line) + 1);
+    cJSON *rule_uuid = NULL;
+    int ret = 0;
 
     memcpy(buff, line, strlen(line) + 1);
 
@@ -34,16 +36,18 @@ make_serial_rule(const char *table_name, const char *line, void *u_para, enum ma
 
     cJSON *json = cJSON_Parse(line);
     if (NULL == json) {
-        return -1;
+        ret = -1;
+        goto END;
     }
-    cJSON *rule_uuid = cJSON_GetObjectItem(json, "uuid");
+    rule_uuid = cJSON_GetObjectItem(json, "uuid");
     
     if (NULL == rule_uuid) {
         rule_uuid = cJSON_GetObjectItem(json, "object_uuid");//for object2object table
     }
 
     if (NULL == rule_uuid || rule_uuid->type != cJSON_String) {
-        return -1;
+        ret = -1;
+        goto END;
     }
 
 	maat_set_serial_rule(s_rule + line_idx, op, rule_uuid->valuestring,
@@ -51,9 +55,15 @@ make_serial_rule(const char *table_name, const char *line, void *u_para, enum ma
     (s_rule + line_idx)->ref_ctx = ctx;
 	line_idx++;
 
-    FREE(buff);
+END:
+    if (json) {
+        cJSON_Delete(json);
+    }
+    if (buff) {
+        FREE(buff);
+    }
 
-	return 0;
+	return ret;
 }
 
 int write_json_to_redis(const char *json_filename, char *redis_ip, int redis_port,
@@ -70,6 +80,10 @@ int write_json_to_redis(const char *json_filename, char *redis_ip, int redis_por
     }
 
     convert_maat_json_rule(&json_root, (unsigned char *)json_buff);
+
+    if (json_buff) {
+        FREE(json_buff);
+    }
 
     redisContext *c = maat_connect_redis(redis_ip, redis_port, redis_db, logger);
     if (NULL == c) {
@@ -161,6 +175,8 @@ int rule_table_set_line(struct maat *maat_inst, const char *table_name,
 
     int ret = maat_cmd_set_line(maat_inst, &line_rule, op);
     free(json_str);
+
+    cJSON_Delete(json_root);
 
     return ret;
 }

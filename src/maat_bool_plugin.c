@@ -268,18 +268,22 @@ bool_plugin_accept_tag_match(struct bool_plugin_schema *schema,
         FREE(tag_str);
         
         if (TAG_MATCH_ERR == ret) {
+            char *json_str = cJSON_Print(json);
             log_fatal(logger, MODULE_BOOL_PLUGIN,
                       "[%s:%d] bool_plugin table:<%s> has invalid tag"
                       " in line:%s", __FUNCTION__, __LINE__, table_name,
-                      cJSON_Print(json));
+                      json_str);
+            FREE(json_str);
             return TAG_MATCH_ERR;
         }
 
         if (TAG_MATCH_UNMATCHED == ret) {
+            char *json_str = cJSON_Print(json);
             log_fatal(logger, MODULE_BOOL_PLUGIN,
                       "[%s:%d] bool_plugin table:<%s> has unmatched tag"
                       " in line:%s", __FUNCTION__, __LINE__, table_name,
-                      cJSON_Print(json));
+                      json_str);
+            FREE(json_str);
             return TAG_MATCH_UNMATCHED;
         }
     }
@@ -305,20 +309,24 @@ bool_plugin_expr_new(struct bool_plugin_schema *schema, const char *table_name,
 
     tmp_obj = cJSON_GetObjectItem(json, schema->key_name);
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
+        char *json_str = cJSON_Print(json);
         log_fatal(logger, MODULE_BOOL_PLUGIN, 
                   "[%s:%d] bool_plugin table:<%s> has "
                   "no key_name %s or invalid format in line:%s", __FUNCTION__,
-                  __LINE__, table_name, schema->key_name, cJSON_Print(json));
+                  __LINE__, table_name, schema->key_name, json_str);
+        FREE(json_str);
         goto error;
     }
     uuid_parse(tmp_obj->valuestring, bool_expr->expr_uuid);
 
     tmp_obj = cJSON_GetObjectItem(json, "bool_expr");
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
+        char *json_str = cJSON_Print(json);
         log_fatal(logger, MODULE_BOOL_PLUGIN, 
                   "[%s:%d] bool_plugin table:<%s> has "
                   "no bool_expr or invalid format in line:%s", __FUNCTION__,
-                  __LINE__, table_name, cJSON_Print(json));
+                  __LINE__, table_name, json_str);
+        FREE(json_str);
         goto error;
     }
 
@@ -333,10 +341,12 @@ bool_plugin_expr_new(struct bool_plugin_schema *schema, const char *table_name,
         ret = sscanf(sub_token, "%llu", items + n_item);
         n_item++;
         if (ret != 1 || n_item > MAX_ITEMS_PER_BOOL_EXPR) {
+            char *json_str = cJSON_Print(json);
             log_fatal(logger, MODULE_BOOL_PLUGIN, 
                       "[%s:%d] bool_plugin table:<%s> has "
                       "invalid format of bool_expr in line:%s",
-                      __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                      __FUNCTION__, __LINE__, table_name, json_str);
+            FREE(json_str);
             goto error;
         }
     }

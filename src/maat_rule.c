@@ -345,11 +345,19 @@ static struct maat_rule *maat_rule_new(struct rule_runtime *rule_rt, struct rule
     rule_item->condition_num = rule->condition_num;
     rule->user_data = rule_item;
 
+    if (table_json) {
+        cJSON_Delete(table_json);
+    }
+
 	return rule;
 
 error:
     if (rule) {
         maat_rule_free(rule);
+    }
+
+    if (table_json) {
+        cJSON_Delete(table_json);
     }
 
     return NULL;
@@ -361,33 +369,38 @@ static int rule_accept_tag_match(struct rule_schema *schema, const char *line,
     size_t n_tag = table_manager_accept_tags_count(schema->ref_tbl_mgr);
     cJSON *tmp_obj = NULL;
     cJSON *table_json = cJSON_Parse(line);
+    int ret = TAG_MATCH_MATCHED;
 
     tmp_obj = cJSON_GetObjectItem(table_json, "effective_range");
 
     if ((tmp_obj && cJSON_GetArraySize(tmp_obj) > 0) && n_tag > 0) {
         char *tag_str = cJSON_Print(tmp_obj);
-        int ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
+        ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
         FREE(tag_str);
         if (TAG_MATCH_ERR == ret) {
             log_fatal(logger, MODULE_RULE,
                       "[%s:%d] table: <%s> has invalid tag format in line:%s",
                       __FUNCTION__, __LINE__, table_name, line);
-            return TAG_MATCH_ERR;
+            goto END;
         }
 
         if (TAG_MATCH_UNMATCHED == ret) {
             log_fatal(logger, MODULE_RULE,
                       "[%s:%d] table: <%s> has unmatched tag in line:%s",
                       __FUNCTION__, __LINE__, table_name, line);
-            return TAG_MATCH_UNMATCHED;
+            goto END;
         }
     }
 
-    return TAG_MATCH_MATCHED;
+END:
+    if (table_json) {
+        cJSON_Delete(table_json);
+    }
+
+    return ret;
 }
 
-static struct rule_item *
-rule_item_new(const char *table_line, struct rule_schema *schema,
+static struct rule_item *rule_item_new(const char *table_line, struct rule_schema *schema,
                  const char *table_name, struct log_handle *logger)
 {
     int ret = rule_accept_tag_match(schema, table_line, table_name, logger);
@@ -403,7 +416,7 @@ rule_item_new(const char *table_line, struct rule_schema *schema,
     if (tmp_obj == NULL && tmp_obj->type != cJSON_String) {
         log_fatal(logger, MODULE_RULE,
                   "[%s:%d] table: <%s> has no rule_id or not string format in line:%s",
-                  __FUNCTION__, __LINE__, table_name, cJSON_Print(table_json));
+                  __FUNCTION__, __LINE__, table_name, table_line);
         goto error;
     }
     uuid_parse(tmp_obj->valuestring, rule_item->rule_uuid);
@@ -528,6 +541,25 @@ void rule_runtime_free(void *rule_runtime)
     if (rule_rt->not_condition_id_kv_hash != NULL) {
         condition_id_kv_hash_free(rule_rt->not_condition_id_kv_hash);
         rule_rt->not_condition_id_kv_hash = NULL;
+    }
+
+    if (rule_rt->tbl_not_condition_hash != NULL) {
+        struct table_condition *not_condition = NULL, *tmp_not_condition = NULL;
+        HASH_ITER(hh, rule_rt->tbl_not_condition_hash, not_condition, tmp_not_condition) {
+            HASH_DEL(rule_rt->tbl_not_condition_hash, not_condition);
+            if (not_condition->condition_ids != NULL) {
+                utarray_free(not_condition->condition_ids);
+                not_condition->condition_ids = NULL;
+            }
+
+            if (not_condition->object_ids != NULL) {
+                utarray_free(not_condition->object_ids);
+                not_condition->object_ids = NULL;
+            }
+
+            FREE(not_condition);
+        }
+        assert(rule_rt->tbl_not_condition_hash == NULL);
     }
 
     if (rule_rt->expr_match_buff != NULL) {
@@ -1424,7 +1456,7 @@ rule_runtime_add_rule(struct rule_runtime *rule_rt,
     struct rule_item *rule_item = rule_item_new(line, schema, table_name,
                                                          rule_rt->logger);
     if (NULL == rule_item) {
-        return -1;
+        goto ERROR;
     }
 
     int table_id = table_manager_get_table_id(schema->ref_tbl_mgr, table_name);
@@ -1432,7 +1464,7 @@ rule_runtime_add_rule(struct rule_runtime *rule_rt,
         log_fatal(logger, MODULE_RULE,
                   "[%s:%d]table_name:%s has invalid table_id:%d, drop line:%s",
                   __FUNCTION__, __LINE__, table_name, table_id, line);
-        return -1;
+        goto ERROR;
     }
 
     int updating_flag = rcu_hash_is_updating(rule_rt->cfg_hash);
@@ -1449,6 +1481,7 @@ rule_runtime_add_rule(struct rule_runtime *rule_rt,
         log_fatal(logger, MODULE_RULE,
                   "[%s:%d]rule_id:%s already existed in rule table, drop line:%s",
                   __FUNCTION__, __LINE__, rule_uuid_str, line);
+        goto ERROR;
     }
 
     rule = maat_rule_new(rule_rt, schema, table_name, *rule_uuid, line, rule_item);
@@ -1456,12 +1489,19 @@ rule_runtime_add_rule(struct rule_runtime *rule_rt,
         log_fatal(logger, MODULE_RULE,
                   "[%s:%d]maat_rule_new failed, drop line:%s",
                   __FUNCTION__, __LINE__, line);
-        return -1;
+        goto ERROR;
     }
 
     rcu_hash_add(rule_rt->cfg_hash, (char *)rule_uuid, sizeof(uuid_t), rule);
 
     return 0;
+
+ERROR:
+    if (rule_item != NULL) {
+        rule_item_free(rule_item);
+    }
+
+    return -1;
 }
 
 static void rule_runtime_del_rule(struct rule_runtime *rule_rt,

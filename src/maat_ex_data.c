@@ -44,7 +44,17 @@ void cache_row_free(void *p)
 	free(*(char **)p);
 }
 
-UT_icd ut_cache_row_icd = {sizeof(char*), NULL, NULL, cache_row_free};
+void cache_row_copy(void *dst, const void *src)
+{
+    struct ex_data_row *ex_data_row_src = (struct ex_data_row *)src;
+    struct ex_data_row *ex_data_row_dst = (struct ex_data_row *)dst;
+
+    ex_data_row_dst->row = ALLOC(char, strlen(ex_data_row_src->row) + 1);
+    strcpy(ex_data_row_dst->row, ex_data_row_src->row);
+    ex_data_row_dst->op = ex_data_row_src->op;
+}
+
+UT_icd ut_cache_row_icd = {sizeof(struct ex_data_row), NULL, cache_row_copy, cache_row_free};
 
 struct ex_data_runtime *
 ex_data_runtime_new(int table_id, int gc_timeout_s, struct log_handle *logger)
@@ -100,14 +110,16 @@ void ex_data_runtime_cache_row_put(struct ex_data_runtime *ex_data_rt, const cha
     }
 
 	size_t row_len = strlen(row);
-    struct ex_data_row *ex_data_row = ALLOC(struct ex_data_row, 1);
-    ex_data_row->row = ALLOC(char, row_len + 1);
+    struct ex_data_row ex_data_row;
+    ex_data_row.row = ALLOC(char, row_len + 1);
 
-    ex_data_row->op = op;
-	memcpy(ex_data_row->row, row, row_len);
+    ex_data_row.op = op;
+	memcpy(ex_data_row.row, row, row_len);
 	ex_data_rt->cache_size += row_len;
 	utarray_push_back(ex_data_rt->cache_rows, &ex_data_row);
 	ex_data_rt->cache_row_num++;	
+
+    FREE(ex_data_row.row);
 }
 
 const struct ex_data_row *ex_data_runtime_cached_row_get(struct ex_data_runtime *ex_data_rt, size_t index)
@@ -116,9 +128,7 @@ const struct ex_data_row *ex_data_runtime_cached_row_get(struct ex_data_runtime 
         return NULL;
     }
 
-    const char **row = NULL;
-	row = (const char **)utarray_eltptr(ex_data_rt->cache_rows, index);
-	return (struct ex_data_row *)*row;
+	return (struct ex_data_row *)utarray_eltptr(ex_data_rt->cache_rows, index);
 }
 
 size_t ex_data_runtime_cached_row_count(struct ex_data_runtime *ex_data_rt)

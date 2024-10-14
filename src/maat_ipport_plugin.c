@@ -233,18 +233,22 @@ ipport_item_new(struct ipport_plugin_schema *schema, const char *table_name,
 
     tmp_obj = cJSON_GetObjectItem(json, schema->key_name);
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
+        char *json_str = cJSON_Print(json);
         log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport table:<%s> has no key or invalid format, line:%s",
-                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                  __FUNCTION__, __LINE__, table_name, json_str);
+        FREE(json_str);
         goto error;
     }
     uuid_parse(tmp_obj->valuestring, ipport_item->item_uuid);
 
     tmp_obj = cJSON_GetObjectItem(json, "ip");
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
+        char *json_str = cJSON_Print(json);
         log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport table:<%s> has no ip or invalid format in line:%s",
-                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                  __FUNCTION__, __LINE__, table_name, json_str);
+        FREE(json_str);
         goto error;
     }
     strncpy(ip_str, tmp_obj->valuestring, strlen(tmp_obj->valuestring));
@@ -258,27 +262,33 @@ ipport_item_new(struct ipport_plugin_schema *schema, const char *table_name,
     if (IPV4 == ipport_item->ip_type) {
         ret = ip_format2range(ip_str, ipport_item->ip_type, &ipport_item->ipv4.min_ip, &ipport_item->ipv4.max_ip);
         if (ret < 0) {
+            char *json_str = cJSON_Print(json);
             log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                       "[%s:%d] ipport table:<%s> ip_format2range(ip4) failed in line:%s",
-                      __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                      __FUNCTION__, __LINE__, table_name, json_str);
+            FREE(json_str);
             goto error;
         }
     } else {
         //ipv6
         ret = ip_format2range(ip_str, ipport_item->ip_type, ipport_item->ipv6.min_ip, ipport_item->ipv6.max_ip);
         if (ret < 0) {
+            char *json_str = cJSON_Print(json);
             log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                       "[%s:%d] ipport table:<%s> ip_format2range(ip6) failed in line:%s",
-                      __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                      __FUNCTION__, __LINE__, table_name, json_str);
+            FREE(json_str);
             goto error;
         }
     }
 
     tmp_obj = cJSON_GetObjectItem(json, "port");
     if (NULL == tmp_obj || tmp_obj->type != cJSON_String) {
+        char *json_str = cJSON_Print(json);
         log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport table:<%s> has no port or invalid format in line:%s",
-                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                  __FUNCTION__, __LINE__, table_name, json_str);
+        FREE(json_str);
         goto error;
     }
 

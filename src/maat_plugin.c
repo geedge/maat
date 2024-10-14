@@ -378,7 +378,7 @@ static int plugin_accept_tag_match(struct plugin_schema *schema,
 {
     size_t n_tag = table_manager_accept_tags_count(schema->ref_tbl_mgr);
     cJSON *tmp_obj = NULL;
-    int ret = 0;
+    int ret = TAG_MATCH_MATCHED;
     cJSON *json = cJSON_Parse(line);
 
     tmp_obj = cJSON_GetObjectItem(json, "effective_range");
@@ -390,21 +390,24 @@ static int plugin_accept_tag_match(struct plugin_schema *schema,
         if (TAG_MATCH_ERR == ret) {
             log_fatal(logger, MODULE_PLUGIN,
                         "[%s:%d] table: <%s> has invalid tag format in table_line:%s",
-                        __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
-            return TAG_MATCH_ERR;
+                        __FUNCTION__, __LINE__, table_name, line);
+            goto END;
         }
 
         if (TAG_MATCH_UNMATCHED == ret) {
             log_fatal(logger, MODULE_PLUGIN,
                         "[%s:%d] table: <%s> has unmatched tag in table_line:%s",
-                        __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
-            return TAG_MATCH_UNMATCHED;
+                        __FUNCTION__, __LINE__, table_name, line);
+            goto END;
         }
     }
 
-    cJSON_Delete(json);
+END:
+    if (json) {
+        cJSON_Delete(json);
+    }
 
-    return TAG_MATCH_MATCHED;
+    return ret;
 }
 
 static int plugin_table_line_get_ip_key(struct plugin_schema *schema,
@@ -419,7 +422,7 @@ static int plugin_table_line_get_ip_key(struct plugin_schema *schema,
         log_fatal(logger, MODULE_PLUGIN,
                   "[%s:%d] plugin table:<%s> ip_key too long exceed maximum:%d in "
                   "table_line:%s", __FUNCTION__, __LINE__, table_name,
-                  INET6_ADDRSTRLEN, cJSON_Print(json));
+                  INET6_ADDRSTRLEN, line);
         goto ERROR;
     }
 
@@ -430,7 +433,7 @@ static int plugin_table_line_get_ip_key(struct plugin_schema *schema,
     if (tmp_obj == NULL || tmp_obj->type != cJSON_Number) {
         log_fatal(logger, MODULE_PLUGIN,
                   "[%s:%d] plugin table:<%s> has no addr_type or not number format in table_line:%s",
-                  __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                  __FUNCTION__, __LINE__, table_name, line);
         goto ERROR;
     }
 
@@ -446,7 +449,7 @@ static int plugin_table_line_get_ip_key(struct plugin_schema *schema,
             log_fatal(logger, MODULE_PLUGIN,
                       "[%s:%d] plugin table:<%s> ipv4 key"
                       " illegal in table_line:%s",
-                      __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                      __FUNCTION__, __LINE__, table_name, line);
             goto ERROR;
         }
 
@@ -459,7 +462,7 @@ static int plugin_table_line_get_ip_key(struct plugin_schema *schema,
             log_fatal(logger, MODULE_PLUGIN,
                       "[%s:%d] plugin table:<%s> ipv6 key"
                       " illegal in table_line:%s",
-                      __FUNCTION__, __LINE__, table_name, cJSON_Print(json));
+                      __FUNCTION__, __LINE__, table_name, line);
             goto ERROR;
         }
 
@@ -469,11 +472,15 @@ static int plugin_table_line_get_ip_key(struct plugin_schema *schema,
         log_fatal(logger, MODULE_PLUGIN,
                   "[%s:%d] plugin table:<%s> addr_type:%d illegal, just"
                   " allow{4, 6}, table_line:%s",
-                  __FUNCTION__, __LINE__, table_name, addr_type, cJSON_Print(json));
+                  __FUNCTION__, __LINE__, table_name, addr_type, line);
         goto ERROR;
     }
 
+    if (json) {
+        cJSON_Delete(json);
+    }
     return 0;
+    
 ERROR:
     if (json) {
         cJSON_Delete(json);

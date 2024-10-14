@@ -305,30 +305,6 @@
             ]
         },
         {
-            "object_name": "vt_grp_http_sig2",
-            "uuid": "00000000-0000-0000-0000-000000000153",
-            "items": [
-                {
-                    "table_name": "HTTP_SIGNATURE",
-                    "table_type": "expr",
-                    "table_content": {
-
-                        "expression": "uid=12345678",
-                        "expr_type": "and"
-                    }
-                },
-                {
-                    "table_name": "HTTP_SIGNATURE",
-                    "table_type": "expr",
-                    "table_content": {
-
-                        "expression": "sessionid=888888",
-                        "expr_type": "and"
-                    }
-                }
-            ]
-        },
-        {
             "object_name": "167_url_object",
             "uuid": "00000000-0000-0000-0000-000000000158",
             "items": [
@@ -1922,16 +1898,37 @@
 				{
 					"attribute_name": "HTTP_REQUEST_HEADER",
 					"negate_option": false,
-                    "object_uuids": [
-                        "00000000-0000-0000-0000-000000000153"
-                    ]
+					"objects": [
+						{
+							"object_name": "vt_grp_http_sig2",
+							"uuid": "00000000-0000-0000-0000-000000000153",
+							"items": [
+								{
+									"table_name": "HTTP_SIGNATURE",
+									"table_type": "expr",
+									"table_content": {
+				
+										"expression": "uid=12345678",
+										"expr_type": "and"
+									}
+								},
+								{
+									"table_name": "HTTP_SIGNATURE",
+									"table_type": "expr",
+									"table_content": {
+				
+										"expression": "sessionid=888888",
+										"expr_type": "and"
+									}
+								}
+							]
+						}
+					]
 				},
 				{
 					"attribute_name": "HTTP_RESPONSE_HEADER",
 					"negate_option": false,
-                    "object_uuids": [
-                        "00000000-0000-0000-0000-000000000153"
-                    ]
+                    "object_name": "vt_grp_http_sig2"
 				}
 			]
 		},
