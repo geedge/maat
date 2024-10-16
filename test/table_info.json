@@ -62,7 +62,6 @@
         "table_name":"HTTP_REGION",
         "db_tables":["HTTP_URL", "HTTP_HOST"],
         "table_type":"expr",
-        "expr_engine":"rulescan",
         "schema_tag": "{\"http_region\": \"expr\"}"
     },
     {

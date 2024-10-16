@@ -487,6 +487,7 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
         maat_options_set_hit_path_enabled(opts);
+        maat_options_set_hit_object_enabled(opts);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
         _shared_maat_inst = maat_new(opts, g_table_info_path);
@@ -1184,6 +1185,54 @@ TEST_F(HsStringScan, StreamInput) {
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+	maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(HsStringScan, StreamHitDirectObject) {
+    uuid_t results[ARRAY_SIZE];
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    int ret;
+    struct maat *maat_inst = HsStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    const char *table_name = "HTTP_URL";
+    const char *attribute_name = "HTTP_URL";
+    const char *scan_data1 = "www.3300av.com";
+	const char *scan_data2 = "sdadhuadhasdgufgh;sdfhjaufhiwebfiusdafhaos;dhfaluhjweh";
+
+    memset(results, 0, sizeof(results));
+
+	struct maat_stream *sp = maat_stream_new(maat_inst, table_name, attribute_name, state);
+	ASSERT_TRUE(sp != NULL);
+
+	ret = maat_stream_scan(sp, scan_data1, strlen(scan_data1), results,
+                           ARRAY_SIZE, &n_hit_result, state);
+
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000133");
+
+    struct maat_hit_object object_array[ARRAY_SIZE];
+    ret = maat_state_get_direct_hit_objects(state, object_array, ARRAY_SIZE);
+    EXPECT_EQ(ret, 1);
+    uuid_unparse(object_array[0].object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000112");
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_stream_scan(sp, scan_data2, strlen(scan_data2), results,
+                           ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    ret = maat_state_get_direct_hit_objects(state, object_array, ARRAY_SIZE);
+    EXPECT_EQ(ret, 0);
+
+    maat_stream_free(sp);
+
 
 	maat_state_free(state);
     state = NULL;

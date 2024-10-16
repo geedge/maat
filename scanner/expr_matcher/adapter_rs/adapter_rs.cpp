@@ -64,7 +64,7 @@ struct rs_lit_engine {
     size_t n_thread;
     rs_database_t *rs_db;
     struct bloom **blooms;
-    struct rs_lit_stream **streams; /* per thread */
+    struct rs_lit_stream **per_thread_scratch_streams; /* per thread */
     struct pattern_attribute *ref_pat_attr;
     struct log_handle *logger;
 };
@@ -309,14 +309,14 @@ void rs_lit_engine_free(void *rs_lit_engine)
         FREE(rs_lit_inst->blooms);
     }
 
-    if (rs_lit_inst->streams != NULL) {
+    if (rs_lit_inst->per_thread_scratch_streams != NULL) {
         for (size_t i = 0; i < rs_lit_inst->n_thread; i++) {
-            if (rs_lit_inst->streams[i] != NULL) {
-                rs_lit_stream_close(rs_lit_inst->streams[i]);
-                rs_lit_inst->streams[i] = NULL;
+            if (rs_lit_inst->per_thread_scratch_streams[i] != NULL) {
+                rs_lit_stream_close(rs_lit_inst->per_thread_scratch_streams[i]);
+                rs_lit_inst->per_thread_scratch_streams[i] = NULL;
             }
         }
-        FREE(rs_lit_inst->streams);
+        FREE(rs_lit_inst->per_thread_scratch_streams);
     }
 
     FREE(rs_lit_inst);
@@ -341,9 +341,9 @@ void *rs_lit_engine_new(struct expr_rule *rules, size_t n_rule,
         bloom_init2(rs_lit_inst->blooms[i], 1024, 0.001);
     }
 
-    rs_lit_inst->streams = ALLOC(struct rs_lit_stream *, n_thread);
+    rs_lit_inst->per_thread_scratch_streams = ALLOC(struct rs_lit_stream *, n_thread);
     for (size_t i = 0; i < n_thread; i++) {
-        rs_lit_inst->streams[i] = (struct rs_lit_stream *)rs_lit_stream_open(rs_lit_inst, i);
+        rs_lit_inst->per_thread_scratch_streams[i] = (struct rs_lit_stream *)rs_lit_stream_open(rs_lit_inst, i);
     }
 
     return rs_lit_inst;
@@ -360,7 +360,7 @@ int rs_lit_engine_scan(void *rs_lit_engine, int thread_id,
     }
 
     struct rs_lit_engine *rs_lit_inst = (struct rs_lit_engine *)rs_lit_engine;
-    struct rs_lit_stream *rs_lit_stream = rs_lit_inst->streams[thread_id];
+    struct rs_lit_stream *rs_lit_stream = rs_lit_inst->per_thread_scratch_streams[thread_id];
     assert(rs_lit_stream != NULL);
 
     utarray_clear(rs_lit_stream->matched_pat->pattern_ids);

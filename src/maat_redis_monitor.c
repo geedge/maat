@@ -64,43 +64,65 @@ get_foreign_cont_filename(const char *table_name, const char* rule_uuid_str,
 }
 
 static void
-get_foregin_keys(struct serial_rule *p_rule, const char foreign_names[MAX_FOREIGN_CLMN_NUM][MAX_FOREIGN_NAME_LEN + 1], 
+get_foregin_keys(struct serial_rule *p_rule, char foreign_names[][MAX_FOREIGN_NAME_LEN + 1], 
                  int n_foreign, const char *dir, struct log_handle *logger)
 {
 	int foreign_key_size = 0;
 	p_rule->f_keys = ALLOC(struct foreign_key, n_foreign);
 
 	for (int i = 0; i < n_foreign; i++) {
-		const char *p_foreign = foreign_names[i];
+		const char *p_foreign_name = foreign_names[i];
+		cJSON *json = cJSON_Parse(p_rule->table_line);
 
-		foreign_key_size = strlen(p_foreign);
-        //emtpy file
-		if (0 == strncasecmp(p_foreign, "null", strlen("null"))) {
+		if (json == NULL) {
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
+					  "[%s:%d] Get %s,%s foreign key failed: "
+					  "Invalid table line", __FUNCTION__, __LINE__,
+					  p_rule->table_name, p_rule->rule_uuid_str);
 			continue;
 		}
 
-		if (0 != strncmp(p_foreign, foreign_source_prefix,
+		cJSON *item = cJSON_GetObjectItem(json, p_foreign_name);
+		if (item == NULL || item->type != cJSON_String) {
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
+					  "[%s:%d] Get %s,%s foreign key failed: "
+					  "Invalid foreign key %s", __FUNCTION__, __LINE__,
+					  p_rule->table_name, p_rule->rule_uuid_str, p_foreign_name);
+			continue;
+		}
+		const char *p_foreign_key = item->valuestring;
+
+		foreign_key_size = strlen(p_foreign_key);
+        //emtpy file
+		if (0 == strncasecmp(p_foreign_key, "null", strlen("null"))) {
+			continue;
+		}
+
+		if (0 != strncmp(p_foreign_key, foreign_source_prefix,
 						 strlen(foreign_source_prefix))) {
 			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Get %s,%s foreign key failed: "
 					  "Invalid source prefix %s", __FUNCTION__, __LINE__,
-					  p_rule->table_name, p_rule->rule_uuid_str, p_foreign);
+					  p_rule->table_name, p_rule->rule_uuid_str, p_foreign_key);
 			continue;
 		}
 
 		foreign_key_size = foreign_key_size - strlen(foreign_source_prefix);
-		p_foreign += strlen(foreign_source_prefix);
+		p_foreign_key += strlen(foreign_source_prefix);
 
-		if (0 != strncmp(p_foreign, foreign_key_prefix,
+		if (0 != strncmp(p_foreign_key, foreign_key_prefix,
 						 strlen(foreign_key_prefix))) {
 			log_info(logger, MODULE_REDIS_MONITOR, 
                      "[%s:%d] %s, %s foreign key prefix %s is not recommended",
 					 __FUNCTION__, __LINE__, p_rule->table_name, p_rule->rule_uuid_str,
-					 p_foreign);
+					 p_foreign_key);
 		}
 
+		p_rule->f_keys[p_rule->n_foreign].foreign_name = ALLOC(char, strlen(p_foreign_name) + 1);
+		memcpy(p_rule->f_keys[p_rule->n_foreign].foreign_name, p_foreign_name, strlen(p_foreign_name));
+
 		p_rule->f_keys[p_rule->n_foreign].key = ALLOC(char, foreign_key_size + 1);
-		memcpy(p_rule->f_keys[p_rule->n_foreign].key, p_foreign, foreign_key_size);
+		memcpy(p_rule->f_keys[p_rule->n_foreign].key, p_foreign_key, foreign_key_size);
 		p_rule->f_keys[p_rule->n_foreign].filename =
 			get_foreign_cont_filename(p_rule->table_name, p_rule->rule_uuid_str, 
                                       p_rule->f_keys[p_rule->n_foreign].key, dir);
@@ -117,6 +139,7 @@ get_foreign_keys_define(redisContext *ctx, struct serial_rule *rule_list,
                         int rule_num, struct maat *maat_inst, const char *dir)
 {
 	int rule_with_foreign_key = 0;
+	char foreign_names[MAX_FOREIGN_CLMN_NUM][MAX_FOREIGN_NAME_LEN + 1] = {0};
 
 	for (int i = 0; i < rule_num; i++) {
 		if (NULL == rule_list[i].table_line) {
@@ -134,10 +157,8 @@ get_foreign_keys_define(redisContext *ctx, struct serial_rule *rule_list,
 			continue;
 		}
 
-        char foreign_names[MAX_FOREIGN_CLMN_NUM][MAX_FOREIGN_NAME_LEN + 1];
         int n_foreign =
-			plugin_table_get_foreign_names(schema, 
-                                            foreign_names);
+			plugin_table_get_foreign_names(schema, foreign_names);
         if (0 == n_foreign) {
             continue;
         }
@@ -158,7 +179,7 @@ int maat_get_foreign_keys_by_prefix(redisContext *ctx,
 	int rule_with_foreign_key = 0;
 
 	int n_foreign = 0;
-	char foreign_names[MAX_FOREIGN_CLMN_NUM][MAX_FOREIGN_NAME_LEN + 1];
+	char foreign_names[MAX_FOREIGN_CLMN_NUM][MAX_FOREIGN_NAME_LEN + 1] = {0};
 
 	for (int i = 0; i < rule_num; i++) {
 		n_foreign = 0;
@@ -170,10 +191,9 @@ int maat_get_foreign_keys_by_prefix(redisContext *ctx,
 			cJSON_ArrayForEach(item, json) {
 				if (item->type == cJSON_String) {
 					if (strlen(item->valuestring) > strlen(foreign_source_prefix) &&
-					0 == strncmp(item->valuestring, foreign_key_prefix, strlen(foreign_key_prefix))) {
+					0 == strncmp(item->valuestring, foreign_source_prefix, strlen(foreign_source_prefix))) {
 						
-						strncpy(foreign_names[n_foreign], item->valuestring,
-							MAX_FOREIGN_NAME_LEN);
+						strncpy(foreign_names[n_foreign], item->string, strlen(item->string));
 						n_foreign++;
 					}
 				}
@@ -436,6 +456,7 @@ void maat_clear_rule_cache(struct serial_rule *s_rule)
 		for (int i = 0; i < s_rule->n_foreign; i++) {
 			FREE(s_rule->f_keys[i].filename);
 			FREE(s_rule->f_keys[i].key);
+			FREE(s_rule->f_keys[i].foreign_name);
 		}
 
 		FREE(s_rule->f_keys);
@@ -762,13 +783,13 @@ void maat_rewrite_table_line_with_foreign(struct serial_rule *s_rule)
 	}
 
 	for (i = 0; i < s_rule->n_foreign; i++) {
-		cJSON *tmp_obj = cJSON_GetObjectItem(json, s_rule->f_keys[i].key);
+		cJSON *tmp_obj = cJSON_GetObjectItem(json, s_rule->f_keys[i].foreign_name);
 		if (NULL == tmp_obj) {
 			continue;
 		}
 
-		cJSON_DeleteItemFromObject(json, s_rule->f_keys[i].key);
-		cJSON_AddStringToObject(json, s_rule->f_keys[i].key, s_rule->f_keys[i].filename);
+		cJSON_DeleteItemFromObject(json, s_rule->f_keys[i].foreign_name);
+		cJSON_AddStringToObject(json, s_rule->f_keys[i].foreign_name, s_rule->f_keys[i].filename);
 	}
 
 	char *rewrite_line_json = cJSON_PrintUnformatted(json);

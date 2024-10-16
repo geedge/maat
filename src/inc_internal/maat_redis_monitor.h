@@ -26,6 +26,7 @@ extern "C"
 #include "uthash/uthash.h"
 
 struct foreign_key {
+    char *foreign_name;
 	char *key;
     size_t key_len;
 	char *filename;
