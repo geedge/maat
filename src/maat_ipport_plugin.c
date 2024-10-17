@@ -445,13 +445,15 @@ static void
 ipport_item_to_ipport_rule(struct ipport_item *item, struct ipport_rule *rule)
 {
     if (IPV4 == item->ip_type) {
-        rule->ip.ip_type= IPV4;
-        rule->ip.ipv4 = item->ipv4.min_ip;
+        rule->ip_type= IPV4;
+        rule->ipv4.start_ip = item->ipv4.min_ip;
+        rule->ipv4.end_ip = item->ipv4.max_ip;
         rule->min_port = item->min_port;
         rule->max_port = item->max_port;
     } else {
-        rule->ip.ip_type = IPV6;
-        memcpy(rule->ip.ipv6, item->ipv6.min_ip, sizeof(item->ipv6.min_ip));
+        rule->ip_type = IPV6;
+        memcpy(rule->ipv6.start_ip, item->ipv6.min_ip, sizeof(item->ipv6.min_ip));
+        memcpy(rule->ipv6.end_ip, item->ipv6.max_ip, sizeof(item->ipv6.max_ip));
         rule->min_port = item->min_port;
         rule->max_port = item->max_port;
     }

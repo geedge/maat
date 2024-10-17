@@ -18,12 +18,17 @@ extern "C"
 
 #include <stddef.h>
 
+#include "ip_matcher.h"
 #include "maat.h"
 
 struct ipport_rule {
     uuid_t rule_uuid; /* rule id */
     void *user_tag;    /* point to user-defined data which will return with hit results */
-    struct ip_addr ip;
+    int ip_type;
+    union {
+        struct ipv4_range ipv4;
+        struct ipv6_range ipv6;
+    };
     uint16_t min_port; /* host order */
     uint16_t max_port; /* host order */
 };

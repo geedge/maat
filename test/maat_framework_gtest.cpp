@@ -5195,9 +5195,31 @@ TEST_F(IPPortPluginTable, EX_DATA) {
     uuid_unparse(results[0]->rule_uuid, uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000103");
 
+    ret = inet_pton(AF_INET, "192.168.100.4", &ipv4.ipv4);
+    EXPECT_EQ(ret, 1);
+    port = htons(150);
+    memset(results, 0, sizeof(results));
+    ret = maat_ipport_plugin_table_get_ex_data(maat_inst, table_name, &ipv4, port,
+                                               (void **)results, ARRAY_SIZE);
+    EXPECT_EQ(ret, 1);
+    uuid_unparse(results[0]->rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000102");
+
     struct ip_addr ipv6;
     ipv6.ip_type = IPv6;
     inet_pton(AF_INET6, "2001:db8:1234::5210", ipv6.ipv6);
+    port = htons(255);
+    memset(results, 0, sizeof(results));
+
+	ret = maat_ipport_plugin_table_get_ex_data(maat_inst, table_name, &ipv6, port,
+                                              (void**)results, ARRAY_SIZE);
+	EXPECT_EQ(ret, 1);
+    uuid_unparse(results[0]->rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000104");
+
+    ipv6.ip_type = IPv6;
+    inet_pton(AF_INET6, "2001:db8:1234::5213", ipv6.ipv6);
+    port = htons(255);
     memset(results, 0, sizeof(results));
 
 	ret = maat_ipport_plugin_table_get_ex_data(maat_inst, table_name, &ipv6, port,

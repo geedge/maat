@@ -224,8 +224,6 @@ void plugin_table_all_callback_finish(struct plugin_schema *plugin_schema)
 
 int plugin_table_get_foreign_names(struct plugin_schema *plugin_schema, char foreign_names[MAX_FOREIGN_CLMN_NUM][MAX_FOREIGN_NAME_LEN + 1])
 {
-    int n_foreign_keys = 0;
-
     if (NULL == plugin_schema) {
         return -1;
     }
@@ -234,7 +232,7 @@ int plugin_table_get_foreign_names(struct plugin_schema *plugin_schema, char for
         strncpy(foreign_names[i], plugin_schema->foreign_names[i], MAX_FOREIGN_NAME_LEN);
     }
 
-    return n_foreign_keys;
+    return plugin_schema->n_foreign;
 }
 
 int plugin_table_set_ex_container_schema(void *plugin_schema, int table_id,
