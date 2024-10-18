@@ -150,6 +150,8 @@ struct ipport_matcher *ipport_matcher_new(struct ipport_rule *rules, size_t rule
         return NULL;
     }
 
+    FREE(ip_rules);
+
     matcher->ip_matcher = ip_matcher;
 
     return matcher;
@@ -204,6 +206,11 @@ void ipport_matcher_free(struct ipport_matcher *matcher)
         HASH_DEL(matcher->ipport_hash, node);
 
         FREE(node);
+    }
+
+    if (matcher->ip_matcher != NULL) {
+        ip_matcher_free(matcher->ip_matcher);
+        matcher->ip_matcher = NULL;
     }
 
     FREE(matcher);
