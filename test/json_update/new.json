@@ -1,6 +1,6 @@
 {
     "rule_table": "RULE_DEFAULT",
-    "object2object_table": "OBJECT2OBJECT",
+    "object_group_table": "OBJECT_GROUP",
     "rules": [
         {
             "uuid": "9b0d44a1-1e9e-7988-6ab2-c619d5906818",

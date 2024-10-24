@@ -139,7 +139,7 @@ void config_monitor_traverse(long long current_version, const cJSON *json_root,
 	
 	cJSON *tmp_obj = NULL;
 	cJSON *rule_table = cJSON_GetObjectItem(json_root, "rule_table");
-	cJSON *object2object_table = cJSON_GetObjectItem(json_root, "object2object_table");
+	cJSON *object_group_table = cJSON_GetObjectItem(json_root, "object_group_table");
 	cJSON *plugin_table = cJSON_GetObjectItem(json_root, "plugin_table");
 
 	tmp_obj = cJSON_GetObjectItem(json_root, "items");
@@ -167,8 +167,8 @@ void config_monitor_traverse(long long current_version, const cJSON *json_root,
 		}
 	}
 	
-	if (object2object_table) {
-		config_load_json_content(json_root, object2object_table->valuestring, "object_groups", u_param, update_fn);
+	if (object_group_table) {
+		config_load_json_content(json_root, object_group_table->valuestring, "object_groups", u_param, update_fn);
 	}
 	if (rule_table) {
 		config_load_json_content(json_root, rule_table->valuestring, "rules", u_param, update_fn);

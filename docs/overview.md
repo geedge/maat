@@ -20,7 +20,7 @@ As mentioned in the readme, maat has two typical usage patterns:
 
 Different types of configurations are stored in different tables. For all configuration types, please refer to the [table schema](./maat_table.md#1-table-schema).
 
-The physical tables are mainly divided into three categories: the item table, object rule relationship table (rule table, object2rule table, object2object table), and xx_plugin table. The first two types of tables are used for maat traffic scanning, while the xx_plugin table is used as a callback table, which can obtain the detailed configuration information for a specific key.
+The physical tables are mainly divided into three categories: the item table, object rule relationship table (rule table, object2rule table, object_group table), and xx_plugin table. The first two types of tables are used for maat traffic scanning, while the xx_plugin table is used as a callback table, which can obtain the detailed configuration information for a specific key.
 
 ### 1.2 Configuration relationship
 
@@ -56,7 +56,7 @@ The diagram illustrates the overall architecture of maat, including the control 
 
 * **Data Plane**
 
-   When calling the maat scanning interface, it subsequently calls the table runtime of the corresponding table, then proceeds to the scanning engine. Upon the scanning engine returning a hit object, it further searches for the matching `rule_id` through object2object runtime, object2rule runtime, and rule runtime, which is then returned to the caller. In addition, if the caller is interested in the hit path, they can also retrieve it through the interfaces provided by maat.
+   When calling the maat scanning interface, it subsequently calls the table runtime of the corresponding table, then proceeds to the scanning engine. Upon the scanning engine returning a hit object, it further searches for the matching `rule_id` through object_group runtime, object2rule runtime, and rule runtime, which is then returned to the caller. In addition, if the caller is interested in the hit path, they can also retrieve it through the interfaces provided by maat.
 
    The scanning mentioned above all uses the `effective runtime`. If there are configuration changes, it will trigger the construction of `updating runtime`. Once this construction is completed, it will become effective runtime, and the original effective runtime will be put into the garbage collection queue waiting to be recycled.
 

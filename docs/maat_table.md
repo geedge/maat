@@ -13,7 +13,7 @@ The types of physical tables are as follows:
 - [item table](#11-item-table)
 - [rule table](#12-rule-table)
 - [object2rule table](#13-object2rule-table)
-- [object2object table](#14-object2object-table)
+- [object_group table](#14-object_group-table)
 - [plugin table](#15-plugin-table)
 - [ip_plugin table](#16-ip_plugin-table)
 - [fqdn_plugin table](#17-fqdn_plugin-table)
@@ -52,7 +52,7 @@ Describe matching rules for strings.
 | **FieldName**    | **type**       | **constraint** |
 | ---------------- | -------------- | ------- |
 | **item_id**      | LONG LONG      | primary key |
-| **object_id**     | LONG LONG      | leaf object id, can be referenced by object2object & object2rule table |
+| **object_id**     | LONG LONG      | leaf object id, can be referenced by object_group & object2rule table |
 | **keywords**     | VARCHAR2(1024) | field to match during scanning |
 | **expr_type**    | INT            | 0(keywords), 1(AND expr), 2(regular expr), 3(substring with offset)
 | **match_method** | INT            | only useful when expr_type is 0. 0(sub), 1(suffix), 2(prefix), 3(exactly) |
@@ -158,7 +158,7 @@ Describe extended matching rules for strings by adding the district column.
 | **FieldName**    | **type**       | **constraint** |
 | ---------------- | -------------- | ------- |
 | **item_id**      | LONG LONG      | primary key |
-| **object_id**     | LONG LONG      | leaf object id, can be referenced by object2object & object2rule table |
+| **object_id**     | LONG LONG      | leaf object id, can be referenced by object_group & object2rule table |
 | **district**     | VARCHAR2(1024) | describe the effective position of the keywords |
 | **keywords**     | VARCHAR2(1024) | field to match during scanning |
 | **expr_type**    | INT            | 0(keywords), 1(AND expr), 2(regular expr), 3(substring with offset)
@@ -183,7 +183,7 @@ Describe matching rules for IP address. Both the address and port are represente
 | **FieldName**  | **type**     | **constraint** |
 | -------------- | ------------ | -------------- |
 | **item_id**    | LONG LONG    | primary key |
-| **object_id**   | LONG LONG    | leaf object id, can be referenced by object2object & object2rule table |
+| **object_id**   | LONG LONG    | leaf object id, can be referenced by object_group & object2rule table |
 | **addr_type**  | INT          | Ipv4 = 4 Ipv6 = 6 |
 | **addr_format**| VARCHAR2(40) | ip addr format, single/range/CIDR/mask |
 | **ip1**        | VARCHAR2(40) | start ip |
@@ -197,7 +197,7 @@ Determine whether an integer is within a certain numerical range.
 | **FieldName**    | **type** | **constraint** |
 | ---------------- | -------- | -------------- |
 | **item_id**      | INT      | primary key |
-| **object_id**     | INT      | leaf object id, can be referenced by object2object & object2rule table |
+| **object_id**     | INT      | leaf object id, can be referenced by object_group & object2rule table |
 | **low_boundary** | INT      | lower bound of the numerical range(including lb), 0 ~ (2^32 - 1)|
 | **up_boundary**  | INT      | upper bound of the numerical range(including ub), 0 ~ (2^32 - 1)|
 | **is_valid**     | INT      | 0(invalid), 1(valid) |
@@ -209,7 +209,7 @@ Describe extended matching rules for integer by adding the district column.
 | **FieldName**    | **type** | **constraint** |
 | ---------------- | -------- | -------------- |
 | **item_id**      | INT      | primary key |
-| **object_id**     | INT      | leaf object id, can be referenced by object2object & object2rule table |
+| **object_id**     | INT      | leaf object id, can be referenced by object_group & object2rule table |
 | **district**     | VARCHAR2(1024)| describe the effective position of the keywords |
 | **low_boundary** | INT      | lower bound of the numerical range(including lb), 0 ~ (2^32 - 1)|
 | **up_boundary**  | INT      | upper bound of the numerical range(including ub), 0 ~ (2^32 - 1)|
@@ -220,7 +220,7 @@ Describe extended matching rules for integer by adding the district column.
 | **FieldName** | **type** | **constraint** |
 | ------------- | -------- | -------------- |
 | **item_id**   | INT      | primary key |
-| **object_id**  | INT      | leaf object id, can be referenced by object2object & object2rule table |
+| **object_id**  | INT      | leaf object id, can be referenced by object_group & object2rule table |
 | **flag**      | INT      | flag, 0 ~ (2^32 - 1)|
 | **flag_mask** | INT      | flag_mask, 0 ~ (2^32 - 1)|
 | **is_valid**  | INT      | 0(invalid), 1(valid) |
@@ -230,7 +230,7 @@ Describe extended matching rules for integer by adding the district column.
 | **FieldName** | **type** | **constraint** |
 | ------------- | -------- | -------------- |
 | **item_id**   | INT      | primary key |
-| **object_id**  | INT      | leaf object id, can be referenced by object2object & object2rule table |
+| **object_id**  | INT      | leaf object id, can be referenced by object_group & object2rule table |
 | **district**  | INT      | describe the effective position of the flag |
 | **flag**      | INT      | flag, 0 ~ (2^32 - 1)|
 | **flag_mask** | INT      | flag_mask, 0 ~ (2^32 - 1)|
@@ -262,7 +262,7 @@ Describe the relationship between object and rule.
 
 NOTE: If object_id is invalid in xx_item table, it must be marked as invalid in this table.
 
-### 1.4 <a name='Object2ObjectTable'></a> object2object table 
+### 1.4 <a name='Object2ObjectTable'></a> object_group table 
 
 Describe the relationship between objects.
 
@@ -402,7 +402,7 @@ Configuration tags are tags stored on compilation configurations or object confi
 
 Maat loads the configuration of different types of tables into memory to form the corresponding runtime for each table. We can see all table types from the table schema, and the runtime for the item table is similar, as it is an abstraction of the scanning engine. When we provide the data to be scanned and call the corresponding scanning interface, we can return whether the item is hit or not, and if it is hit, we can return the corresponding item’s object_id.
 
-From the [configuration relationship](./overview.md#12-configuration-relationship) diagram, we can see how the hit object is referenced by other objects or rules. If a hit object is referenced by other objects or rules, there will be one or more hit paths that follow the `item_id -> object_id` {-> super object_id} `-> rule_id`. This requires two special runtimes: object2object_runtime and rule_runtime. 
+From the [configuration relationship](./overview.md#12-configuration-relationship) diagram, we can see how the hit object is referenced by other objects or rules. If a hit object is referenced by other objects or rules, there will be one or more hit paths that follow the `item_id -> object_id` {-> super object_id} `-> rule_id`. This requires two special runtimes: object_group_runtime and rule_runtime. 
 
 Based on this, we can divide the runtime into the following three categories:
 
@@ -413,7 +413,7 @@ Based on this, we can divide the runtime into the following three categories:
     * interval_runtime
 
 2. object & rule table runtime
-    * object2object_runtime
+    * object_group_runtime
     * rule_runtime
 
 3. xx_plugin table runtime
@@ -433,9 +433,9 @@ Among the four types of runtimes mentioned above, `expr_runtime` is relatively u
 
 ### 2.2 object & rule table runtime
 
-#### 2.2.1 object2object runtime
+#### 2.2.1 object_group runtime
 
-The `object2object_runtime` is a runtime that is built based on the reference relationships between objects, which are stored in the [object2object table](#14-object2object-table). From the [object hierarchy](./object_hierarchy.md), we can understand that if a hit occurs in a leaf object that is referenced by other objects, there may be certain super objects that are also hit. This is exactly the functionality provided by this runtime.
+The `object_group_runtime` is a runtime that is built based on the reference relationships between objects, which are stored in the [object_group table](#14-object_group-table). From the [object hierarchy](./object_hierarchy.md), we can understand that if a hit occurs in a leaf object that is referenced by other objects, there may be certain super objects that are also hit. This is exactly the functionality provided by this runtime.
 
 #### 2.2.2 rule runtime
 

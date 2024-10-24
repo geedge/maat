@@ -57,7 +57,7 @@ struct table_manager {
 
     enum expr_engine_type engine_type;
     int default_rule_table_id;
-    int o2o_table_id;
+    int object_group_table_id;
     struct maat_kv_store *tbl_name2id_map;
     struct maat_kv_store *conj_tbl_name2id_map;
 
@@ -233,15 +233,15 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .update_err_count = rule_runtime_update_err_count
     },
     {
-        .type = TABLE_TYPE_OBJECT2OBJECT,
-        .new_schema = object2object_schema_new,
-        .free_schema = object2object_schema_free,
-        .new_runtime = object2object_runtime_new,
-        .free_runtime = object2object_runtime_free,
-        .update_runtime = object2object_runtime_update,
-        .commit_runtime = object2object_runtime_commit,
-        .rule_count = object2object_runtime_rule_count,
-        .update_err_count = object2object_runtime_update_err_count
+        .type = TABLE_TYPE_OBJECT_GROUP,
+        .new_schema = object_group_schema_new,
+        .free_schema = object_group_schema_free,
+        .new_runtime = object_group_runtime_new,
+        .free_runtime = object_group_runtime_free,
+        .update_runtime = object_group_runtime_update,
+        .commit_runtime = object_group_runtime_commit,
+        .rule_count = object_group_runtime_rule_count,
+        .update_err_count = object_group_runtime_update_err_count
     }
 };
 
@@ -433,7 +433,7 @@ static void maat_table_schema_free(void *schema, enum table_type table_type)
 static void register_reserved_word(struct maat_kv_store *reserved_word_map)
 {
     maat_kv_register(reserved_word_map, "rule", TABLE_TYPE_RULE);
-    maat_kv_register(reserved_word_map, "object2object", TABLE_TYPE_OBJECT2OBJECT);
+    maat_kv_register(reserved_word_map, "object_group", TABLE_TYPE_OBJECT_GROUP);
     maat_kv_register(reserved_word_map, "flag", TABLE_TYPE_FLAG);
     maat_kv_register(reserved_word_map, "expr", TABLE_TYPE_EXPR);
     maat_kv_register(reserved_word_map, "interval", TABLE_TYPE_INTERVAL);
@@ -784,7 +784,7 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
     }
 
     int default_rule_table_id = -1;
-    int o2o_table_id = -1;
+    int object_group_table_id = -1;
     struct maat_kv_store *reserved_word_map = maat_kv_store_new();
     register_reserved_word(reserved_word_map);
 
@@ -821,8 +821,8 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
                 } 
             }
 
-            if (maat_tbl->table_type == TABLE_TYPE_OBJECT2OBJECT) { 
-                o2o_table_id = maat_tbl->table_id;
+            if (maat_tbl->table_type == TABLE_TYPE_OBJECT_GROUP) { 
+                object_group_table_id = maat_tbl->table_id;
             }
 
             tbl_mgr->tbl[maat_tbl->table_id] = maat_tbl;
@@ -835,10 +835,10 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
     }
 
     tbl_mgr->default_rule_table_id = default_rule_table_id;
-    tbl_mgr->o2o_table_id = o2o_table_id;
+    tbl_mgr->object_group_table_id = object_group_table_id;
 
     log_info(logger, MODULE_TABLE, "default rule table id: %d", default_rule_table_id);
-    log_info(logger, MODULE_TABLE, "object2object table id: %d", o2o_table_id);
+    log_info(logger, MODULE_TABLE, "object_group table id: %d", object_group_table_id);
 next:
     FREE(json_buff);
     maat_kv_store_free(reserved_word_map);
@@ -1055,13 +1055,13 @@ int table_manager_get_default_rule_table_id(struct table_manager *tbl_mgr)
     return tbl_mgr->default_rule_table_id;
 }
 
-int table_manager_get_object2object_table_id(struct table_manager *tbl_mgr)
+int table_manager_get_object_group_table_id(struct table_manager *tbl_mgr)
 {
     if (NULL == tbl_mgr) {
         return -1;
     }
 
-    return tbl_mgr->o2o_table_id;
+    return tbl_mgr->object_group_table_id;
 }
 
 void *table_manager_get_schema(struct table_manager *tbl_mgr, int table_id)

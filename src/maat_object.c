@@ -22,13 +22,13 @@
 
 #define MODULE_OBJECT	 module_name_str("maat.object")
 
-struct object2object_item {
+struct object_group_item {
     uuid_t object_uuid;
     UT_array *incl_sub_object_uuids;
     UT_array *excl_sub_object_uuids;
 };
 
-struct object2object_schema {
+struct object_group_schema {
     int table_id;
     struct table_manager *ref_tbl_mgr;
 };
@@ -57,11 +57,11 @@ struct maat_object_topology {
     struct log_handle *logger;
 };
 
-struct object2object_runtime {
+struct object_group_runtime {
     struct maat_object_topology *object_topo;
     struct maat_object_topology *updating_object_topo;
 	long long rule_num;
-    long long excl_rule_num; //exclude o2o rule num
+    long long excl_rule_num; //exclude object_group rule num
     long long update_err_cnt;
     int updating_flag;
 
@@ -76,31 +76,31 @@ static inline int compare_object_uuid(const void *a, const void *b)
     return uuid_compare(*(uuid_t *)a, *(uuid_t *)b);
 }
 
-void *object2object_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
+void *object_group_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
                              const char *table_name, struct log_handle *logger)
 {
-	struct object2object_schema *o2o_schema = ALLOC(struct object2object_schema, 1);
+	struct object_group_schema *object_group_schema = ALLOC(struct object_group_schema, 1);
 	
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
     if (item != NULL && item->type == cJSON_Number) {
-        o2o_schema->table_id = item->valueint;
+        object_group_schema->table_id = item->valueint;
     } else {
         log_fatal(logger, MODULE_OBJECT, 
-                  "[%s:%d] o2o table:<%s> schema has no table_id column",
+                  "[%s:%d] object_group table:<%s> schema has no table_id column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
-    o2o_schema->ref_tbl_mgr = tbl_mgr;
-	return o2o_schema;
+    object_group_schema->ref_tbl_mgr = tbl_mgr;
+	return object_group_schema;
 error:
-	FREE(o2o_schema);
+	FREE(object_group_schema);
 	return NULL;
 }
 
-void object2object_schema_free(void *o2o_schema)
+void object_group_schema_free(void *object_group_schema)
 {
-	FREE(o2o_schema);
+	FREE(object_group_schema);
 }
 
 static void object_vertex_free(struct maat_object *object)
@@ -231,46 +231,46 @@ maat_object_topology_clone(struct maat_object_topology *object_topo)
     return object_topo_copy;
 }
 
-void *object2object_runtime_new(void *o2o_schema, size_t max_thread_num,
+void *object_group_runtime_new(void *object_group_schema, size_t max_thread_num,
                               struct maat_garbage_bin *garbage_bin, 
                               struct log_handle *logger)
 {
-    if (NULL == o2o_schema) {
+    if (NULL == object_group_schema) {
         return NULL;
     }
 
-	struct object2object_runtime *o2o_rt = ALLOC(struct object2object_runtime, 1);
+	struct object_group_runtime *object_group_rt = ALLOC(struct object_group_runtime, 1);
 
-	o2o_rt->object_topo = maat_object_topology_new(logger);
-    o2o_rt->ref_garbage_bin = garbage_bin;
-    o2o_rt->logger = logger;
+	object_group_rt->object_topo = maat_object_topology_new(logger);
+    object_group_rt->ref_garbage_bin = garbage_bin;
+    object_group_rt->logger = logger;
 
-	return o2o_rt;
+	return object_group_rt;
 }
 
-void object2object_runtime_free(void *o2o_runtime)
+void object_group_runtime_free(void *object_group_runtime)
 {
-    if (NULL == o2o_runtime) {
+    if (NULL == object_group_runtime) {
         return;
     }
 
-    struct object2object_runtime *o2o_rt = (struct object2object_runtime *)o2o_runtime;
+    struct object_group_runtime *object_group_rt = (struct object_group_runtime *)object_group_runtime;
 
-    if (o2o_rt->object_topo != NULL) {
-        maat_object_topology_free(o2o_rt->object_topo);
-        o2o_rt->object_topo = NULL;
+    if (object_group_rt->object_topo != NULL) {
+        maat_object_topology_free(object_group_rt->object_topo);
+        object_group_rt->object_topo = NULL;
     }
     
-    if (o2o_rt->updating_object_topo != NULL) {
-        maat_object_topology_free(o2o_rt->updating_object_topo);
-        o2o_rt->updating_object_topo = NULL;
+    if (object_group_rt->updating_object_topo != NULL) {
+        maat_object_topology_free(object_group_rt->updating_object_topo);
+        object_group_rt->updating_object_topo = NULL;
     }
 
-    FREE(o2o_rt);
+    FREE(object_group_rt);
 }
 
-static struct object2object_item *
-object2object_item_new(const char *line, struct object2object_schema *o2o_schema,
+static struct object_group_item *
+object_group_item_new(const char *line, struct object_group_schema *object_group_schema,
                      const char *table_name, struct log_handle *logger)
 {
     cJSON *tmp_obj = NULL;
@@ -278,29 +278,29 @@ object2object_item_new(const char *line, struct object2object_schema *o2o_schema
 
     if (json == NULL) {
         log_fatal(logger, MODULE_OBJECT,
-                  "[%s:%d] o2o table:<%s> line:<%s> parse json failed",
+                  "[%s:%d] object_group table:<%s> line:<%s> parse json failed",
                   __FUNCTION__, __LINE__, table_name, line);
         return NULL;
     }
 
-    struct object2object_item *o2o_item = ALLOC(struct object2object_item, 1);
-    utarray_new(o2o_item->incl_sub_object_uuids, &ut_object_uuid_icd);
-    utarray_new(o2o_item->excl_sub_object_uuids, &ut_object_uuid_icd);
+    struct object_group_item *object_group_item = ALLOC(struct object_group_item, 1);
+    utarray_new(object_group_item->incl_sub_object_uuids, &ut_object_uuid_icd);
+    utarray_new(object_group_item->excl_sub_object_uuids, &ut_object_uuid_icd);
 
     tmp_obj = cJSON_GetObjectItem(json, "object_uuid");
     if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
         log_fatal(logger, MODULE_OBJECT,
-                  "[%s:%d] o2o table:<%s> has no object_uuid or format is not string in line:%s",
+                  "[%s:%d] object_group table:<%s> has no object_uuid or format is not string in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
-    uuid_parse(tmp_obj->valuestring, o2o_item->object_uuid);
+    uuid_parse(tmp_obj->valuestring, object_group_item->object_uuid);
 
     tmp_obj = cJSON_GetObjectItem(json, "included_sub_object_uuids");
     if (tmp_obj) {
         if (tmp_obj->type != cJSON_Array) {
             log_fatal(logger, MODULE_OBJECT,
-                    "[%s:%d] o2o table:<%s> included_sub_object_ids format is not array in line:%s",
+                    "[%s:%d] object_group table:<%s> included_sub_object_ids format is not array in line:%s",
                     __FUNCTION__, __LINE__, table_name, line);
             goto error;
         }
@@ -309,16 +309,16 @@ object2object_item_new(const char *line, struct object2object_schema *o2o_schema
             cJSON *item = cJSON_GetArrayItem(tmp_obj, i);
             if (item == NULL || item->type != cJSON_String) {
                 log_fatal(logger, MODULE_OBJECT,
-                        "[%s:%d] o2o table:<%s> included_sub_object_ids format error in line:%s",
+                        "[%s:%d] object_group table:<%s> included_sub_object_ids format error in line:%s",
                         __FUNCTION__, __LINE__, table_name, line);
                 goto error;
             }
             uuid_t object_uuid;
             uuid_parse(item->valuestring, object_uuid);
-            utarray_push_back(o2o_item->incl_sub_object_uuids, &object_uuid);
+            utarray_push_back(object_group_item->incl_sub_object_uuids, &object_uuid);
         }
 
-        if (utarray_len(o2o_item->incl_sub_object_uuids) > MAX_OBJECT_CNT) {
+        if (utarray_len(object_group_item->incl_sub_object_uuids) > MAX_OBJECT_CNT) {
             log_fatal(logger, MODULE_OBJECT,
                     "[%s:%d] o2r table:<%s> included_sub_object_ids exceed maximum:%d in line:%s",
                     __FUNCTION__, __LINE__, table_name, MAX_OBJECT_CNT, line);
@@ -330,7 +330,7 @@ object2object_item_new(const char *line, struct object2object_schema *o2o_schema
     if (tmp_obj) {
         if (tmp_obj->type != cJSON_Array) {
             log_fatal(logger, MODULE_OBJECT,
-                    "[%s:%d] o2o table:<%s> excluded_sub_object_ids format is not array in line:%s",
+                    "[%s:%d] object_group table:<%s> excluded_sub_object_ids format is not array in line:%s",
                     __FUNCTION__, __LINE__, table_name, line);
             goto error;
         }
@@ -339,16 +339,16 @@ object2object_item_new(const char *line, struct object2object_schema *o2o_schema
             cJSON *item = cJSON_GetArrayItem(tmp_obj, i);
             if (item == NULL || item->type != cJSON_String) {
                 log_fatal(logger, MODULE_OBJECT,
-                        "[%s:%d] o2o table:<%s> excluded_sub_object_ids format error in line:%s",
+                        "[%s:%d] object_group table:<%s> excluded_sub_object_ids format error in line:%s",
                         __FUNCTION__, __LINE__, table_name, line);
                 goto error;
             }
             uuid_t object_uuid;
             uuid_parse(item->valuestring, object_uuid);
-            utarray_push_back(o2o_item->excl_sub_object_uuids, &object_uuid);
+            utarray_push_back(object_group_item->excl_sub_object_uuids, &object_uuid);
         }
 
-        if (utarray_len(o2o_item->excl_sub_object_uuids) > MAX_OBJECT_CNT) {
+        if (utarray_len(object_group_item->excl_sub_object_uuids) > MAX_OBJECT_CNT) {
             log_fatal(logger, MODULE_OBJECT,
                     "[%s:%d] o2r table:<%s> excluded_sub_object_ids exceed maximum:%d in line:%s",
                     __FUNCTION__, __LINE__, table_name, MAX_OBJECT_CNT, line);
@@ -358,32 +358,32 @@ object2object_item_new(const char *line, struct object2object_schema *o2o_schema
 
     cJSON_Delete(json);
 
-    return o2o_item;
+    return object_group_item;
 error:
     if (json) {
         cJSON_Delete(json);
     }
-    FREE(o2o_item);
+    FREE(object_group_item);
     return NULL;
 }
 
-static void object2object_item_free(struct object2object_item *o2o_item)
+static void object_group_item_free(struct object_group_item *object_group_item)
 {
-    if (NULL == o2o_item) {
+    if (NULL == object_group_item) {
         return;
     }
 
-    if (o2o_item->incl_sub_object_uuids != NULL) {
-        utarray_free(o2o_item->incl_sub_object_uuids);
-        o2o_item->incl_sub_object_uuids = NULL;
+    if (object_group_item->incl_sub_object_uuids != NULL) {
+        utarray_free(object_group_item->incl_sub_object_uuids);
+        object_group_item->incl_sub_object_uuids = NULL;
     }
 
-    if (o2o_item->excl_sub_object_uuids != NULL) {
-        utarray_free(o2o_item->excl_sub_object_uuids);
-        o2o_item->excl_sub_object_uuids = NULL;
+    if (object_group_item->excl_sub_object_uuids != NULL) {
+        utarray_free(object_group_item->excl_sub_object_uuids);
+        object_group_item->excl_sub_object_uuids = NULL;
     }
 
-    FREE(o2o_item);
+    FREE(object_group_item);
 }
 
 static size_t print_igraph_vector(igraph_vector_t *v, char *buff, size_t sz) {
@@ -725,29 +725,29 @@ static int object_topology_build_super_objects(struct maat_object_topology *obje
 	return 0;
 }
 
-int object2object_runtime_update(void *o2o_runtime, void *o2o_schema, 
+int object_group_runtime_update(void *object_group_runtime, void *object_group_schema, 
                                const char *table_name, const char *line, 
                                enum maat_operation op)
 {
-    if (NULL == o2o_runtime || NULL == o2o_schema || 
+    if (NULL == object_group_runtime || NULL == object_group_schema || 
         NULL == line) {
         return -1;
     }
 
-    struct object2object_schema *schema = (struct object2object_schema *)o2o_schema;
-	struct object2object_runtime *o2o_rt = (struct object2object_runtime *)o2o_runtime;
+    struct object_group_schema *schema = (struct object_group_schema *)object_group_schema;
+	struct object_group_runtime *object_group_rt = (struct object_group_runtime *)object_group_runtime;
 
-    struct object2object_item *o2o_item = object2object_item_new(line, schema, table_name,
-                                                             o2o_rt->logger);
-    if (NULL == o2o_item) {
-        o2o_rt->update_err_cnt++;
+    struct object_group_item *object_group_item = object_group_item_new(line, schema, table_name,
+                                                             object_group_rt->logger);
+    if (NULL == object_group_item) {
+        object_group_rt->update_err_cnt++;
         return -1;
     }
     
-    if (0 == o2o_rt->updating_flag) {
-        assert(o2o_rt->updating_object_topo == NULL);
-        o2o_rt->updating_object_topo = maat_object_topology_clone(o2o_rt->object_topo);
-        o2o_rt->updating_flag = 1;
+    if (0 == object_group_rt->updating_flag) {
+        assert(object_group_rt->updating_object_topo == NULL);
+        object_group_rt->updating_object_topo = maat_object_topology_clone(object_group_rt->object_topo);
+        object_group_rt->updating_flag = 1;
     }
 
     int ret = 0;
@@ -756,62 +756,62 @@ int object2object_runtime_update(void *o2o_runtime, void *o2o_schema,
     uuid_t *sub_object_uuid = NULL;
     if (MAAT_OP_DEL == op) {
         //delete
-        for (i = 0; i < utarray_len(o2o_item->incl_sub_object_uuids); i++) {
-            sub_object_uuid = (uuid_t *)utarray_eltptr(o2o_item->incl_sub_object_uuids, i);
-            ret = object_topology_del_object_from_object(o2o_rt->updating_object_topo,
-                                                      &o2o_item->object_uuid, sub_object_uuid, 0);
+        for (i = 0; i < utarray_len(object_group_item->incl_sub_object_uuids); i++) {
+            sub_object_uuid = (uuid_t *)utarray_eltptr(object_group_item->incl_sub_object_uuids, i);
+            ret = object_topology_del_object_from_object(object_group_rt->updating_object_topo,
+                                                      &object_group_item->object_uuid, sub_object_uuid, 0);
             if (ret != 0) {
                 err_flag = 1;
             }
         }
 
-        for (i = 0; i < utarray_len(o2o_item->excl_sub_object_uuids); i++) {
-            sub_object_uuid = (uuid_t *)utarray_eltptr(o2o_item->excl_sub_object_uuids, i);
-            ret = object_topology_del_object_from_object(o2o_rt->updating_object_topo,
-                                                      &o2o_item->object_uuid, sub_object_uuid, 1);
+        for (i = 0; i < utarray_len(object_group_item->excl_sub_object_uuids); i++) {
+            sub_object_uuid = (uuid_t *)utarray_eltptr(object_group_item->excl_sub_object_uuids, i);
+            ret = object_topology_del_object_from_object(object_group_rt->updating_object_topo,
+                                                      &object_group_item->object_uuid, sub_object_uuid, 1);
             if (ret != 0) {
                 err_flag = 1;
             }
         }
 
         if (1 == err_flag) {
-            o2o_rt->update_err_cnt++;
+            object_group_rt->update_err_cnt++;
         } else {
-            if (utarray_len(o2o_item->excl_sub_object_uuids) > 0) {
-                o2o_rt->excl_rule_num--;
+            if (utarray_len(object_group_item->excl_sub_object_uuids) > 0) {
+                object_group_rt->excl_rule_num--;
             }
-            o2o_rt->rule_num--;
+            object_group_rt->rule_num--;
         }
     } else {
         //add
-        for (i = 0; i < utarray_len(o2o_item->incl_sub_object_uuids); i++) {
-            sub_object_uuid = (uuid_t *)utarray_eltptr(o2o_item->incl_sub_object_uuids, i);
-            ret = object_topology_add_object_to_object(o2o_rt->updating_object_topo,
-                                                    &o2o_item->object_uuid, sub_object_uuid, 0);
+        for (i = 0; i < utarray_len(object_group_item->incl_sub_object_uuids); i++) {
+            sub_object_uuid = (uuid_t *)utarray_eltptr(object_group_item->incl_sub_object_uuids, i);
+            ret = object_topology_add_object_to_object(object_group_rt->updating_object_topo,
+                                                    &object_group_item->object_uuid, sub_object_uuid, 0);
             if (ret != 0) {
                 err_flag = 1;
             }
         }
 
-        for (i = 0; i < utarray_len(o2o_item->excl_sub_object_uuids); i++) {
-            sub_object_uuid = (uuid_t *)utarray_eltptr(o2o_item->excl_sub_object_uuids, i);
-            ret = object_topology_add_object_to_object(o2o_rt->updating_object_topo,
-                                                    &o2o_item->object_uuid, sub_object_uuid, 1);
+        for (i = 0; i < utarray_len(object_group_item->excl_sub_object_uuids); i++) {
+            sub_object_uuid = (uuid_t *)utarray_eltptr(object_group_item->excl_sub_object_uuids, i);
+            ret = object_topology_add_object_to_object(object_group_rt->updating_object_topo,
+                                                    &object_group_item->object_uuid, sub_object_uuid, 1);
             if (ret != 0) {
                 err_flag = 1;
             }
         }
 
         if (1 == err_flag) {
-            o2o_rt->update_err_cnt++;
+            object_group_rt->update_err_cnt++;
         } else {
-            if (utarray_len(o2o_item->excl_sub_object_uuids) > 0) {
-                o2o_rt->excl_rule_num++;
+            if (utarray_len(object_group_item->excl_sub_object_uuids) > 0) {
+                object_group_rt->excl_rule_num++;
             }
-            o2o_rt->rule_num++;
+            object_group_rt->rule_num++;
         }
     }
-    object2object_item_free(o2o_item);
+    object_group_item_free(object_group_item);
 
     return ret;
 }
@@ -822,43 +822,43 @@ static void garbage_maat_object_topology_free(void *data, void *arg)
     maat_object_topology_free(object_topo);
 }
 
-int object2object_runtime_commit(void *o2o_runtime, const char *table_name,
+int object_group_runtime_commit(void *object_group_runtime, const char *table_name,
                                long long maat_rt_version)
 {
-    if (NULL == o2o_runtime) {
+    if (NULL == object_group_runtime) {
 		return -1;
 	}
 
-    struct object2object_runtime *o2o_rt = (struct object2object_runtime *)o2o_runtime;
-    if (0 == o2o_rt->updating_flag) {
+    struct object_group_runtime *object_group_rt = (struct object_group_runtime *)object_group_runtime;
+    if (0 == object_group_rt->updating_flag) {
         return 0;
     }
 
     struct timespec start, end;
     clock_gettime(CLOCK_MONOTONIC, &start);
-    int ret = object_topology_build_super_objects(o2o_rt->updating_object_topo);
+    int ret = object_topology_build_super_objects(object_group_rt->updating_object_topo);
     clock_gettime(CLOCK_MONOTONIC, &end);
     long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + 
                                (end.tv_nsec - start.tv_nsec) / 1000000;
 
     if (ret < 0) {
-        log_fatal(o2o_rt->logger, MODULE_OBJECT, 
-                  "[%s:%d] table[%s] object2object runtime commit failed", 
+        log_fatal(object_group_rt->logger, MODULE_OBJECT, 
+                  "[%s:%d] table[%s] object_group runtime commit failed", 
                   __FUNCTION__, __LINE__, table_name);
         return -1;
     }
 
-    struct maat_object_topology *old_object_topo = o2o_rt->object_topo;
-    o2o_rt->object_topo = o2o_rt->updating_object_topo;
-    o2o_rt->updating_object_topo = NULL;
-    o2o_rt->updating_flag = 0;
+    struct maat_object_topology *old_object_topo = object_group_rt->object_topo;
+    object_group_rt->object_topo = object_group_rt->updating_object_topo;
+    object_group_rt->updating_object_topo = NULL;
+    object_group_rt->updating_flag = 0;
 
-    maat_garbage_bagging(o2o_rt->ref_garbage_bin, old_object_topo, NULL, 
+    maat_garbage_bagging(object_group_rt->ref_garbage_bin, old_object_topo, NULL, 
                          garbage_maat_object_topology_free);
 
-    log_info(o2o_rt->logger, MODULE_OBJECT,
-             "table[%s] commit %zu o2o rules and rebuild super_objects completed,"
-             " version:%lld, consume:%lldms", table_name, o2o_rt->rule_num,
+    log_info(object_group_rt->logger, MODULE_OBJECT,
+             "table[%s] commit %zu object_group rules and rebuild super_objects completed,"
+             " version:%lld, consume:%lldms", table_name, object_group_rt->rule_num,
              maat_rt_version, time_elapse_ms);
 
     return 0;
@@ -876,7 +876,7 @@ static void get_candidate_super_object_ids(struct maat_object_topology *object_t
          p = (uuid_t *)utarray_next(hit_object_uuids, p)) {
         struct maat_object *object = object_topology_find_object(object_topo, p);
         if (NULL == object) {
-            //object_id not in object2object table
+            //object_id not in object_group table
             continue;
         }
 
@@ -1170,61 +1170,61 @@ static size_t object_topology_get_super_objects(struct maat_object_topology *obj
     return idx;
 }
 
-size_t object2object_runtime_get_super_objects(void *o2o_runtime, uuid_t *object_uuids, 
+size_t object_group_runtime_get_super_objects(void *object_group_runtime, uuid_t *object_uuids, 
                                             size_t n_object_uuids, uuid_t *super_object_uuids,
                                             size_t super_object_uuids_size)
 {
-    if (NULL == o2o_runtime || NULL == object_uuids || 0 == n_object_uuids) {
+    if (NULL == object_group_runtime || NULL == object_uuids || 0 == n_object_uuids) {
         return 0;
     }
     
-    struct object2object_runtime *o2o_rt = (struct object2object_runtime *)o2o_runtime;
-    uuid_t o2o_object_uuids[n_object_uuids];
-    size_t o2o_object_uuids_cnt = 0;
+    struct object_group_runtime *object_group_rt = (struct object_group_runtime *)object_group_runtime;
+    uuid_t object_group_object_uuids[n_object_uuids];
+    size_t object_group_object_uuids_cnt = 0;
     
     for (size_t i = 0; i < n_object_uuids; i++) {
-        struct maat_object *object = object_topology_find_object(o2o_rt->object_topo, &object_uuids[i]);
+        struct maat_object *object = object_topology_find_object(object_group_rt->object_topo, &object_uuids[i]);
         if (NULL == object) {
             continue;
         }
 
-        uuid_copy(o2o_object_uuids[o2o_object_uuids_cnt++], object_uuids[i]);
+        uuid_copy(object_group_object_uuids[object_group_object_uuids_cnt++], object_uuids[i]);
     }
 
-    if (0 == o2o_object_uuids_cnt) {
+    if (0 == object_group_object_uuids_cnt) {
         return 0;
     }
 
-    return object_topology_get_super_objects(o2o_rt->object_topo, o2o_object_uuids, o2o_object_uuids_cnt,
+    return object_topology_get_super_objects(object_group_rt->object_topo, object_group_object_uuids, object_group_object_uuids_cnt,
                                            super_object_uuids, super_object_uuids_size);
 }
 
-long long object2object_runtime_rule_count(void *o2o_runtime)
+long long object_group_runtime_rule_count(void *object_group_runtime)
 {
-    if (NULL == o2o_runtime) {
+    if (NULL == object_group_runtime) {
         return 0;
     }
     
-    struct object2object_runtime *o2o_rt = (struct object2object_runtime *)o2o_runtime;
-    return o2o_rt->rule_num;
+    struct object_group_runtime *object_group_rt = (struct object_group_runtime *)object_group_runtime;
+    return object_group_rt->rule_num;
 }
 
-long long object2object_runtime_exclude_rule_count(void *o2o_runtime)
+long long object_group_runtime_exclude_rule_count(void *object_group_runtime)
 {
-    if (NULL == o2o_runtime) {
+    if (NULL == object_group_runtime) {
         return 0;
     }
     
-    struct object2object_runtime *o2o_rt = (struct object2object_runtime *)o2o_runtime;
-    return o2o_rt->excl_rule_num;
+    struct object_group_runtime *object_group_rt = (struct object_group_runtime *)object_group_runtime;
+    return object_group_rt->excl_rule_num;
 }
 
-long long object2object_runtime_update_err_count(void *o2o_runtime)
+long long object_group_runtime_update_err_count(void *object_group_runtime)
 {
-    if (NULL == o2o_runtime) {
+    if (NULL == object_group_runtime) {
         return 0;
     }
     
-    struct object2object_runtime *o2o_rt = (struct object2object_runtime *)o2o_runtime;
-    return o2o_rt->update_err_cnt;
+    struct object_group_runtime *object_group_rt = (struct object_group_runtime *)object_group_runtime;
+    return object_group_rt->update_err_cnt;
 }

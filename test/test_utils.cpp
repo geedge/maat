@@ -43,7 +43,7 @@ make_serial_rule(const char *table_name, const char *line, void *u_para, enum ma
     rule_uuid = cJSON_GetObjectItem(json, "uuid");
     
     if (NULL == rule_uuid) {
-        rule_uuid = cJSON_GetObjectItem(json, "object_uuid");//for object2object table
+        rule_uuid = cJSON_GetObjectItem(json, "object_uuid");//for object_group table
     }
 
     if (NULL == rule_uuid || rule_uuid->type != cJSON_String) {
@@ -193,7 +193,7 @@ int rule_table_set_line(struct maat *maat_inst, const char *table_name,
     return ret;
 }
 
-int object2object_table_set_line(struct maat *maat_inst, const char *table_name,
+int object_group_table_set_line(struct maat *maat_inst, const char *table_name,
                                enum maat_operation op, const char *object_uuid_str,
                                const char inc_object_uuid_strs[][UUID_STR_LEN], int inc_object_num,
                                const char exc_object_uuid_strs[][UUID_STR_LEN], int exc_object_num, int expire_after)

@@ -25,7 +25,7 @@ int rule_table_set_line(struct maat *maat_inst, const char *table_name,
                            struct maat_cmd_and_condition and_conditions[],
                            int condition_num, const char *action_para_str, int expire_after);
 
-int object2object_table_set_line(struct maat *maat_inst, const char *table_name,
+int object_group_table_set_line(struct maat *maat_inst, const char *table_name,
                                enum maat_operation op, const char *object_uuid_str,
                                const char inc_object_uuid_strs[][UUID_STR_LEN], int inc_object_num,
                                const char exc_object_uuid_strs[][UUID_STR_LEN], int exc_object_num, int expire_after);

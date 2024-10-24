@@ -244,7 +244,7 @@ static void fs_table_row_refresh(struct maat_stat *stat, int perf_on)
     long long total_rule_num = 0, total_scan_bytes = 0, total_update_err = 0;
     long long total_scan_times = 0, total_hit_times = 0, total_scan_cpu_time = 0;
     long long total_regv6_num = 0, total_hit_item_num = 0, total_hit_pattern_num = 0;
-    long long o2r_not_condition_num = 0, o2o_excl_rule_num = 0;
+    long long o2r_not_condition_num = 0, object_group_excl_rule_num = 0;
     struct field cell_tag = {
         .key = "TBL",
         .type = FIELD_VALUE_CSTRING
@@ -272,8 +272,8 @@ static void fs_table_row_refresh(struct maat_stat *stat, int perf_on)
                 plugin_cache_num += plugin_runtime_cached_row_count(runtime);
                 plugin_rule_num += plugin_runtime_rule_count(runtime);
                 break;
-            case TABLE_TYPE_OBJECT2OBJECT:
-                o2o_excl_rule_num += object2object_runtime_exclude_rule_count(runtime);
+            case TABLE_TYPE_OBJECT_GROUP:
+                object_group_excl_rule_num += object_group_runtime_exclude_rule_count(runtime);
                 break;
             case TABLE_TYPE_EXPR:
                 regex_rule_num = expr_runtime_regex_rule_count(runtime);
@@ -414,7 +414,7 @@ static void fs_table_row_refresh(struct maat_stat *stat, int perf_on)
 
     fieldstat_easy_counter_set(stat->fs_handle, 0,
                                stat->g_metric_id[STATUS_OBJECT_REF_EXCL_NUM],
-                               NULL, 0, o2o_excl_rule_num); 
+                               NULL, 0, object_group_excl_rule_num); 
 
 }
 

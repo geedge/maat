@@ -1,6 +1,6 @@
 {
 	"rule_table": "RULE_DEFAULT",
-	"object2object_table": "OBJECT2OBJECT",
+	"object_group_table": "OBJECT_GROUP",
 	"objects": [
 		{
 			"object_name": "ASN1234",
@@ -4162,8 +4162,8 @@
 					"attribute_name": "KEYWORDS_TABLE",
 					"objects": [
 						{
-							"object_name": "236_keywords_object",
-							"uuid": "00000000-0000-0000-0000-000000000262",
+							"object_name": "237_keywords_object",
+							"uuid": "00000000-0000-0000-0000-000000000263",
 							"items": [
 								{
 									"table_type": "expr",

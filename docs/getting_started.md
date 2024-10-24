@@ -31,7 +31,7 @@ A complete use case consists of three parts:
 
 ### Case1
 
-In the scanning scenario, it is necessary to configure the schema of multiple tables, including the item table, object2rule table, and rule table. If there is also object nesting involved, the schema of the object2object table needs to be configured.
+In the scanning scenario, it is necessary to configure the schema of multiple tables, including the item table, object2rule table, and rule table. If there is also object nesting involved, the schema of the object_group table needs to be configured.
 
 **(1) table schema**
 
@@ -67,8 +67,8 @@ Table schema is stored in a json file(such as table_info.json), which is loaded 
     },
     {
         "table_id":2,
-        "table_name":"OBJECT2OBJECT",
-        "table_type":"object2object",
+        "table_name":"OBJECT_GROUP",
+        "table_type":"object_group",
         "valid_column":4,
         "custom": {
             "object_id":1,
@@ -100,7 +100,7 @@ Configurations are stored in a json file(such as maat_json.json), which is loade
 {
     "rule_table": "RULE",
     "object2rule_table": "OBJECT2RULE",
-    "object2object_table": "OBJECT2OBJECT",
+    "object_group_table": "OBJECT_GROUP",
     "rules": [
         {
             "rule_id": 123,
@@ -217,7 +217,7 @@ In the callback scenario, only the schema of the corresponding table needs to be
 {
     "rule_table": "RULE",
     "object2rule_table": "OBJECT2RULE",
-    "object2object_table": "OBJECT2OBJECT",
+    "object_group_table": "OBJECT_GROUP",
     "plugin_table": {
         "table_name": "TEST_IP_PLUGIN_WITH_EXDATA",
         "table_content": [

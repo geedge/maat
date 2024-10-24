@@ -31,8 +31,8 @@
     },
     {
         "table_id":7,
-        "table_name":"OBJECT2OBJECT",
-        "table_type":"object2object"
+        "table_name":"OBJECT_GROUP",
+        "table_type":"object_group"
     },
     {
         "table_id":8,

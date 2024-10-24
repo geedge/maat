@@ -1767,11 +1767,11 @@ int rule_compile_state_update(struct rule_compile_state *rule_compile_state, str
         utarray_push_back(rule_compile_state->last_hit_objects, &hit_object);
     }
 
-    int o2o_table_id = table_manager_get_object2object_table_id(maat_inst->tbl_mgr);
-    void *o2o_rt = table_manager_get_runtime(maat_inst->tbl_mgr, o2o_table_id);
+    int object_group_table_id = table_manager_get_object_group_table_id(maat_inst->tbl_mgr);
+    void *object_group_rt = table_manager_get_runtime(maat_inst->tbl_mgr, object_group_table_id);
 
     uuid_t super_object_uuids[MAX_HIT_OBJECT_NUM];
-    size_t super_object_cnt = object2object_runtime_get_super_objects(o2o_rt, hit_object_uuids,
+    size_t super_object_cnt = object_group_runtime_get_super_objects(object_group_rt, hit_object_uuids,
                                                                   hit_cnt, super_object_uuids,
                                                                   MAX_HIT_OBJECT_NUM);
     for (i = 0; i < super_object_cnt; i++) {
@@ -1944,7 +1944,7 @@ size_t rule_compile_state_get_direct_hit_object_cnt(struct rule_compile_state *r
 
 size_t rule_compile_state_get_internal_hit_paths(struct rule_compile_state *rule_compile_state,
                                             struct rule_runtime *rule_rt,
-                                            struct object2object_runtime *o2o_rt,
+                                            struct object_group_runtime *object_group_rt,
                                             struct maat_hit_path *hit_path_array, 
                                             size_t array_size)
 {
@@ -1962,7 +1962,7 @@ size_t rule_compile_state_get_internal_hit_paths(struct rule_compile_state *rule
         utarray_new(valid_super_object_uuids, &ut_rule_object_uuid_icd);
 
         size_t super_object_cnt =
-            object2object_runtime_get_super_objects(o2o_rt, &(internal_path->object_uuid), 1,
+            object_group_runtime_get_super_objects(object_group_rt, &(internal_path->object_uuid), 1,
                                                  super_object_uuids, MAX_HIT_OBJECT_NUM);
         for (size_t idx = 0; idx < super_object_cnt; idx++) {
             utarray_push_back(valid_super_object_uuids, &super_object_uuids[idx]);

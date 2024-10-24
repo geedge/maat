@@ -25,7 +25,7 @@ extern "C"
 struct rule_schema;
 struct rule_runtime;
 struct rule_state;
-struct object2object_runtime;
+struct object_group_runtime;
 
 /* rule schema API */
 void *rule_schema_new(cJSON *json, struct table_manager *tbl_mgr,
@@ -81,7 +81,7 @@ void rule_compile_state_not_logic_update(struct rule_compile_state *rule_compile
 
 size_t rule_compile_state_get_internal_hit_paths(struct rule_compile_state *rule_compile_state,
                                             struct rule_runtime *rule_rt,
-                                            struct object2object_runtime *o2o_rt,
+                                            struct object_group_runtime *object_group_rt,
                                             struct maat_hit_path *hit_path_array, 
                                             size_t array_size);
 

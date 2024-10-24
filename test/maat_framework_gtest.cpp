@@ -7250,7 +7250,7 @@ TEST_F(MaatCmd, SubObject) {
     const char *table_name = "HTTP_URL";
     const char *attribute_name = "HTTP_URL";
     const char *rule_table_name = "RULE_DEFAULT";
-	const char *o2o_table_name = "OBJECT2OBJECT";
+	const char *object_group_table_name = "OBJECT_GROUP";
 	const char *scan_data1 = "www.v2ex.com/t/573028#程序员的核心竞争力是什么";
 	const char *keyword1 = "程序员&核心竞争力";
 	const char *scan_data2 = "https://ask.leju.com/bj/detail/12189672562229248/?bi=tg&type=sina-pc"
@@ -7269,7 +7269,7 @@ TEST_F(MaatCmd, SubObject) {
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
     char object2_uuid_str[UUID_STR_LEN];
     snprintf(object2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object2_id);
-    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
+    ret = object_group_table_set_line(maat_inst, object_group_table_name, MAAT_OP_ADD,
                                      object1_uuid_str, &object2_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
 
@@ -7385,7 +7385,7 @@ TEST_F(MaatCmd, SubObject) {
     long long object3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
     char object3_uuid_str[UUID_STR_LEN] = {0};
     snprintf(object3_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object3_id);
-    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
+    ret = object_group_table_set_line(maat_inst, object_group_table_name, MAAT_OP_ADD,
                                      object1_uuid_str, &object3_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
 
@@ -8458,7 +8458,7 @@ TEST_F(MaatCmd, ObjectInMassRules) {
 
 TEST_F(MaatCmd, HitObject) {
    const char *rule_table_name = "RULE_DEFAULT";
-    const char *o2o_table_name = "OBJECT2OBJECT";
+    const char *object_group_table_name = "OBJECT_GROUP";
 	const char *http_sig_table_name = "HTTP_SIGNATURE";
     const char *http_req_attr_name = "HTTP_REQUEST_HEADER";
     const char *http_resp_attr_name = "HTTP_RESPONSE_HEADER";
@@ -8520,7 +8520,7 @@ TEST_F(MaatCmd, HitObject) {
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
     char object2_uuid_str[UUID_STR_LEN] = {0};
     snprintf(object2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object2_id);
-    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
+    ret = object_group_table_set_line(maat_inst, object_group_table_name, MAAT_OP_ADD,
                                      object21_uuid_str, &object2_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
 
@@ -8546,7 +8546,7 @@ TEST_F(MaatCmd, HitObject) {
     long long object11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
     char object11_uuid_str[UUID_STR_LEN] = {0};
     snprintf(object11_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object11_id);
-    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
+    ret = object_group_table_set_line(maat_inst, object_group_table_name, MAAT_OP_ADD,
                                      object11_uuid_str, &object1_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
     
@@ -8776,7 +8776,7 @@ TEST_F(MaatCmd, HitObject) {
 }
 
 TEST_F(MaatCmd, HitPathBasic) {
-    const char *o2o_table_name = "OBJECT2OBJECT";
+    const char *object_group_table_name = "OBJECT_GROUP";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *http_sig_table_name = "HTTP_SIGNATURE";
     const char *http_req_attr_name = "HTTP_REQUEST_HEADER";
@@ -8837,7 +8837,7 @@ TEST_F(MaatCmd, HitPathBasic) {
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
     char object2_uuid_str[UUID_STR_LEN] = {0};
     snprintf(object2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object2_id);
-    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
+    ret = object_group_table_set_line(maat_inst, object_group_table_name, MAAT_OP_ADD,
                                      object21_uuid_str, &object2_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
 
@@ -8863,7 +8863,7 @@ TEST_F(MaatCmd, HitPathBasic) {
     long long object11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
     char object11_uuid_str[UUID_STR_LEN] = {0};
     snprintf(object11_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object11_id);
-    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
+    ret = object_group_table_set_line(maat_inst, object_group_table_name, MAAT_OP_ADD,
                                      object11_uuid_str, &object1_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
     
@@ -9114,7 +9114,7 @@ that the edges be all directed in the same direction.";
     item4 -> object4 -/   
 */
 TEST_F(MaatCmd, HitPathAdvanced) {
-    const char *o2o_table_name = "OBJECT2OBJECT";
+    const char *object_group_table_name = "OBJECT_GROUP";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *ip_table_name = "IP_CONFIG";
     const char *ip_attribute_name = "IP_CONFIG";
@@ -9172,7 +9172,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
     char object2_uuid_str[UUID_STR_LEN] = {0};
     snprintf(object2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object2_id);
-    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
+    ret = object_group_table_set_line(maat_inst, object_group_table_name, MAAT_OP_ADD,
                                      object21_uuid_str, &object2_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
 
@@ -9545,7 +9545,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 }
 
 TEST_F(MaatCmd, HitPathHasNotObject) {
-    const char *o2o_table_name = "OBJECT2OBJECT";
+    const char *object_group_table_name = "OBJECT_GROUP";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *http_sig_table_name = "HTTP_SIGNATURE";
     const char *http_req_attr_name = "HTTP_REQUEST_HEADER";
@@ -9605,7 +9605,7 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
     char object2_uuid_str[UUID_STR_LEN] = {0};
     snprintf(object2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object2_id);
-    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
+    ret = object_group_table_set_line(maat_inst, object_group_table_name, MAAT_OP_ADD,
                                      object21_uuid_str, &object2_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
 
@@ -9631,7 +9631,7 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     long long object11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
     char object11_uuid_str[UUID_STR_LEN] = {0};
     snprintf(object11_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object11_id);
-    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
+    ret = object_group_table_set_line(maat_inst, object_group_table_name, MAAT_OP_ADD,
                                      object11_uuid_str, &object1_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
     
@@ -9873,7 +9873,7 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
 
 TEST_F(MaatCmd, SameSuperObjectRefByMultiRule) {
     int thread_id = 0;
-    const char *o2o_table_name = "OBJECT2OBJECT";
+    const char *object_group_table_name = "OBJECT_GROUP";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *http_sig_table_name = "HTTP_SIGNATURE";
     const char *http_resp_attr_name = "HTTP_RESPONSE_HEADER";
@@ -9898,7 +9898,7 @@ TEST_F(MaatCmd, SameSuperObjectRefByMultiRule) {
     long long object52_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
     char object52_uuid_str[UUID_STR_LEN] = {0};
     snprintf(object52_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object52_id);
-    ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
+    ret = object_group_table_set_line(maat_inst, object_group_table_name, MAAT_OP_ADD,
                                      object52_uuid_str, &object5_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
 

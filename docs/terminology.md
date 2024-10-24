@@ -44,7 +44,7 @@ A object defines a set that can contain different types of items and can also re
 
 - A Object can be referenced by different rules.
 
-The relationship between object and object is stored in the [object2object table](./maat_table.md#14-object2object-table).
+The relationship between object and object is stored in the [object_group table](./maat_table.md#14-object_group-table).
 
 ## Rule(Policy)
 
@@ -68,7 +68,7 @@ A Literal consists of `attribute_id(attribute id)` and `object_id`. During the r
 
 ## Physical table
 
-Different rules are stored in different tables in the actual database, including [item table](./maat_table.md#11-item-table), [rule table](./maat_table.md#12-rule-table), [object2rule table](./maat_table.md#13-object2rule-table), [object2object table](./maat_table.md#14-object2object-table), and [xx_plugin table](./maat_table.md#15-plugin-table), and so on.
+Different rules are stored in different tables in the actual database, including [item table](./maat_table.md#11-item-table), [rule table](./maat_table.md#12-rule-table), [object2rule table](./maat_table.md#13-object2rule-table), [object_group table](./maat_table.md#14-object_group-table), and [xx_plugin table](./maat_table.md#15-plugin-table), and so on.
 
 ## Attribute
 

@@ -2033,13 +2033,13 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
         return -1;
     }
 
-    int o2o_table_id = table_manager_get_object2object_table_id(maat_inst->tbl_mgr);
-    void *o2o_runtime = table_manager_get_runtime(maat_inst->tbl_mgr, o2o_table_id);
+    int object_group_table_id = table_manager_get_object_group_table_id(maat_inst->tbl_mgr);
+    void *object_group_runtime = table_manager_get_runtime(maat_inst->tbl_mgr, object_group_table_id);
 
     size_t hit_path_cnt =
         rule_compile_state_get_internal_hit_paths(state->rule_compile_state,
                                             (struct rule_runtime *)rule_rt,
-                                            (struct object2object_runtime *)o2o_runtime,
+                                            (struct object_group_runtime *)object_group_runtime,
                                              path_array, array_size);
 
     return rule_runtime_get_hit_paths((struct rule_runtime *)rule_rt,
