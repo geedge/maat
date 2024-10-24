@@ -20,6 +20,13 @@ extern "C"
 #include "maat_table.h"
 #include "cJSON/cJSON.h"
 
+enum expr_type {
+    EXPR_TYPE_INVALID = -1,
+	EXPR_TYPE_AND = 0,
+    EXPR_TYPE_REGEX,
+    EXPR_TYPE_MAX
+};
+
 struct expr_runtime;
 
 void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr, 

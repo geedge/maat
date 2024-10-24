@@ -39,13 +39,6 @@ struct expr_schema {
     struct table_manager *ref_tbl_mgr;
 };
 
-enum expr_type {
-    EXPR_TYPE_INVALID = -1,
-	EXPR_TYPE_AND = 0,
-    EXPR_TYPE_REGEX,
-    EXPR_TYPE_MAX
-};
-
 enum match_method {
     MATCH_METHOD_SUB = 0,
 	MATCH_METHOD_RIGHT,
@@ -478,8 +471,14 @@ static int expr_keywords_to_expr_pattern(char *keywords, struct expr_pattern *pa
         region_str_len = hex2bin(hex_str_start, strlen(hex_str_start), region_string, region_str_len);
         
         tmp_start_str = str_unescape(tmp_start_str);
-        snprintf(tmp_keywords + pattern_len, MAX_KEYWORDS_STR_LEN - pattern_len, "%s%s", tmp_start_str, region_string);
-        pattern_len = strlen(tmp_keywords);
+        //snprintf(tmp_keywords + pattern_len, MAX_KEYWORDS_STR_LEN - pattern_len, "%s%s", tmp_start_str, region_string);
+        if (pattern_len + strlen(tmp_start_str) + region_str_len > MAX_KEYWORDS_STR_LEN) {
+            return -1;
+        }
+        memcpy(tmp_keywords + pattern_len, tmp_start_str, strlen(tmp_start_str));
+        pattern_len += strlen(tmp_start_str);
+        memcpy(tmp_keywords + pattern_len, region_string, region_str_len);//can't use strcpy cause region_string is from hexbin and may contain '\0'
+        pattern_len += region_str_len;
 
         if (region_string != NULL) {
             FREE(region_string);
@@ -490,6 +489,9 @@ static int expr_keywords_to_expr_pattern(char *keywords, struct expr_pattern *pa
     }
     if (tmp_end_str != NULL && tmp_end_str[0] != '\0') {
         tmp_end_str = str_unescape(tmp_end_str);
+        if (pattern_len + strlen(tmp_start_str) + strlen(tmp_end_str) > MAX_KEYWORDS_STR_LEN) {
+            return -1;
+        }
         snprintf(tmp_keywords + pattern_len, MAX_KEYWORDS_STR_LEN - pattern_len, "%s%s", tmp_start_str, tmp_end_str);
         pattern_len = strlen(tmp_keywords);
     }

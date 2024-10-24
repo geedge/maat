@@ -43,12 +43,10 @@ target_link_libraries(maat_framework_gtest maat_frame_static gtest_static)
 
 configure_file(table_info.json table_info.json COPYONLY)
 configure_file(tsg_table_info.json tsg_table_info.json COPYONLY)
-configure_file(file_test_tableinfo.json file_test_tableinfo.json COPYONLY)
 configure_file(expr_matcher.json expr_matcher.json COPYONLY)
 configure_file(maat_json.json maat_json.json COPYONLY)
 configure_file(regex_expr.json regex_expr.json COPYONLY)
 
-file(COPY ntcrule DESTINATION ./)
 file(COPY tsgrule DESTINATION ./)
 file(COPY testdata DESTINATION ./)
 file(COPY test_streamfiles DESTINATION ./)

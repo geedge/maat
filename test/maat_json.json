@@ -4148,6 +4148,60 @@
 					]
 				}
 			]
+		},
+		{
+			"uuid": "00000000-0000-0000-0000-000000000237",
+			"service": 0,
+			"action": 0,
+			"do_blacklist": 0,
+			"do_log": 0,
+			"action_parameter": "FileTest.StreamFiles",
+			"is_valid": "yes",
+			"and_conditions": [
+				{
+					"attribute_name": "KEYWORDS_TABLE",
+					"objects": [
+						{
+							"object_name": "236_keywords_object",
+							"uuid": "00000000-0000-0000-0000-000000000262",
+							"items": [
+								{
+									"table_type": "expr",
+									"table_name": "KEYWORDS_TABLE",
+									"table_content": {
+										"expression": "处女座从学习寻找自我",
+										"expr_type": "and"
+									}
+								},
+								{
+									"table_type": "expr",
+									"table_name": "KEYWORDS_TABLE",
+									"table_content": {
+										"expression": "亦庄",
+										"expr_type": "and"
+									}
+								},
+								{
+									"table_type": "expr",
+									"table_name": "KEYWORDS_TABLE",
+									"table_content": {
+										"expression": "金牛座&стейк&Taurus",
+										"expr_type": "and"
+									}
+								},
+								{
+									"table_type": "expr",
+									"table_name": "KEYWORDS_TABLE",
+									"table_content": {
+										"expression": "王守仁",
+										"expr_type": "and"
+									}
+								}
+							]
+						}
+					]
+				}
+			]
 		}
 	],
 	"plugin_table": [

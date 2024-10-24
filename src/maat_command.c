@@ -323,7 +323,7 @@ error_out:
 int maat_cmd_set_file(struct maat *maat_inst, const char *key,
 					  const char *value, size_t size, enum maat_operation op)
 {
-	redisContext *ctx = maat_inst->opts.redis_ctx.write_ctx;
+	redisContext *ctx = get_redis_ctx_for_write(maat_inst);
 	if (NULL == ctx) {
 		log_fatal(maat_inst->logger, MODULE_MAAT_COMMAND, 
                   "[%s:%d] failed: Redis is not connected.", 

@@ -4,6 +4,7 @@
 #include "maat_table.h"
 #include "maat_core.h"
 #include "maat_config_monitor.h"
+#include "yyjson/yyjson.h"
 
 #include <assert.h>
 #include <unistd.h>
@@ -135,40 +136,51 @@ int write_json_to_redis(const char *json_filename, char *redis_ip, int redis_por
 }
 
 int rule_table_set_line(struct maat *maat_inst, const char *table_name,
-                           enum maat_operation op, uuid_t rule_uuid,
-                           const char *user_region, struct maat_cmd_condition conditions[],
-                           int condition_num, int expire_after)
+                           enum maat_operation op, const char *rule_uuid_str,
+                           struct maat_cmd_and_condition and_conditions[],
+                           int condition_num, const char *action_para_str, int expire_after)
 {
     cJSON *json_root = cJSON_CreateObject();
-    char uuid_str[UUID_STR_LEN] = {0};
 
-    uuid_unparse(rule_uuid, uuid_str);
-    cJSON_AddStringToObject(json_root, "uuid", uuid_str);
-    cJSON *conditions_array = cJSON_CreateArray();
+    cJSON_AddStringToObject(json_root, "uuid", rule_uuid_str);
+    cJSON *and_conditions_array = cJSON_CreateArray();
 
     for (int i = 0; i < condition_num; i++) {
-        cJSON *condition = cJSON_CreateObject();
-        cJSON_AddStringToObject(condition, "attribute_name", conditions[i].attribute_name);
-        if (conditions[i].negate_option) {
-            cJSON_AddStringToObject(condition, "negate_option", "true");
+        cJSON *and_condition = cJSON_CreateObject();
+        cJSON *or_conditions_array = cJSON_CreateArray();
+        for (int j = 0; j < and_conditions[i].or_condition_num; j++) {
+            cJSON *or_condition = cJSON_CreateObject();
+            cJSON *object_uuids_array = cJSON_CreateArray();
+            for (int k = 0; k < and_conditions[i].or_conditions[j].object_num; k++) {
+                cJSON_AddItemToArray(object_uuids_array, cJSON_CreateString(and_conditions[i].or_conditions[j].object_uuids_str[k]));
+            }
+            cJSON_AddItemToObject(or_condition, "object_uuids", object_uuids_array);
+            cJSON_AddStringToObject(or_condition, "attribute_name", and_conditions[i].or_conditions[j].attribute_name);
+
+            cJSON_AddItemToArray(or_conditions_array, or_condition);
+        }
+
+        cJSON_AddItemToObject(and_condition, "or_conditions", or_conditions_array);
+        
+        if (and_conditions[i].negate_option) {
+            cJSON_AddBoolToObject(and_condition, "negate_option", true);
         } else {
-            cJSON_AddStringToObject(condition, "negate_option", "false");
+            cJSON_AddBoolToObject(and_condition, "negate_option", false);
         }
         
-        cJSON *object_uuids_array = cJSON_CreateArray();
-        for (int j = 0; j < conditions[i].object_num; j++) {
-            cJSON_AddItemToArray(object_uuids_array, cJSON_CreateString(conditions[i].object_uuids_str[j]));
-        }
-        cJSON_AddItemToObject(condition, "object_uuids", object_uuids_array);
-        cJSON_AddItemToArray(conditions_array, condition);
+        cJSON_AddItemToArray(and_conditions_array, and_condition);
     }
 
-    cJSON_AddItemToObject(json_root, "conditions", conditions_array);
+    cJSON_AddItemToObject(json_root, "and_conditions", and_conditions_array);
+
+    if (action_para_str) {
+        cJSON_AddStringToObject(json_root, "action_parameter", action_para_str);
+    }
 
     char *json_str = cJSON_PrintUnformatted(json_root);
 
     struct maat_cmd_line line_rule;
-    line_rule.rule_uuid_str = uuid_str;
+    line_rule.rule_uuid_str = rule_uuid_str;
     line_rule.table_line = json_str;
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
@@ -181,33 +193,52 @@ int rule_table_set_line(struct maat *maat_inst, const char *table_name,
     return ret;
 }
 
-#if 0 //TODO
-#define TO_OBJECT2X_KEY(object_id, parent_id, condition_index) \
-        (((unsigned long)object_id<<32|parent_id) + condition_index)
-
 int object2object_table_set_line(struct maat *maat_inst, const char *table_name,
-                               enum maat_operation op, long long object_id,
-                               long long sub_object_id, int expire_after)
+                               enum maat_operation op, const char *object_uuid_str,
+                               const char inc_object_uuid_strs[][UUID_STR_LEN], int inc_object_num,
+                               const char exc_object_uuid_strs[][UUID_STR_LEN], int exc_object_num, int expire_after)
 {
-    char table_line[128] = {0};
-    sprintf(table_line, "%lld\t%lld\t%s\t%d", object_id, sub_object_id,
-            "null", op);
+    cJSON *json_root = cJSON_CreateObject();
+    cJSON *inc_object_uuid_str_array = cJSON_CreateArray();
+    cJSON *exc_object_uuid_str_array = cJSON_CreateArray();
+
+    cJSON_AddStringToObject(json_root, "object_uuid", object_uuid_str);
+
+    if (inc_object_num > 0) {
+        for (int i = 0; i < inc_object_num; i++) {
+            cJSON_AddItemToArray(inc_object_uuid_str_array, cJSON_CreateString(inc_object_uuid_strs[i]));
+        }
+        cJSON_AddItemToObject(json_root, "included_sub_object_uuids", inc_object_uuid_str_array);
+    }
+
+    if (exc_object_num > 0) {
+        for (int i = 0; i < exc_object_num; i++) {
+            cJSON_AddItemToArray(exc_object_uuid_str_array, cJSON_CreateString(exc_object_uuid_strs[i]));
+        }
+        cJSON_AddItemToObject(json_root, "excluded_sub_object_uuids", exc_object_uuid_str_array);
+    }
+
+    char *json_str = cJSON_PrintUnformatted(json_root);
 
     struct maat_cmd_line line_rule;
-    line_rule.rule_id = TO_OBJECT2X_KEY(object_id, sub_object_id, 0);
-    line_rule.table_line = table_line;
+    line_rule.rule_uuid_str = object_uuid_str;
+    line_rule.table_line = json_str;
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
 
-    return maat_cmd_set_line(maat_inst, &line_rule, op);
+    int ret = maat_cmd_set_line(maat_inst, &line_rule, op);
+    free(json_str);
+
+    cJSON_Delete(json_root);
+
+    return ret;
 }
 
 int expr_table_set_line(struct maat *maat_inst, const char *table_name,
-                        enum maat_operation op, long long item_id,
-                        long long object_id, const char *keywords,
-                        const char *district, int expr_type, int expire_after)
+                        enum maat_operation op, const char *item_uuid_str,
+                        const char *object_uuid_str, const char *expression,
+                        enum expr_type expr_type, int expire_after)
 {
-    char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
     if (table_id < 0) {
         return 0;
@@ -217,24 +248,45 @@ int expr_table_set_line(struct maat *maat_inst, const char *table_name,
         table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     assert(table_type == TABLE_TYPE_EXPR);
 
-    
-    sprintf(table_line, "%lld\t%lld\t%d\t%s\t%d",
-            item_id, object_id, expr_type, keywords, op);//TODO
+    cJSON *json_root = cJSON_CreateObject();
+    const char *expr_type_str = NULL;
+    switch (expr_type) {
+        case EXPR_TYPE_AND:
+            expr_type_str = "and";
+            break;
+        case EXPR_TYPE_REGEX:
+            expr_type_str = "regex";
+            break;
+        default:
+            expr_type_str = "invalid";
+            break;
+    }
+
+    cJSON_AddStringToObject(json_root, "uuid", item_uuid_str);
+    cJSON_AddStringToObject(json_root, "object_uuid", object_uuid_str);
+    cJSON_AddStringToObject(json_root, "expression", expression);
+    cJSON_AddStringToObject(json_root, "expr_type", expr_type_str);
+
+    char *json_str = cJSON_PrintUnformatted(json_root);
 
     struct maat_cmd_line line_rule;
-    line_rule.rule_id = item_id;
-    line_rule.table_line = table_line;
+    line_rule.rule_uuid_str = item_uuid_str;
+    line_rule.table_line = json_str;
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
 
-    return maat_cmd_set_line(maat_inst, &line_rule, op);
+    int ret = maat_cmd_set_line(maat_inst, &line_rule, op);
+    free(json_str);
+
+    cJSON_Delete(json_root);
+
+    return ret;
 }
 
 int interval_table_set_line(struct maat *maat_inst, const char *table_name,
-    enum maat_operation op, long long item_id, long long object_id,
-    const char *port_str, const char *district, int expire_after)
+    enum maat_operation op, const char *item_uuid_str, const char *object_uuid_str,
+    const char *interval_str, int expire_after)
 {
-    char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
     if (table_id < 0) {
         return 0;
@@ -244,62 +296,97 @@ int interval_table_set_line(struct maat *maat_inst, const char *table_name,
         table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     assert(table_type == TABLE_TYPE_INTERVAL);
 
-    sprintf(table_line, "%lld\t%lld\t%s\t%d",
-            item_id, object_id, port_str, op);//TODO
+    cJSON *json_root = cJSON_CreateObject();
+    cJSON_AddStringToObject(json_root, "uuid", item_uuid_str);
+    cJSON_AddStringToObject(json_root, "object_uuid", object_uuid_str);
+    cJSON_AddStringToObject(json_root, "interval", interval_str);
+
+    char *json_str = cJSON_PrintUnformatted(json_root);
 
     struct maat_cmd_line line_rule;
-    line_rule.rule_id = item_id;
-    line_rule.table_line = table_line;
+    line_rule.rule_uuid_str = item_uuid_str;
+    line_rule.table_line = json_str;
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
 
-    return maat_cmd_set_line(maat_inst, &line_rule, op);
+    int ret = maat_cmd_set_line(maat_inst, &line_rule, op);
+    free(json_str);
+
+    cJSON_Delete(json_root);
+
+    return ret;
 }
 
 int ip_table_set_line(struct maat *maat_inst, const char *table_name,
-                      enum maat_operation op, long long item_id,
-                      long long object_id, const char *ip, int expire_after)
+                      enum maat_operation op, const char *item_uuid_str,
+                      const char *object_uuid_str, const char *ip_str, 
+                      const char *port_str, int expire_after)
 {
-    char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
     if (table_id < 0) {
         return 0;
     }
 
-    sprintf(table_line, "%lld\t%lld\t%s\t0-65535\t%d",
-            item_id, object_id, ip, op);
+    cJSON *json_root = cJSON_CreateObject();
+    cJSON_AddStringToObject(json_root, "uuid", item_uuid_str);
+    cJSON_AddStringToObject(json_root, "object_uuid", object_uuid_str);
+    cJSON_AddStringToObject(json_root, "ip", ip_str);
+    if (port_str) {
+        cJSON_AddStringToObject(json_root, "port", port_str);
+    }
+
+    char *json_str = cJSON_PrintUnformatted(json_root);
     struct maat_cmd_line line_rule;
     
-    line_rule.rule_id = item_id;
-    line_rule.table_line = table_line;
+    line_rule.rule_uuid_str = item_uuid_str;
+    line_rule.table_line = json_str;
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
 
-    return maat_cmd_set_line(maat_inst, &line_rule, op);
+    int ret = maat_cmd_set_line(maat_inst, &line_rule, op);
+    free(json_str);
+
+    cJSON_Delete(json_root);
+
+    return ret;
 }
+
 int flag_table_set_line(struct maat *maat_inst, const char *table_name,
-                    enum maat_operation op, long long item_id,
-                    long long object_id, long long flag,
+                    enum maat_operation op, const char *item_uuid_str,
+                    const char *object_uuid_str, long long flag,
                     long long flag_mask, int expire_after)
 {
-    char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
     if (table_id < 0) {
         return 0;
     }
 
-    sprintf(table_line, "%lld\t%lld\t%lld\t%lld\t%d",
-            item_id, object_id, flag, flag_mask, op);
+    yyjson_mut_doc *doc = yyjson_mut_doc_new(NULL);
+    yyjson_mut_val *json_root = yyjson_mut_obj(doc);
+
+    yyjson_mut_obj_add_str(doc, json_root, "uuid", item_uuid_str);
+    yyjson_mut_obj_add_str(doc, json_root, "object_uuid", object_uuid_str);
+    yyjson_mut_obj_add_int(doc, json_root, "flag", flag);
+    yyjson_mut_obj_add_int(doc, json_root, "mask", flag_mask);
+
+    yyjson_mut_doc_set_root(doc, json_root);
+
+    char *json_str = yyjson_mut_write(doc, YYJSON_WRITE_NOFLAG, NULL);
+
     struct maat_cmd_line line_rule;
 
-    line_rule.rule_id = item_id;
-    line_rule.table_line = table_line;
+    line_rule.rule_uuid_str = item_uuid_str;
+    line_rule.table_line = json_str;
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
 
-    return maat_cmd_set_line(maat_inst, &line_rule, op);
+    int ret = maat_cmd_set_line(maat_inst, &line_rule, op);
+    free(json_str);
+
+    yyjson_mut_doc_free(doc);
+
+    return ret;
 }
-#endif
 
 void random_keyword_generate(char *keyword_buf, size_t sz)
 {

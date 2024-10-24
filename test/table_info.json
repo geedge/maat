@@ -117,8 +117,8 @@
         "custom": {
             "gc_timeout_s":3,
             "key_type":"pointer",
-            "key_name":"TODO",
-            "foreign_names": ["TODO", "TODO"]
+            "key_name":"uuid",
+            "foreign_names": ["file1_key", "file2_key"]
         }
     },
     {
@@ -284,10 +284,9 @@
         "table_id":66,
         "table_name":"TEST_IP_PLUGIN_WITH_ADDR_FORMAT",
         "table_type":"ip_plugin",
-        "valid_column":5,
         "custom": {
             "gc_timeout_s": 3,
-            "key_name":"TODO"
+            "key_name":"uuid"
         }
     }
 ]

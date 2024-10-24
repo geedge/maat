@@ -70,17 +70,17 @@ get_foregin_keys(struct serial_rule *p_rule, char foreign_names[][MAX_FOREIGN_NA
 	int foreign_key_size = 0;
 	p_rule->f_keys = ALLOC(struct foreign_key, n_foreign);
 
+	cJSON *json = cJSON_Parse(p_rule->table_line);
+	if (json == NULL) {
+		log_fatal(logger, MODULE_REDIS_MONITOR, 
+					"[%s:%d] Get %s,%s foreign key failed: "
+					"Invalid table line", __FUNCTION__, __LINE__,
+					p_rule->table_name, p_rule->rule_uuid_str);
+		return;
+	}
+
 	for (int i = 0; i < n_foreign; i++) {
 		const char *p_foreign_name = foreign_names[i];
-		cJSON *json = cJSON_Parse(p_rule->table_line);
-
-		if (json == NULL) {
-			log_fatal(logger, MODULE_REDIS_MONITOR, 
-					  "[%s:%d] Get %s,%s foreign key failed: "
-					  "Invalid table line", __FUNCTION__, __LINE__,
-					  p_rule->table_name, p_rule->rule_uuid_str);
-			continue;
-		}
 
 		cJSON *item = cJSON_GetObjectItem(json, p_foreign_name);
 		if (item == NULL || item->type != cJSON_String) {
@@ -128,6 +128,8 @@ get_foregin_keys(struct serial_rule *p_rule, char foreign_names[][MAX_FOREIGN_NA
                                       p_rule->f_keys[p_rule->n_foreign].key, dir);
 		p_rule->n_foreign++;
 	}
+
+	cJSON_Delete(json);
 
 	if (0 == p_rule->n_foreign) {
 		FREE(p_rule->f_keys);

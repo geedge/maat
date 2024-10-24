@@ -25,39 +25,37 @@ const char *g_json_filename = "maat_json.json";
 size_t g_thread_num = 4;
 
 
-#if 0 //TODO
-int test_add_expr_command(struct maat *maat_inst, const char *expr_table, 
-                          long long rule_id, int timeout,
-                          const char *keywords)
+static int test_add_expr_command(struct maat *maat_inst, const char *expr_table, 
+                          const char *attr_name, const char *rule_uuid_str, int timeout,
+                          const char *keywords, struct maat_cmd_and_condition *and_condition)
 {
     char huge_serv_def[1024 * 2] = {0};
 
     memset(huge_serv_def, 's', sizeof(huge_serv_def) - 1);
     huge_serv_def[sizeof(huge_serv_def) - 1] = '\0';
 
-    int ret = rule_table_set_line(maat_inst, "RULE_DEFAULT", MAAT_OP_ADD,
-                                     rule_id, huge_serv_def, 1, timeout);
-    EXPECT_EQ(ret, 1);
-
     long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, "OBJECT2RULE_DEFAULT", MAAT_OP_ADD,
-                                       object_id, rule_id, 0, expr_table, 1, timeout);
+    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char object_uuid_str[UUID_STR_LEN] = {0};
+    char item_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object_id);
+    snprintf(item_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item_id);
+    
+    int ret = expr_table_set_line(maat_inst, expr_table, MAAT_OP_ADD, item_uuid_str,
+                              object_uuid_str, keywords, EXPR_TYPE_AND, 0);
     EXPECT_EQ(ret, 1);
 
-    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_inst, expr_table, MAAT_OP_ADD, item_id,
-                              object_id, keywords, "null", 1, 0);
+    and_condition->or_condition_num = 1;
+    and_condition->negate_option = 0;
+    and_condition->or_conditions[0].attribute_name = attr_name;
+    and_condition->or_conditions[0].object_uuids_str[0] = object_uuid_str;
+    and_condition->or_conditions[0].object_num = 1;
+    ret = rule_table_set_line(maat_inst, "RULE_DEFAULT", MAAT_OP_ADD,
+                                 rule_uuid_str, and_condition, 1, NULL, timeout);
     EXPECT_EQ(ret, 1);
 
     return ret;
 }
-
-int del_command(struct maat *maat_inst, int rule_id)
-{
-    return rule_table_set_line(maat_inst, "RULE_DEFAULT", MAAT_OP_DEL,
-                                  rule_id, "null", 1, 0);
-}
-#endif
 
 const char *watched_json = "./json_update/maat.json";
 const char *old_json = "./json_update/old.json";
@@ -646,7 +644,7 @@ TEST_F(HsStringScan, BackslashR_N_Escape) {
     state = NULL;
 }
 
-#if 0 //TODO
+
 TEST_F(HsStringScan, BackslashR_N_Escape_IncUpdate) {
     int ret = 0;
     uuid_t results[ARRAY_SIZE];
@@ -662,7 +660,9 @@ TEST_F(HsStringScan, BackslashR_N_Escape_IncUpdate) {
     ret = maat_scan_string(maat_inst, table_name, attribute_name, payload, strlen(payload),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(results[0], 234);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000234");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -670,27 +670,34 @@ TEST_F(HsStringScan, BackslashR_N_Escape_IncUpdate) {
     maat_state_reset(state);
 
     const char *rule_table_name = "RULE_DEFAULT";
-    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
+
+    /* expr table add line */
+    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char object_uuid_str[UUID_STR_LEN] = {0};
+    char item_uuid_str[UUID_STR_LEN] = {0};
+    const char *keywords = "html>\\\\r\\\\n";
+
+    snprintf(object_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object_id);
+    snprintf(item_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item_id);
+    /* EXPR_TYPE_AND MATCH_METHOD_SUB */
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_uuid_str,
+                              object_uuid_str, keywords, EXPR_TYPE_AND, 0);
+    EXPECT_EQ(ret, 1);
 
     /* rule table add line */
     long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id);
+
+    struct maat_cmd_and_condition and_condition;
+    and_condition.or_condition_num = 1;
+    and_condition.negate_option = 0;
+    and_condition.or_conditions[0].attribute_name = attribute_name;
+    and_condition.or_conditions[0].object_uuids_str[0] = object_uuid_str;
+    and_condition.or_conditions[0].object_num = 1;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    /* object2rule table add line */
-    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object_id, rule_id, 0, table_name, 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    /* expr table add line */
-    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    const char *keywords = "html>\\\\r\\\\n";
-
-    /* EXPR_TYPE_AND MATCH_METHOD_SUB */
-    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                              object_id, keywords, NULL, 1, 0);
+                                 rule_uuid_str, &and_condition, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 3);
@@ -699,8 +706,10 @@ TEST_F(HsStringScan, BackslashR_N_Escape_IncUpdate) {
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], 234);
-    EXPECT_EQ(results[1], rule_id);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000234");
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, rule_uuid_str);
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -709,7 +718,6 @@ TEST_F(HsStringScan, BackslashR_N_Escape_IncUpdate) {
     maat_state_free(state);
     state = NULL;
 }
-#endif
 
 TEST_F(HsStringScan, BackslashCtrlCharactor)
 {
@@ -1238,7 +1246,6 @@ TEST_F(HsStringScan, StreamHitDirectObject) {
     state = NULL;
 }
 
-#if 0 //TODO
 TEST_F(HsStringScan, dynamic_config) {
     const char *table_name = "HTTP_URL";
     const char *attribute_name = "HTTP_URL";
@@ -1263,27 +1270,33 @@ TEST_F(HsStringScan, dynamic_config) {
     maat_state_reset(state);
 
     const char *rule_table_name = "RULE_DEFAULT";
-    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
-
-    /* rule table add line */
-    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    /* object2rule table add line */
-    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object_id, rule_id, 0, table_name, 1, 0);
-    EXPECT_EQ(ret, 1);
 
     /* expr table add line */
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char item_uuid_str[UUID_STR_LEN] = {0};
+    char object_uuid_str[UUID_STR_LEN] = {0};
     const char *keywords = "welcome to maat";
+    snprintf(item_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item_id);
+    snprintf(object_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object_id);
 
     /* EXPR_TYPE_AND MATCH_METHOD_SUB */
-    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                              object_id, keywords, NULL, 1, 0);
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_uuid_str,
+                              object_uuid_str, keywords, EXPR_TYPE_AND, 0);
+    EXPECT_EQ(ret, 1);
+
+    /* rule table add line */
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id);
+    struct maat_cmd_and_condition and_condition;
+    and_condition.negate_option = 0;
+    and_condition.or_condition_num = 1;
+    and_condition.or_conditions[0].attribute_name = attribute_name;
+    and_condition.or_conditions[0].object_num = 1;
+    and_condition.or_conditions[0].object_uuids_str[0] = object_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                 rule_uuid_str, &and_condition, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 3);
@@ -1292,7 +1305,9 @@ TEST_F(HsStringScan, dynamic_config) {
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule_uuid_str);
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1301,18 +1316,13 @@ TEST_F(HsStringScan, dynamic_config) {
     maat_state_reset(state);
 
     /* EXPR_TYPE_AND MATCH_METHOD_SUB */
-    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_DEL, item_id,
-                              object_id, keywords, NULL, 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    /* object2rule table del line */
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL,
-                                       object_id, rule_id, 0, table_name, 1, 0);
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_DEL, item_uuid_str,
+                              object_uuid_str, keywords, EXPR_TYPE_AND, 0);
     EXPECT_EQ(ret, 1);
 
     /* rule table del line */
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
-                                 rule_id, "null", 1, 0);
+                                 rule_uuid_str, &and_condition, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -1329,7 +1339,6 @@ TEST_F(HsStringScan, dynamic_config) {
     maat_state_free(state);
     state = NULL;
 }
-#endif
 
 class RsStringScan : public testing::Test
 {
@@ -1517,7 +1526,7 @@ TEST_F(RsStringScan, BackslashR_N_Escape) {
     state = NULL;
 }
 
-#if 0 //TODO
+
 TEST_F(RsStringScan, BackslashR_N_Escape_IncUpdate) {
     int ret = 0;
     uuid_t results[ARRAY_SIZE];
@@ -1533,7 +1542,9 @@ TEST_F(RsStringScan, BackslashR_N_Escape_IncUpdate) {
     ret = maat_scan_string(maat_inst, table_name, attribute_name, payload, strlen(payload),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(results[0], 234);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000234");
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1541,27 +1552,34 @@ TEST_F(RsStringScan, BackslashR_N_Escape_IncUpdate) {
     maat_state_reset(state);
 
     const char *rule_table_name = "RULE_DEFAULT";
-    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
+
+    /* expr table add line */
+    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char object_uuid_str[UUID_STR_LEN] = {0};
+    char item_uuid_str[UUID_STR_LEN] = {0};
+    const char *keywords = "html>\\\\r\\\\n";
+
+    snprintf(object_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object_id);
+    snprintf(item_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item_id);
+    /* EXPR_TYPE_AND MATCH_METHOD_SUB */
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_uuid_str,
+                              object_uuid_str, keywords, EXPR_TYPE_AND, 0);
+    EXPECT_EQ(ret, 1);
 
     /* rule table add line */
     long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id);
+
+    struct maat_cmd_and_condition and_condition;
+    and_condition.or_condition_num = 1;
+    and_condition.negate_option = 0;
+    and_condition.or_conditions[0].attribute_name = attribute_name;
+    and_condition.or_conditions[0].object_uuids_str[0] = object_uuid_str;
+    and_condition.or_conditions[0].object_num = 1;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    /* object2rule table add line */
-    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object_id, rule_id, 0, table_name, 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    /* expr table add line */
-    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    const char *keywords = "html>\\\\r\\\\n";
-
-    /* EXPR_TYPE_AND MATCH_METHOD_SUB */
-    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                              object_id, keywords, NULL, 1, 0);
+                                 rule_uuid_str, &and_condition, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 3);
@@ -1570,8 +1588,10 @@ TEST_F(RsStringScan, BackslashR_N_Escape_IncUpdate) {
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], 234);
-    EXPECT_EQ(results[1], rule_id);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000234");
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, rule_uuid_str);
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1580,7 +1600,6 @@ TEST_F(RsStringScan, BackslashR_N_Escape_IncUpdate) {
     maat_state_free(state);
     state = NULL;
 }
-#endif
 
 TEST_F(RsStringScan, BackslashCtrlCharactor)
 {
@@ -2058,7 +2077,6 @@ TEST_F(RsStringScan, StreamInput) {
     state = NULL;
 }
 
-#if 0 //TODO
 TEST_F(RsStringScan, dynamic_config) {
     const char *table_name = "HTTP_URL";
     const char *attribute_name = "HTTP_URL";
@@ -2070,47 +2088,57 @@ TEST_F(RsStringScan, dynamic_config) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
+
     int ret = maat_scan_string(maat_inst, table_name, attribute_name, data, strlen(data),
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     EXPECT_EQ(n_hit_result, 0);
-    maat_state_reset(state);
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
+    maat_state_reset(state);
+
     const char *rule_table_name = "RULE_DEFAULT";
-    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
-
-    /* rule table add line */
-    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    /* object2rule table add line */
-    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object_id, rule_id, 0, table_name, 1, 0);
-    EXPECT_EQ(ret, 1);
 
     /* expr table add line */
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char item_uuid_str[UUID_STR_LEN] = {0};
+    char object_uuid_str[UUID_STR_LEN] = {0};
     const char *keywords = "welcome to maat";
+    snprintf(item_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item_id);
+    snprintf(object_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object_id);
 
-     /* EXPR_TYPE_AND MATCH_METHOD_SUB */
-    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                              object_id, keywords, NULL, 1, 0);
+    /* EXPR_TYPE_AND MATCH_METHOD_SUB */
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_uuid_str,
+                              object_uuid_str, keywords, EXPR_TYPE_AND, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    /* rule table add line */
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id);
+    struct maat_cmd_and_condition and_condition;
+    and_condition.negate_option = 0;
+    and_condition.or_condition_num = 1;
+    and_condition.or_conditions[0].attribute_name = attribute_name;
+    and_condition.or_conditions[0].object_num = 1;
+    and_condition.or_conditions[0].object_uuids_str[0] = object_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                 rule_uuid_str, &and_condition, 1, NULL, 0);
+    EXPECT_EQ(ret, 1);
+
+    sleep(WAIT_FOR_EFFECTIVE_S * 3);
 
     ret = maat_scan_string(maat_inst, table_name, attribute_name, data, strlen(data), results, 
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule_uuid_str);
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -2118,22 +2146,17 @@ TEST_F(RsStringScan, dynamic_config) {
 
     maat_state_reset(state);
 
-    /* EXPR_TYPE_AND MATCH_METHOD_SUB*/
-    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_DEL, item_id,
-                              object_id, keywords, NULL, 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    /* object2rule table del line */
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL,
-                                       object_id, rule_id, 0, table_name, 1, 0);
+    /* EXPR_TYPE_AND MATCH_METHOD_SUB */
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_DEL, item_uuid_str,
+                              object_uuid_str, keywords, EXPR_TYPE_AND, 0);
     EXPECT_EQ(ret, 1);
 
     /* rule table del line */
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
-                                 rule_id, table_name, 1, 0);
+                                 rule_uuid_str, &and_condition, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     ret = maat_scan_string(maat_inst, table_name, attribute_name, data, strlen(data), results, 
                            ARRAY_SIZE, &n_hit_result, state);
@@ -2147,7 +2170,6 @@ TEST_F(RsStringScan, dynamic_config) {
     maat_state_free(state);
     state = NULL;
 }
-#endif
 
 class HsStreamScan : public testing::Test
 {
@@ -2184,7 +2206,6 @@ protected:
 
 struct maat *HsStreamScan::_shared_maat_inst;
 
-#if 0 //TODO
 TEST_F(HsStreamScan, dynamic_config) {
     const char *table_name = "HTTP_URL";
     const char *attribute_name = "HTTP_URL";
@@ -2201,7 +2222,10 @@ TEST_F(HsStreamScan, dynamic_config) {
 
     // STEP 1: add keywords1 and wait scan stream to hit
     long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = test_add_expr_command(maat_inst, table_name, rule1_id, 0, keywords1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    struct maat_cmd_and_condition and_condition;
+    int ret = test_add_expr_command(maat_inst, table_name, attribute_name, rule1_uuid_str, 0, keywords1, &and_condition);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -2223,7 +2247,9 @@ TEST_F(HsStreamScan, dynamic_config) {
                            ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-	EXPECT_EQ(results[0], rule1_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -2233,8 +2259,10 @@ TEST_F(HsStreamScan, dynamic_config) {
 
     // STEP 2: Inc config update, use same stream to scan and wait old expr_runtime invalid 
     random_keyword_generate(keyword_buf, sizeof(keyword_buf));
-    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = test_add_expr_command(maat_inst, table_name, rule_id, 0, keyword_buf);
+    long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule2_id);
+    ret = test_add_expr_command(maat_inst, table_name, attribute_name, rule2_uuid_str, 0, keyword_buf, &and_condition);
     EXPECT_EQ(ret, 1);
 
     // Inc config has not yet taken effect, stream scan can hit rule
@@ -2242,7 +2270,8 @@ TEST_F(HsStreamScan, dynamic_config) {
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule1_id);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
     maat_state_reset(state);
 
@@ -2262,7 +2291,6 @@ TEST_F(HsStreamScan, dynamic_config) {
     sp = NULL;
     state = NULL;
 }
-#endif
 
 class RsStreamScan : public testing::Test
 {
@@ -2300,11 +2328,7 @@ protected:
 
 struct maat *RsStreamScan::_shared_maat_inst;
 
-#if 0 //TODO
 TEST_F(RsStreamScan, dynamic_config) {
-    const char *scan_data1 = "www.cyberessays.com";
-	const char *scan_data2 = "hello world cyberessays.com/search_results.php?"
-                             "action=search&query=yulingjing,abckkk,1234567";
     const char *table_name = "HTTP_URL";
     const char *attribute_name = "HTTP_URL";
     const char *keywords1 = "hello";
@@ -2312,12 +2336,18 @@ TEST_F(RsStreamScan, dynamic_config) {
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
+    const char *scan_data1 = "www.cyberessays.com";
+    const char *scan_data2 = "hello world cyberessays.com/search_results.php?"
+                             "action=search&query=yulingjing,abckkk,1234567";
     struct maat *maat_inst = RsStreamScan::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     // STEP 1: add keywords1 and wait scan stream to hit
     long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = test_add_expr_command(maat_inst, table_name, rule1_id, 0, keywords1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    struct maat_cmd_and_condition and_condition;
+    int ret = test_add_expr_command(maat_inst, table_name, attribute_name, rule1_uuid_str, 0, keywords1, &and_condition);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -2339,7 +2369,9 @@ TEST_F(RsStreamScan, dynamic_config) {
                            ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-	EXPECT_EQ(results[0], rule1_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -2349,8 +2381,10 @@ TEST_F(RsStreamScan, dynamic_config) {
 
     // STEP 2: Inc config update, use same stream to scan and wait old expr_runtime invalid 
     random_keyword_generate(keyword_buf, sizeof(keyword_buf));
-    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = test_add_expr_command(maat_inst, table_name, rule_id, 0, keyword_buf);
+    long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule2_id);
+    ret = test_add_expr_command(maat_inst, table_name, attribute_name, rule2_uuid_str, 0, keyword_buf, &and_condition);
     EXPECT_EQ(ret, 1);
 
     // Inc config has not yet taken effect, stream scan can hit rule
@@ -2358,11 +2392,8 @@ TEST_F(RsStreamScan, dynamic_config) {
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule1_id);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
     maat_state_reset(state);
 
@@ -2382,7 +2413,6 @@ TEST_F(RsStreamScan, dynamic_config) {
     sp = NULL;
     state = NULL;
 }
-#endif
 
 class IPScan : public testing::Test
 {
@@ -2780,7 +2810,6 @@ TEST_F(IPScan, BugReport20210515) {
     state = NULL;
 }
 
-#if 0 //TODO
 TEST_F(IPScan, RuleUpdates) {
     const char *table_name = "IP_PLUS_CONFIG";
     const char *attribute_name = "IP_PLUS_CONFIG";
@@ -2806,25 +2835,31 @@ TEST_F(IPScan, RuleUpdates) {
 
     maat_state_reset(state);
 
+    /* ip table add line */
+    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char object_uuid_str[UUID_STR_LEN] = {0};
+    char item_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object_id);
+    snprintf(item_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item_id);
+    ret = ip_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_uuid_str,
+                            object_uuid_str, "100.100.100.100", NULL, 0);
+    EXPECT_EQ(ret, 1);
+
     const char *rule_table_name = "RULE_DEFAULT";
-    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 
      /* rule table add line */
     long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id);
+    struct maat_cmd_and_condition and_condition;
+    and_condition.negate_option = 0;
+    and_condition.or_condition_num = 1;
+    and_condition.or_conditions[0].object_num = 1;
+    and_condition.or_conditions[0].object_uuids_str[0] = object_uuid_str;
+    and_condition.or_conditions[0].attribute_name = attribute_name;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
-                                 rule_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    /* object2rule table add line */
-    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD, 
-                                       object_id, rule_id, 0, table_name, 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    /* ip table add line */
-    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = ip_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                            object_id, "100.100.100.100", 0);
+                                 rule_uuid_str, &and_condition, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -2833,7 +2868,9 @@ TEST_F(IPScan, RuleUpdates) {
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule_uuid_str);
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -2842,18 +2879,13 @@ TEST_F(IPScan, RuleUpdates) {
     maat_state_reset(state);
 
     /* ip table del line */
-    ret = ip_table_set_line(maat_inst, table_name, MAAT_OP_DEL, item_id,
-                            object_id, "100.100.100.100", 0);
-    EXPECT_EQ(ret, 1);
-
-    /* object2rule table del line */
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL,
-                                       object_id, rule_id, 0, table_name, 1, 0);
+    ret = ip_table_set_line(maat_inst, table_name, MAAT_OP_DEL, item_uuid_str,
+                            object_uuid_str, "100.100.100.100", NULL, 0);
     EXPECT_EQ(ret, 1);
 
     /* rule table del line */
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, 
-                                 rule_id, "null", 1, 0);
+                                 rule_uuid_str, &and_condition, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -2869,7 +2901,6 @@ TEST_F(IPScan, RuleUpdates) {
     maat_state_free(state);
     state = NULL;
 }
-#endif
 
 class IntervalScan : public testing::Test
 {
@@ -5749,19 +5780,6 @@ void rule_ex_param_dup(const char *table_name, void **to, void **from, long argl
 	*((struct rule_ex_param**)to) = from_param;
 }
 
-TEST_F(RuleTable, RuleRuleUpdate) {
-    struct maat *maat_inst = RuleTable::_shared_maat_inst;
-
-    const char *rule_table_name = "RULE_DEFAULT";
-    uuid_t rule_uuid;
-    uuid_generate(rule_uuid);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, rule_uuid, "null", NULL, 0, 0);
-    EXPECT_EQ(ret, 1);
-
-    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, rule_uuid, "null", NULL, 0, 0);
-    EXPECT_EQ(ret, 1);
-}
-
 TEST_F(RuleTable, Conjunction1) {
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
@@ -6332,26 +6350,38 @@ TEST_F(TableInfo, Conjunction) {
     state = NULL;
 }
 
-#if 0 //TODO: change iris rule to json rule
 class FileTest : public testing::Test
 {
 protected:
     static void SetUpTestCase() {
-        const char *rule_folder = "./ntcrule/full/index";
-        const char *table_info = "./file_test_tableinfo.json";
+        char redis_ip[64] = "127.0.0.1";
+        int redis_port = 6379;
+        int redis_db = 0;
+
+        logger = log_handle_create("./maat_framework_gtest.log", 0);
+        int ret = write_json_to_redis(g_json_filename, redis_ip, redis_port, redis_db, logger);
+        if (ret < 0) {
+            log_fatal(logger, MODULE_FRAMEWORK_GTEST,
+                      "[%s:%d] write config to redis failed.",
+                      __FUNCTION__, __LINE__);
+        }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_caller_thread_number(opts, g_thread_num);
         maat_options_set_instance_name(opts, "files");
         maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_perf_on(opts);
-        maat_options_set_iris(opts, rule_folder, rule_folder);
+        maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
         maat_options_set_rule_update_checking_interval_ms(opts, 500);
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
 
-        _shared_maat_inst = maat_new(opts, table_info);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
-        EXPECT_TRUE(_shared_maat_inst != NULL);
+        if (NULL == _shared_maat_inst) {
+            log_fatal(logger, MODULE_FRAMEWORK_GTEST,
+                      "[%s:%d] create maat instance in TableInfo failed.",
+                      __FUNCTION__, __LINE__);
+        }
     }
 
     static void TearDownTestCase() {
@@ -6359,24 +6389,24 @@ protected:
     }
 
     static struct maat *_shared_maat_inst;
+    static struct log_handle *logger;
 };
 struct maat *FileTest::_shared_maat_inst;
+struct log_handle *FileTest::logger;
 
 TEST_F(FileTest, StreamFiles) {
     const char test_data_dir[64] = "./test_streamfiles";
-    const char *table_name = "NTC_HTTP_REQ_BODY";
+    const char *keywords_table_name = "KEYWORDS_TABLE";
+    const char *keywords_attribute_name = "KEYWORDS_TABLE";
     int thread_id = 0;
     struct maat *maat_inst = FileTest::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-
-    
-    ASSERT_GT(table_id, 0);
 
     struct dirent **name_list;
     int n = my_scandir(test_data_dir, &name_list, NULL, 
                        (int (*)(const void*, const void*))alphasort);
     ASSERT_GT(n, 0);
-    struct maat_stream *stream = maat_stream_new(maat_inst, table_id, state);
+    struct maat_stream *stream = maat_stream_new(maat_inst, keywords_table_name, keywords_attribute_name, state);
     ASSERT_FALSE(stream == NULL);
 
     struct stat file_info;
@@ -6427,7 +6457,6 @@ TEST_F(FileTest, StreamFiles) {
 
     free(name_list);
 }
-#endif
 
 class ObjectHierarchy : public testing::Test
 {
@@ -6729,7 +6758,6 @@ TEST_F(ObjectHierarchy, MultiLiteralsInOneCondition) {
     state = NULL;
 }
 
-#if 0 //TODO
 class MaatCmd : public testing::Test
 {
 protected:
@@ -6778,28 +6806,34 @@ TEST_F(MaatCmd, SetIP) {
 	const char *ip_table_name = "IP_CONFIG";
     const char *ip_attribute_name = "IP_CONFIG";
 	const char *rule_table_name = "RULE_DEFAULT";
-    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
     maat_reload_log_level(maat_inst, LOG_LEVEL_INFO);
 
-    /* rule table add line */
-    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    /* object2rule table add line */
-    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object_id, rule_id, 0, ip_table_name, 1, 0);
-    EXPECT_EQ(ret, 1);
-
     /* item table add line */
     const char *ip1 = "172.0.0.1";
+    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item_id,
-                            object_id, ip1, 0);
+    char object_uuid_str[UUID_STR_LEN] = {0};
+    char item_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object_id);
+    snprintf(item_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item_id);
+    int ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item_uuid_str,
+                            object_uuid_str, ip1, NULL, 0);
+    EXPECT_EQ(ret, 1);
+
+    /* rule table add line */
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id);
+    struct maat_cmd_and_condition and_condition;
+    and_condition.negate_option = 0;
+    and_condition.or_condition_num = 1;
+    and_condition.or_conditions[0].attribute_name = ip_attribute_name;
+    and_condition.or_conditions[0].object_num = 1;
+    and_condition.or_conditions[0].object_uuids_str[0] = object_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule_uuid_str, &and_condition, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -6815,7 +6849,9 @@ TEST_F(MaatCmd, SetIP) {
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule_uuid_str);
 
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -6844,9 +6880,14 @@ TEST_F(MaatCmd, SetExpr) {
 
     snprintf(keywords, sizeof(keywords), "%s&%s", keywords1, keywords2);
 	long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 2);
+    char rule_uuid_str1[UUID_STR_LEN] = {0};
+    char rule_uuid_str2[UUID_STR_LEN] = {0};
+    snprintf(rule_uuid_str1, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", (rule_id - 1));
+    snprintf(rule_uuid_str2, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id);
 
-    test_add_expr_command(maat_inst, table_name, rule_id - 1, 0, keywords);
-    test_add_expr_command(maat_inst, table_name, rule_id, 0, keywords);
+    struct maat_cmd_and_condition and_condition1, and_condition2;
+    test_add_expr_command(maat_inst, table_name, attribute_name, rule_uuid_str1, 0, keywords, &and_condition1);
+    test_add_expr_command(maat_inst, table_name, attribute_name, rule_uuid_str2, 0, keywords, &and_condition2);
     
     sleep(WAIT_FOR_EFFECTIVE_S);
 
@@ -6854,7 +6895,12 @@ TEST_F(MaatCmd, SetExpr) {
     int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
                                 results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    //EXPECT_TRUE(results[0] == rule_id || results[0] == (rule_id - 1));//TODO: fix this
+    EXPECT_EQ(n_hit_result, 2);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule_uuid_str2);
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, rule_uuid_str1);
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -6862,11 +6908,11 @@ TEST_F(MaatCmd, SetExpr) {
 
     maat_state_reset(state);
 
-    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, rule_id-1, 
-                                 "null", 1, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, rule_uuid_str1, 
+                                 &and_condition1, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
-    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, rule_id, 
-                                 "null", 1, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, rule_uuid_str2, 
+                                 &and_condition2, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
@@ -6882,7 +6928,10 @@ TEST_F(MaatCmd, SetExpr) {
 
     int timeout = 1;
     rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    test_add_expr_command(maat_inst, table_name, rule_id, timeout, keywords);
+    char rule_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id);
+    struct maat_cmd_and_condition and_condition;
+    test_add_expr_command(maat_inst, table_name, attribute_name, rule_uuid_str, timeout, keywords, &and_condition);
     sleep(timeout + 1);
     ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
                             results, ARRAY_SIZE, &n_hit_result, state);
@@ -6901,7 +6950,6 @@ TEST_F(MaatCmd, SetExpr8) {
 	const char *scan_data7 = "string1, string2, string3, string4, string5, string6, string7";
 	
 	const char *rule_table_name = "RULE_DEFAULT";
-    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char *table_name = "KEYWORDS_TABLE";
     const char *attribute_name = "KEYWORDS_TABLE";
 	
@@ -6914,22 +6962,29 @@ TEST_F(MaatCmd, SetExpr8) {
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    /* rule table add line */
-    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    /* object2rule table add line */
-    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object_id, rule_id, 0, table_name, 1, 0);
-    EXPECT_EQ(ret, 1);
-
     /* EXPR_TYPE_AND MATCH_METHOD_SUB */
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                              object_id, keywords8, NULL, 1, 0);
+    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char item_uuid_str[UUID_STR_LEN] = {0};
+    char object_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item_id);
+    snprintf(object_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object_id);
+    int ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_uuid_str,
+                              object_uuid_str, keywords8, EXPR_TYPE_AND, 0);
+    EXPECT_EQ(ret, 1);
+
+    /* rule table add line */
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id);
+    struct maat_cmd_and_condition and_condition;
+    and_condition.negate_option = 0;
+    and_condition.or_condition_num = 1;
+    and_condition.or_conditions[0].attribute_name = attribute_name;
+    and_condition.or_conditions[0].object_num = 1;
+    and_condition.or_conditions[0].object_uuids_str[0] = object_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule_uuid_str, &and_condition, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -6938,7 +6993,9 @@ TEST_F(MaatCmd, SetExpr8) {
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule_uuid_str);
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -6946,12 +7003,12 @@ TEST_F(MaatCmd, SetExpr8) {
 
     maat_state_reset(state);
 
-    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_DEL, item_id,
-                              object_id, keywords8, NULL, 1, 0);
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_DEL, item_uuid_str,
+                              object_uuid_str, keywords8, EXPR_TYPE_AND, 0);
     EXPECT_EQ(ret, 1);
     
-    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                              object_id, keywords7, NULL, 1, 0);
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_uuid_str,
+                              object_uuid_str, keywords7, EXPR_TYPE_AND, 0);
    
     sleep(WAIT_FOR_EFFECTIVE_S);
 
@@ -6960,7 +7017,8 @@ TEST_F(MaatCmd, SetExpr8) {
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule_id);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule_uuid_str);
 
     ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -6977,32 +7035,38 @@ TEST_F(MaatCmd, ObjectScan) {
 	const char *table_name = "HTTP_URL";
     const char *attribute_name = "HTTP_URL";
 	const char *rule_table_name = "RULE_DEFAULT";
-    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     /* rule table add line */
     long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    /* object2rule table add line */
     long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object_id, rule_id, 0, table_name, 1, 0);
+    char rule_uuid_str[UUID_STR_LEN] = {0};
+    char object_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id);
+    snprintf(object_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object_id);
+    struct maat_cmd_and_condition and_condition;
+    and_condition.negate_option = 0;
+    and_condition.or_condition_num = 1;
+    and_condition.or_conditions[0].attribute_name = attribute_name;
+    and_condition.or_conditions[0].object_num = 1;
+    and_condition.or_conditions[0].object_uuids_str[0] = object_uuid_str;
+    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule_uuid_str, &and_condition, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     struct maat_hit_object hit_object;
-    hit_object.object_id = object_id;
-    hit_object.attribute_id = table_id;
+    uuid_parse(object_uuid_str, hit_object.object_uuid);
+    strncpy(hit_object.attribute_name, attribute_name, sizeof(hit_object.attribute_name));
     ret = maat_scan_object(maat_inst, table_name, attribute_name, &hit_object, 1, results, ARRAY_SIZE,
                           &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule_uuid_str);
 
     maat_state_free(state);
     state = NULL;
@@ -7014,48 +7078,57 @@ TEST_F(MaatCmd, ObjectScan) {
  */
 TEST_F(MaatCmd, SameFilterRefByOneRule) {
     const char *attribute_name = "HTTP_URL_FILTER";
+    const char *table_name = "HTTP_URL";
     const char *scan_data = "http://filtermenot.com";
     const char *keywords = "menot.com";
     const char *rule_table_name = "RULE_DEFAULT";
-    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_inst, attribute_name);
-    ASSERT_GT(table_id, 0);
+
+    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char object_uuid_str[UUID_STR_LEN] = {0};
+    char item_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object_id);
+    snprintf(item_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item_id);
+    int ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_uuid_str, object_uuid_str,
+                              keywords, EXPR_TYPE_AND, 0);
+    EXPECT_EQ(ret, 1);
 
     long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule_id, "null", 2, 0); // rule has two condition
+    char rule_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id);
+    struct maat_cmd_and_condition and_condition[2];
+    and_condition[0].negate_option = 0;
+    and_condition[0].or_condition_num = 1;
+    and_condition[0].or_conditions[0].attribute_name = attribute_name;
+    and_condition[0].or_conditions[0].object_num = 1;
+    and_condition[0].or_conditions[0].object_uuids_str[0] = object_uuid_str;
+    //condition1 & condition2 has same filter => {attribute_name, object_uuid}
+    and_condition[1].negate_option = 0;
+    and_condition[1].or_condition_num = 1;
+    and_condition[1].or_conditions[0].attribute_name = attribute_name;
+    and_condition[1].or_conditions[0].object_num = 1;
+    and_condition[1].or_conditions[0].object_uuids_str[0] = object_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule_uuid_str, and_condition, 2, NULL, 0); // rule has two condition
     EXPECT_EQ(ret, 1);
-
-    //condition1 & condition2 has same filter => {attribute_id, object_id}
-    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD, 
-                                       object_id, rule_id, 0, attribute_name, 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object_id, rule_id, 0, attribute_name, 2, 0);
-    EXPECT_EQ(ret, 1);
-
-    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_inst, "HTTP_URL", MAAT_OP_ADD, item_id, object_id,
-                              keywords, "null", 1, 0);
-    EXPECT_EQ(ret, 1); 
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -7065,6 +7138,7 @@ TEST_F(MaatCmd, SameFilterRefByOneRule) {
 
 TEST_F(MaatCmd, RuleIDRecycle) {
     const char *table_name = "HTTP_URL";
+    const char *attribute_name = "HTTP_URL";
 	const char *scan_data = "Reuse rule ID is allowed.";
 	const char *keywords = "Reuse&rule";
     uuid_t results[ARRAY_SIZE];
@@ -7073,50 +7147,53 @@ TEST_F(MaatCmd, RuleIDRecycle) {
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    
-    ASSERT_GT(table_id, 0);
-
     long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    test_add_expr_command(maat_inst, table_name, rule_id, 0, keywords);
+    char rule_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id);
+    struct maat_cmd_and_condition and_condition;
+    test_add_expr_command(maat_inst, table_name, attribute_name, rule_uuid_str, 0, keywords, &and_condition);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    int ret = maat_scan_string(maat_inst, table_id, scan_data,
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data,
                                strlen(scan_data), results, ARRAY_SIZE,
                                &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
-    del_command(maat_inst, rule_id);
+    rule_table_set_line(maat_inst, "RULE_DEFAULT", MAAT_OP_DEL, rule_uuid_str, &and_condition, 1, NULL, 0);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
-    test_add_expr_command(maat_inst, table_name, rule_id, 0, keywords);
+    test_add_expr_command(maat_inst, table_name, attribute_name, rule_uuid_str, 0, keywords, &and_condition);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule_id);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -7126,6 +7203,7 @@ TEST_F(MaatCmd, RuleIDRecycle) {
 
 TEST_F(MaatCmd, ReturnRuleIDWithDescendingOrder) {
     const char *table_name = "HTTP_URL";
+    const char *attribute_name = "HTTP_URL";
 	const char *scan_data = "This string will hit mulptiple rules.";
 	const char *keywords = "string will hit";
     uuid_t results[ARRAY_SIZE];
@@ -7134,32 +7212,34 @@ TEST_F(MaatCmd, ReturnRuleIDWithDescendingOrder) {
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    
-    ASSERT_GT(table_id, 0);
-
     int i = 0;
     int repeat_times = 4;
     long long expect_rule_id[ARRAY_SIZE] = {0};
+    char rule_uuid_str_array[ARRAY_SIZE][UUID_STR_LEN];
     long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", repeat_times);
 
     for (i = 0; i < repeat_times; i++) {
         //add in ascending order
+        struct maat_cmd_and_condition and_condition;
         expect_rule_id[i] = rule_id + 1 - repeat_times + i;
-        test_add_expr_command(maat_inst, table_name, expect_rule_id[i], 0, keywords);
+        snprintf(rule_uuid_str_array[i], UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", expect_rule_id[i]);
+        test_add_expr_command(maat_inst, table_name, attribute_name, rule_uuid_str_array[i], 0, keywords, &and_condition);
     }
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     memset(results, 0, sizeof(results));
-    int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
                                 results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, repeat_times);
     for (i = 0; i < repeat_times; i++) {
-        EXPECT_EQ(results[i], expect_rule_id[repeat_times -i - 1]);
+        char uuid_str[UUID_STR_LEN] = {0};
+        uuid_unparse(results[i], uuid_str);
+        EXPECT_STREQ(uuid_str, rule_uuid_str_array[repeat_times - i - 1]);
     }
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -7168,8 +7248,8 @@ TEST_F(MaatCmd, ReturnRuleIDWithDescendingOrder) {
 
 TEST_F(MaatCmd, SubObject) {
     const char *table_name = "HTTP_URL";
+    const char *attribute_name = "HTTP_URL";
     const char *rule_table_name = "RULE_DEFAULT";
-	const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char *o2o_table_name = "OBJECT2OBJECT";
 	const char *scan_data1 = "www.v2ex.com/t/573028#程序员的核心竞争力是什么";
 	const char *keyword1 = "程序员&核心竞争力";
@@ -7177,42 +7257,20 @@ TEST_F(MaatCmd, SubObject) {
                              "&pos=index-dbtlwzl&wt_campaign=M_5CE750003F393&wt_source=PDPS_514ACACFD9E770";
 	const char *keyword2 = "ask.leju.com/b&/detail/12189672562229248/?&?bi=tg\\&type=sina-pc\\&&\\&pos="
                            "index-dbtlwzl\\&&\\&type=sina-pc\\&pos=index-dbtlwzl\\&";
-    int thread_id = 0;
+    int thread_id = 0, ret = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    
-    ASSERT_GT(table_id, 0);
-
-     /* rule table add line */
-     //rule1
-    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
-                                     rule1_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    //rule2
-    long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
-                                 rule2_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    /* object2rule table add line */
-    //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD, 
-                                       object1_id, rule1_id, 0, table_name, 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    //object1 -> rule2
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD, 
-                                       object1_id, rule2_id, 0, table_name, 1, 0);
-    EXPECT_EQ(ret, 1);
+    char object1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object1_id);
 
     //object2 -> object1 -> rule1
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char object2_uuid_str[UUID_STR_LEN];
+    snprintf(object2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object2_id);
     ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
-                                     object1_id, object2_id, 0);
+                                     object1_uuid_str, &object2_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
 
     /* item1 -> object2 -> object1 -> rule1
@@ -7220,21 +7278,51 @@ TEST_F(MaatCmd, SubObject) {
                               \ _  rule2
     */
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                              object2_id, keyword1, NULL, 1, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
+    char item_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item_id);
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_uuid_str,
+                              object2_uuid_str, keyword1, EXPR_TYPE_AND, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
+    
+    /* rule table add line */
+    //rule1
+    //object1 -> rule1
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    struct maat_cmd_and_condition and_condition;
+    and_condition.negate_option = 0;
+    and_condition.or_condition_num = 1;
+    and_condition.or_conditions[0].attribute_name = attribute_name;
+    and_condition.or_conditions[0].object_num = 1;
+    and_condition.or_conditions[0].object_uuids_str[0] = object1_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
+                                     rule1_uuid_str, &and_condition, 1, NULL, 0);
+    EXPECT_EQ(ret, 1);
+
+    //rule2
+    //object1 -> rule2
+    long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule2_id);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
+                                 rule2_uuid_str, &and_condition, 1, NULL, 0);
+    EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
-    ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1),
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data1, strlen(scan_data1),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], rule2_id);
-    EXPECT_EQ(results[1], rule1_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule2_uuid_str);
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -7244,18 +7332,19 @@ TEST_F(MaatCmd, SubObject) {
                           \
                            \_ X -> rule2
     */
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL,
-                                       object1_id, rule2_id, 0, table_name, 1, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, 
+                                 rule2_uuid_str, &and_condition, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1),
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data1, strlen(scan_data1),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule1_id);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -7265,25 +7354,24 @@ TEST_F(MaatCmd, SubObject) {
                   \
                    \_ -> rule2
     */
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL,
-                                       object1_id, rule1_id, 0, table_name, 1, 0);
-    EXPECT_EQ(ret, 1);
-    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
-                                 rule1_id, "null", 1, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, 
+                                 rule1_uuid_str, &and_condition, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object2_id, rule2_id, 0, table_name, 1, 0);
+    and_condition.or_conditions[0].object_uuids_str[0] = object2_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
+                                 rule2_uuid_str, &and_condition, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
-    ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1),
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data1, strlen(scan_data1),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule2_id);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule2_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -7292,22 +7380,26 @@ TEST_F(MaatCmd, SubObject) {
     /*  item1 -> object2 -> object1 -> X 
                   \
                    \_ -> rule2
-        item2 -> object3
+        item2 -> object3 -> object1
     */
     long long object3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char object3_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object3_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object3_id);
     ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
-                                     object1_id, object3_id, 0);
+                                     object1_uuid_str, &object3_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
 
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item2_id,
-                              object3_id, keyword2, NULL, 1, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
+    char item2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item2_id);
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item2_uuid_str,
+                              object3_uuid_str, keyword2, EXPR_TYPE_AND, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
     sleep(2);
-    ret = maat_scan_string(maat_inst, table_id, scan_data2, strlen(scan_data2),
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data2, strlen(scan_data2),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -7316,30 +7408,26 @@ TEST_F(MaatCmd, SubObject) {
     /*  item1 -> object2 -> object1 -> X
                   \
                    \_ -> rule2
-        item2 -> object3
+        item2 -> object3 -> object1
     */
+    and_condition.or_conditions[0].object_uuids_str[0] = object1_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule1_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object1_id, rule1_id, 0, table_name, 1, 0);
+                                 rule1_uuid_str, &and_condition, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
-                                 rule1_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL,
-                                       object1_id, rule1_id, 0, table_name, 1, 0);
+                                 rule1_uuid_str, &and_condition, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
-    ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1),
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data1, strlen(scan_data1),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule2_id);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule2_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -7349,8 +7437,8 @@ TEST_F(MaatCmd, SubObject) {
 
 TEST_F(MaatCmd, RefObject) {
     const char *table_name = "HTTP_URL";
+    const char *attribute_name = "HTTP_URL";
     const char* rule_table_name = "RULE_DEFAULT";
-	const char* o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char* scan_data1 = "m.facebook.com/help/2297503110373101?helpref=hc_nav&refid=69";
 	const char* keyword1 = "something-should-not-hit";
 	const char* keyword2 = "facebook.com/help/2297503110373101";
@@ -7358,68 +7446,67 @@ TEST_F(MaatCmd, RefObject) {
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    
-    ASSERT_GT(table_id, 0);
-
-    //TODO: value=0 MAAT_OPT_ENABLE_UPDATE
-    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
-                                     rule1_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    //object1 -> rule1
+    //object1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object1_id, rule1_id, 0, table_name, 1, 0);
-    EXPECT_EQ(ret, 1);
+    char object1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object1_id);
 
     //item1 -> object1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item1_id,
-                              object1_id, keyword1, NULL, 1, 0); /* EXPR_TYPE_AND MATCH_METHOD_SUB */
+    char item1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item1_id);
+    int ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item1_uuid_str,
+                              object1_uuid_str, keyword1, EXPR_TYPE_AND, 0); /* EXPR_TYPE_AND MATCH_METHOD_SUB */
+    EXPECT_EQ(ret, 1);
+
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    struct maat_cmd_and_condition and_condition;
+    and_condition.negate_option = 0;
+    and_condition.or_condition_num = 1;
+    and_condition.or_conditions[0].attribute_name = attribute_name;
+    and_condition.or_conditions[0].object_num = 1;
+    and_condition.or_conditions[0].object_uuids_str[0] = object1_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
+                                     rule1_uuid_str, &and_condition, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    /* item1 -> object1 -> X -> rule1
-                                 /
-                                /
-                item2 -> object2
+    /* item1 -> object1 -> X                   
+        item2 -> object2 -> rule1
     */
+    rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, rule1_uuid_str, &and_condition, 1, NULL, 0);
+
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object2_id, rule1_id, 0, table_name, 1, 0);
+    char object2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object2_id);
+    and_condition.or_conditions[0].object_uuids_str[0] = object2_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
+                                     rule1_uuid_str, &and_condition, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item2_id,
-                              object2_id, keyword2, NULL, 1, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
-    EXPECT_EQ(ret, 1);
-
-    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, 
-                                 rule1_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
-                                 rule1_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL, 
-                                       object1_id, rule1_id, 0, table_name, 1, 0);
-    EXPECT_EQ(ret, 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD, 
-                                       object2_id, rule1_id, 0, table_name, 1, 0);
+    char item2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item2_id);
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item2_uuid_str,
+                              object2_uuid_str, keyword2, EXPR_TYPE_AND, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
-    ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1),
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data1, strlen(scan_data1),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule1_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -7429,47 +7516,56 @@ TEST_F(MaatCmd, RefObject) {
 
 TEST_F(MaatCmd, Attribute) {
     const char* rule_table_name = "RULE_DEFAULT";
-    const char* o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char* table_name="HTTP_SIGNATURE";
-    int thread_id = 0;
+    const char *attribute_req_name = "HTTP_REQUEST_HEADER";
+    const char *attribute_resp_name = "HTTP_RESPONSE_HEADER";
+    int thread_id = 0, ret = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
-                                     rule1_id, "null", 2, 0);
-    EXPECT_EQ(ret, 1);
-
-    //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object1_id, rule1_id, 0,
-                                       "HTTP_REQUEST_HEADER", 1, 0);
-    EXPECT_EQ(ret, 1);
+    char object1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object1_id);
 
-    //item1 -> object1 -> rule1
+    //item1 -> object1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item1_id,
-                              object1_id, "AppleWebKit", "User-Agent", 0, 0);/*EXPR_TYPE_STRING MATCH_METHOD_SUB */
+    char item1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item1_id);
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item1_uuid_str,
+                              object1_uuid_str, "AppleWebKit", EXPR_TYPE_AND, 0);/*EXPR_TYPE_STRING MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
-    /* item1 -> object1 -> rule1
-                              /
-                      object2_/
-    */
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object2_id, rule1_id, 0,
-                                       "HTTP_RESPONSE_HEADER", 2, 0);
-    EXPECT_EQ(ret, 1);
+    char object2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object2_id);
 
     /* item1 -> object1 -> rule1
                               /
               item2 -> object2/
     */
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item2_id,
-                              object2_id, "uid=12345678;", "Cookie", 0, 0);/*EXPR_TYPE_STRING MATCH_METHOD_SUB */
+    char item2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item2_id);
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item2_uuid_str,
+                              object2_uuid_str, "uid=12345678;", EXPR_TYPE_AND, 0);/*EXPR_TYPE_STRING MATCH_METHOD_SUB */
+    EXPECT_EQ(ret, 1);
+
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    struct maat_cmd_and_condition and_conditions[2];
+    and_conditions[0].negate_option = 0;
+    and_conditions[0].or_condition_num = 1;
+    and_conditions[0].or_conditions[0].attribute_name = attribute_req_name;
+    and_conditions[0].or_conditions[0].object_num = 1;
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object1_uuid_str;
+    and_conditions[1].negate_option = 0;
+    and_conditions[1].or_condition_num = 1;
+    and_conditions[1].or_conditions[0].attribute_name = attribute_resp_name;
+    and_conditions[1].or_conditions[0].object_num = 1;
+    and_conditions[1].or_conditions[0].object_uuids_str[0] = object2_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
+                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -7477,76 +7573,56 @@ TEST_F(MaatCmd, Attribute) {
 	const char* http_req_hdr_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                                   "(KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36";
 	const char* http_resp_hdr_cookie = "uid=12345678;BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; sugstore=1;";
-    const char *district_str1 = "User-Agent";
-    const char *district_str2 = "Cookie";
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
 
-    int table_id = maat_get_table_id(maat_inst, "HTTP_REQUEST_HEADER");
-    ASSERT_GT(table_id, 0);
-
-    ret = maat_state_set_scan_district(state, table_id, district_str1,
-                                       strlen(district_str1));
-    EXPECT_EQ(ret, 0);
-
-    ret = maat_scan_string(maat_inst, table_id, http_req_hdr_ua,
+    ret = maat_scan_string(maat_inst, table_name, attribute_req_name, http_req_hdr_ua,
                            strlen(http_req_hdr_ua), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_req_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    table_id = maat_get_table_id(maat_inst, "HTTP_RESPONSE_HEADER");
-    ASSERT_GT(table_id, 0);
-
-    ret = maat_state_set_scan_district(state, table_id, district_str2,
-                                       strlen(district_str2));
-    EXPECT_EQ(ret, 0);
-
-    ret = maat_scan_string(maat_inst, table_id, http_resp_hdr_cookie,
+    ret = maat_scan_string(maat_inst, table_name, attribute_resp_name, http_resp_hdr_cookie,
                            strlen(http_resp_hdr_cookie), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule1_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_resp_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
     //delete object1
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL,
-                                       object1_id, rule1_id, 0,
-                                       "HTTP_REQUEST_HEADER", 1, 0);
-    EXPECT_EQ(ret, 1);
-    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
-                                 rule1_id, "null", 2, 0);
-    EXPECT_EQ(ret, 1);
-    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule1_id, "null", 1, 0);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, 
+                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
+    and_conditions[0].negate_option = 0;
+    and_conditions[0].or_condition_num = 1;
+    and_conditions[0].or_conditions[0].attribute_name = attribute_resp_name;
+    and_conditions[0].or_conditions[0].object_num = 1;
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object2_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
+                                     rule1_uuid_str, and_conditions, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    table_id = maat_get_table_id(maat_inst, "HTTP_RESPONSE_HEADER");
-    ASSERT_GT(table_id, 0);
-
-    ret = maat_state_set_scan_district(state, table_id, district_str2,
-                                       strlen(district_str2));
-    EXPECT_EQ(ret, 0);
-
-    ret = maat_scan_string(maat_inst, table_id, http_resp_hdr_cookie,
+    ret = maat_scan_string(maat_inst, table_name, attribute_resp_name, http_resp_hdr_cookie,
                            strlen(http_resp_hdr_cookie), results,
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule1_id);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_resp_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -7562,22 +7638,24 @@ TEST_F(MaatCmd, SetLines) {
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     long long expect_rule_id[TEST_CMD_LINE_NUM] = {0};
     const char *table_line_add[TEST_CMD_LINE_NUM] = {
-        "1\t192.168.0.1\t100\t1",
-        "1\t192.168.0.1\t101\t1",
-        "1\t192.168.0.1\t102\t1",
-        "1\t192.168.0.1\t103\t1",
+        "{\"uuid\":\"00000000-0000-0000-0000-000000000001\", \"ip\":\"192.168.0.1\", \"entry_id\":100, \"is_valid\":1}",
+        "{\"uuid\":\"00000000-0000-0000-0000-000000000002\", \"ip\":\"192.168.0.1\", \"entry_id\":101, \"is_valid\":1}",
+        "{\"uuid\":\"00000000-0000-0000-0000-000000000003\", \"ip\":\"192.168.0.1\", \"entry_id\":102, \"is_valid\":1}",
+        "{\"uuid\":\"00000000-0000-0000-0000-000000000004\", \"ip\":\"192.168.0.1\", \"entry_id\":103, \"is_valid\":1}",
         };
     const char *table_line_del[TEST_CMD_LINE_NUM] = {
-        "1\t192.168.0.1\t100\t0",
-        "1\t192.168.0.1\t101\t0",
-        "1\t192.168.0.1\t102\t0",
-        "1\t192.168.0.1\t103\t0",
+        "{\"uuid\":\"00000000-0000-0000-0000-000000000001\", \"ip\":\"192.168.0.1\", \"entry_id\":100, \"is_valid\":1}",
+        "{\"uuid\":\"00000000-0000-0000-0000-000000000002\", \"ip\":\"192.168.0.1\", \"entry_id\":101, \"is_valid\":1}",
+        "{\"uuid\":\"00000000-0000-0000-0000-000000000003\", \"ip\":\"192.168.0.1\", \"entry_id\":102, \"is_valid\":1}",
+        "{\"uuid\":\"00000000-0000-0000-0000-000000000004\", \"ip\":\"192.168.0.1\", \"entry_id\":103, \"is_valid\":1}",
         };
     int ret = 0;
 
+    char rule_uuid_strs[TEST_CMD_LINE_NUM][UUID_STR_LEN];
     for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
         expect_rule_id[i] = maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
-        line_rule.rule_id = expect_rule_id[i];
+        snprintf(rule_uuid_strs[i], UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", expect_rule_id[i]);
+        line_rule.rule_uuid_str = rule_uuid_strs[i];
         line_rule.table_name = table_name;
         line_rule.table_line = table_line_add[i];
         line_rule.expire_after = 0;
@@ -7588,7 +7666,7 @@ TEST_F(MaatCmd, SetLines) {
 
     for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
         memset(&line_rule, 0, sizeof(line_rule));
-        line_rule.rule_id = expect_rule_id[i];
+        line_rule.rule_uuid_str = rule_uuid_strs[i];
         line_rule.table_name = table_name;
         line_rule.table_line = table_line_del[i];
         line_rule.expire_after = 0;
@@ -7599,13 +7677,8 @@ TEST_F(MaatCmd, SetLines) {
 }
 
 int g_test_update_paused = 0;
-void pause_update_test_entry_cb(int table_id,const char* table_line, enum maat_operation op, void* u_para)
+void pause_update_test_entry_cb(const char *table_name, const char* table_line, enum maat_operation op, void* u_para)
 {
-	char status[32] = {0};
-	int entry_id = -1, seq = -1;
-	int is_valid = 0;
-
-	sscanf(table_line, "%d\t%s\t%d\t%d", &seq, status, &entry_id, &is_valid);
 	EXPECT_EQ(g_test_update_paused, 0);
 }
 
@@ -7613,20 +7686,19 @@ TEST_F(MaatCmd, PauseUpdate) {
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     const char *table_name = "QD_ENTRY_INFO";
 
-    
-    ASSERT_GT(table_id, 0);
-
-    int ret = maat_table_callback_register(maat_inst, table_id, NULL,
+    int ret = maat_table_callback_register(maat_inst, table_name, NULL,
                                            pause_update_test_entry_cb,
                                            NULL, NULL);
-    //TODO: value = 0 MAAT_OPT_ENABLE_UPDATE
     g_test_update_paused = 1;
 
     char *line = NULL;
     struct maat_cmd_line line_rule;
-    line_rule.rule_id = maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
+    char rule_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id);
+    line_rule.rule_uuid_str = rule_uuid_str;
     line_rule.table_name = table_name;
-    asprintf(&line, "1\t192.168.0.1\t101\t1");
+    asprintf(&line, "{\"uuid\":\"00000000-0000-0000-0000-000000000001\", \"ip\":\"192.168.0.1\", \"entry_id\":101, \"is_valid\":1}");
     line_rule.table_line = line;
     line_rule.expire_after = 0;
 
@@ -7635,7 +7707,6 @@ TEST_F(MaatCmd, PauseUpdate) {
     free(line);
     
     g_test_update_paused = 0;
-    //TODO: value = 1 MAAT_OPT_ENABLE_UPDATE
 }
 
 void prepare_file_to_set(const char* filename, char** file_buff,
@@ -7683,23 +7754,34 @@ int is_same_file(const char *filename1, const char *filename2)
 int g_test_foregin_read_OK = 0, g_test_foreign_del_OK = 0;
 char file1_to_del[256], file2_to_del[256];
 const char* empty_file_name = "An_empty_file";
-void foreign_key_test_entry_cb(int table_id, const char *table_line, enum maat_operation op, void *u_para)
+void foreign_key_test_entry_cb(const char *table_name, const char *table_line, enum maat_operation op, void *u_para)
 {
-	int rule_id=-1, not_care=0, tag=0;
-	int is_valid=0;
 	char file1_origin_name[256], file2_origin_name[256];
 	char file1_localname[256], file2_localname[256];
-	char end[16];
 
 	memset(file1_localname, 0, sizeof(file1_localname));
 	memset(file2_localname, 0, sizeof(file2_localname));
 	
-	sscanf(table_line, "%d\t%d\t%d\t%d\t%s\t%s\t\%s\t%s\t%s",
-           &rule_id, &not_care, &tag, &is_valid, file1_origin_name, 
-           file1_localname, file2_origin_name, file2_localname, end);
-	EXPECT_STREQ(end, "End");
+	cJSON *json = cJSON_Parse(table_line);
+    EXPECT_TRUE(json != NULL);
 
-	if (is_valid == 1) {		
+    cJSON *tmp_obj = cJSON_GetObjectItem(json, "file1_name");
+    EXPECT_TRUE(tmp_obj != NULL);
+    snprintf(file1_origin_name, sizeof(file1_origin_name), "%s", tmp_obj->valuestring);
+
+    tmp_obj = cJSON_GetObjectItem(json, "file1_key");
+    EXPECT_TRUE(tmp_obj != NULL);
+    snprintf(file1_localname, sizeof(file1_localname), "%s", tmp_obj->valuestring);
+
+    tmp_obj = cJSON_GetObjectItem(json, "file2_name");
+    EXPECT_TRUE(tmp_obj != NULL);
+    snprintf(file2_origin_name, sizeof(file2_origin_name), "%s", tmp_obj->valuestring);
+
+    tmp_obj = cJSON_GetObjectItem(json, "file2_key");
+    EXPECT_TRUE(tmp_obj != NULL);
+    snprintf(file2_localname, sizeof(file2_localname), "%s", tmp_obj->valuestring);
+
+	if (op == MAAT_OP_ADD) {		
 		EXPECT_TRUE(is_same_file(file1_origin_name, file1_localname));
 		if (0 == strncmp(file2_origin_name, empty_file_name, strlen(empty_file_name))) {
 			EXPECT_TRUE(0==strncasecmp(file2_localname, "null", strlen("null")));
@@ -7718,10 +7800,7 @@ TEST_F(MaatCmd, SetFile) {
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     const char* table_name = "TEST_FOREIGN_KEY";
 
-    
-    ASSERT_GT(table_id, 0);
-
-    int ret = maat_table_callback_register(maat_inst, table_id, NULL,
+    int ret = maat_table_callback_register(maat_inst, table_name, NULL,
                                            foreign_key_test_entry_cb,
                                            NULL, NULL);
     EXPECT_EQ(ret, 0);
@@ -7749,10 +7828,18 @@ TEST_F(MaatCmd, SetFile) {
     char line[1024] = {0};
     int tag = 0;
     struct maat_cmd_line line_rule;
-    line_rule.rule_id = maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
+    char rule_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id);
+    line_rule.rule_uuid_str = rule_uuid_str;
     line_rule.table_name = table_name;
-    snprintf(line, sizeof(line),"%lld\t2\t%d\t1\t%s\tredis://%s\t%s\tredis://%s\tEnd",
-             line_rule.rule_id, tag, file1_name, file1_key, file2_name, file2_key);
+    snprintf(line, sizeof(line),"{\"uuid\":\"%s\",\
+                                \"tag\":%d,\
+                                \"file1_name\":\"%s\",\
+                                \"file1_key\":\"redis://%s\",\
+                                \"file2_name\":\"%s\",\
+                                \"file2_key\":\"redis://%s\"}",
+             line_rule.rule_uuid_str, tag, file1_name, file1_key, file2_name, file2_key);
     line_rule.table_line = line;
     line_rule.expire_after = 0;
 
@@ -7767,15 +7854,7 @@ TEST_F(MaatCmd, SetFile) {
     ret = maat_cmd_set_file(maat_inst, file2_key, NULL, 0, MAAT_OP_DEL);
     EXPECT_EQ(ret, 1);
 
-    struct maat_cmd_line line_rule_del;
-    line_rule_del.rule_id = line_rule.rule_id;
-    line_rule_del.table_name = line_rule.table_name;
-    memset(line, 0, sizeof(line));
-    snprintf(line, sizeof(line), "%lld\t2\t%d\t0\t%s\tredis://%s\t%s\tredis://%s\tEnd",
-             line_rule.rule_id, tag, file1_name, file1_key, file2_name, file2_key);
-    line_rule_del.table_line = line;
-    line_rule_del.expire_after = 0;
-    ret = maat_cmd_set_line(maat_inst, &line_rule_del, MAAT_OP_DEL);
+    ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_DEL);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
@@ -7788,10 +7867,17 @@ TEST_F(MaatCmd, SetFile) {
     // Test empty file, file key is a string "null".
     memset(&line_rule, 0, sizeof(line_rule));
     memset(line, 0, sizeof(line));
-    line_rule.rule_id = maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
+    rule_id = maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
+    snprintf(rule_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id);
+    line_rule.rule_uuid_str = rule_uuid_str;
     line_rule.table_name=table_name;
-    snprintf(line, sizeof(line),"%lld\t2\t%d\t1\t%s\tredis://%s\t%s\t%s\tEnd",
-             line_rule.rule_id, tag, file1_name, file1_key, empty_file_name, "null");
+    snprintf(line, sizeof(line),"{\"uuid\":\"%s\",\
+                                \"tag\":%d,\
+                                \"file1_name\":\"%s\",\
+                                \"file1_key\":\"redis://%s\",\
+                                \"file2_name\":\"%s\",\
+                                \"file2_key\":\"%s\"}",
+             line_rule.rule_uuid_str, tag, file1_name, file1_key, empty_file_name, "null");
 	line_rule.table_line = line;
 	line_rule.expire_after = 0;
 
@@ -7803,56 +7889,34 @@ TEST_F(MaatCmd, SetFile) {
 	EXPECT_EQ(g_test_foregin_read_OK, 1);
 }
 
-struct user_info {
-	char name[256];
-	char ip_addr[32];
-	int id;
-};
-void plugin_ex_new_cb(const char *table_name, int table_id, const char *key, 
-                      const char *table_line, void **ad, long argl, void *argp)
-{
-	int *counter = (int *)argp;
-	struct user_info *u = ALLOC(struct user_info, 1);
-
-	int ret = sscanf(table_line, "%d\t%s\t%s", &(u->id), u->ip_addr, u->name);
-	EXPECT_EQ(ret, 3);
-
-	*ad = u;
-	(*counter)++;
-}
-
-void plugin_ex_free_cb(int table_id, void **ad, long argl, void *argp)
-{
-	struct user_info *u = (struct user_info *)(*ad);
-
-    memset(u, 0, sizeof(struct user_info));
-	free(u);
-	*ad = NULL;
-}
-
-void plugin_ex_dup_cb(int table_id,	void **to, void **from, long argl, void *argp)
-{
-	struct user_info *u = (struct user_info *)(*from);
-
-	*to = u;
-}
-
 TEST_F(MaatCmd, RuleEXData) {
     const char *plugin_table_name = "RULE_FIREWALL_PLUGIN";
     const char *rule_table_name = "RULE_FIREWALL_DEFAULT";
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     int *ex_data_counter = MaatCmd::_ex_data_counter;
-    int plugin_table_id = maat_get_table_id(maat_inst, plugin_table_name);
-    EXPECT_GT(plugin_table_id, 0);
+
+    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char object_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object_id);
 
     long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    struct maat_cmd_and_condition and_condition;
+    and_condition.negate_option = 0;
+    and_condition.or_condition_num = 1;
+    and_condition.or_conditions[0].attribute_name = "HTTP_URL";
+    and_condition.or_conditions[0].object_num = 1;
+    and_condition.or_conditions[0].object_uuids_str[0] = object_uuid_str;
     int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_id, "test:rule1,1111", 1, 0);
+                                     rule1_uuid_str, &and_condition, 1, "test:rule1,1111", 0);
     EXPECT_EQ(ret, 1);
 
     long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule2_id);
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule2_id, "test:rule2,2222", 1, 0);
+                                 rule2_uuid_str, &and_condition, 1, "test:rule2,2222", 0);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     *ex_data_counter = 0;
@@ -7864,26 +7928,72 @@ TEST_F(MaatCmd, RuleEXData) {
     ASSERT_TRUE(ret == 0);
     EXPECT_EQ(*ex_data_counter, 2);
 
-    void *ex_data = maat_plugin_table_get_ex_data(maat_inst, plugin_table_id,
-                                                 (char *)&rule1_id,
-                                                 sizeof(long long));
+    void *ex_data = maat_plugin_table_get_ex_data(maat_inst, plugin_table_name,
+                                                 (char *)rule1_uuid_str,
+                                                 strlen(rule1_uuid_str));
     ASSERT_TRUE(ex_data != NULL);
     struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
 	EXPECT_EQ(param->id, 1111);
 
-    ex_data = maat_plugin_table_get_ex_data(maat_inst, plugin_table_id,
-                                            (char *)&rule2_id,
-                                            sizeof(long long));
+    ex_data = maat_plugin_table_get_ex_data(maat_inst, plugin_table_name,
+                                            (char *)rule2_uuid_str,
+                                            strlen(rule2_uuid_str));
     ASSERT_TRUE(ex_data != NULL);
     param = (struct rule_ex_param *)ex_data;
 	EXPECT_EQ(param->id, 2222);
 
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
-                                 rule2_id, "test:rule2,2222", 1, 0);
+                                 rule2_uuid_str, &and_condition, 1, "test:rule2,2222", 0);
     sleep(WAIT_FOR_EFFECTIVE_S);
     EXPECT_EQ(param->id, 2222); 
     sleep(2);
     //excced gc_timeout_s(3s), the data pointed by param has been freed
+}
+
+struct user_info {
+	char name[256];
+	char ip_addr[32];
+	int id;
+};
+void plugin_ex_new_cb(const char *table_name, const char *key, 
+                      const char *table_line, void **ad, long argl, void *argp)
+{
+	int *counter = (int *)argp;
+	struct user_info *u = ALLOC(struct user_info, 1);
+
+    cJSON *json = cJSON_Parse(table_line);
+    EXPECT_TRUE(json != NULL);
+
+    cJSON *tmp_obj = cJSON_GetObjectItem(json, "id");
+    EXPECT_TRUE(tmp_obj != NULL);
+    u->id = tmp_obj->valueint;
+
+    tmp_obj = cJSON_GetObjectItem(json, "key");
+    EXPECT_TRUE(tmp_obj != NULL);
+    snprintf(u->ip_addr, sizeof(u->ip_addr), "%s", tmp_obj->valuestring);
+
+    tmp_obj = cJSON_GetObjectItem(json, "name");
+    EXPECT_TRUE(tmp_obj != NULL);
+    snprintf(u->name, sizeof(u->name), "%s", tmp_obj->valuestring);
+
+	*ad = u;
+	(*counter)++;
+}
+
+void plugin_ex_free_cb(const char *table_name, void **ad, long argl, void *argp)
+{
+	struct user_info *u = (struct user_info *)(*ad);
+
+    memset(u, 0, sizeof(struct user_info));
+	free(u);
+	*ad = NULL;
+}
+
+void plugin_ex_dup_cb(const char *table_name,	void **to, void **from, long argl, void *argp)
+{
+	struct user_info *u = (struct user_info *)(*from);
+
+	*to = u;
 }
 
 TEST_F(MaatCmd, PluginEXData) {
@@ -7891,33 +8001,25 @@ TEST_F(MaatCmd, PluginEXData) {
     const int TEST_CMD_LINE_NUM = 4;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     int *ex_data_counter = MaatCmd::_ex_data_counter;
-	const char *table_line_add[TEST_CMD_LINE_NUM] = {
-        "1\t192.168.0.1\tmahuateng\t1\t0",
-		"2\t192.168.0.2\tliuqiangdong\t1\t0",
-		"3\t192.168.0.3\tmayun\t1\t0",
-		"4\t192.168.0.4\tliyanhong\t1\t0"
+	const char *table_line[TEST_CMD_LINE_NUM] = {
+        "{\"id\":1, \"key\":\"192.168.0.1\", \"name\":\"mahuateng\"}",
+		"{\"id\":2, \"key\":\"192.168.0.2\", \"name\":\"liuqiangdong\"}",
+		"{\"id\":3, \"key\":\"192.168.0.3\", \"name\":\"mayun\"}",
+		"{\"id\":4, \"key\":\"192.168.0.4\", \"name\":\"liyanhong\"}",
     };
-
-    const char *table_line_del[TEST_CMD_LINE_NUM] = {
-        "1\t192.168.0.1\tmahuateng\t0\t0",
-		"2\t192.168.0.2\tliuqiangdong\t0\t0",
-		"3\t192.168.0.3\tmayun\t0\t0",
-		"4\t192.168.0.4\tliyanhong\t0\t0"
-    };
-
-	
-	ASSERT_GT(table_id, 0);
     
     int i = 0, ret = 0;
     struct maat_cmd_line line_rule;
     long long rule_id[TEST_CMD_LINE_NUM] = {0};
+    char rule_uuid_strs[TEST_CMD_LINE_NUM][UUID_STR_LEN];
     /* 1st line */
     for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
         memset(&line_rule, 0, sizeof(line_rule));
         rule_id[i] = maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
-        line_rule.rule_id = rule_id[i];
+        snprintf(rule_uuid_strs[i], UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id[i]);
+        line_rule.rule_uuid_str = rule_uuid_strs[i];
         line_rule.table_name = table_name;
-        line_rule.table_line = table_line_add[i];
+        line_rule.table_line = table_line[i];
         line_rule.expire_after = 0;
 
         ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_ADD);
@@ -7938,7 +8040,7 @@ TEST_F(MaatCmd, PluginEXData) {
 	struct user_info *uinfo1 = NULL;
     const char *key1 = "192.168.0.2";
 
-	uinfo1 = (struct user_info *)maat_plugin_table_get_ex_data(maat_inst, table_id,
+	uinfo1 = (struct user_info *)maat_plugin_table_get_ex_data(maat_inst, table_name,
                                                                key1, strlen(key1));
 	ASSERT_TRUE(uinfo1 != NULL);
 	EXPECT_EQ(0, strcmp(uinfo1->name, "liuqiangdong"));
@@ -7946,9 +8048,9 @@ TEST_F(MaatCmd, PluginEXData) {
     
     //DEL
     memset(&line_rule, 0, sizeof(line_rule));
-    line_rule.rule_id = rule_id[1];
+    line_rule.rule_uuid_str = rule_uuid_strs[1];
     line_rule.table_name = table_name;
-    line_rule.table_line = table_line_del[1];
+    line_rule.table_line = table_line[1];
     line_rule.expire_after = 0;
 
 	ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_DEL);
@@ -7957,7 +8059,7 @@ TEST_F(MaatCmd, PluginEXData) {
 	sleep(WAIT_FOR_EFFECTIVE_S); //gc_timeout_s == 3 which configured in table_info
 
     struct user_info *uinfo2 = NULL;
-	uinfo2 = (struct user_info *)maat_plugin_table_get_ex_data(maat_inst, table_id,
+	uinfo2 = (struct user_info *)maat_plugin_table_get_ex_data(maat_inst, table_name,
                                                                key1, strlen(key1));
 	ASSERT_TRUE(uinfo2 == NULL);
 
@@ -7974,30 +8076,25 @@ TEST_F(MaatCmd, UpdateIPPlugin) {
 	const int TEST_CMD_LINE_NUM = 4;
 	struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     int *ex_data_counter = MaatCmd::_ex_data_counter;
-	const char *table_line_add[TEST_CMD_LINE_NUM] = {
-        "101\t4\t192.168.30.98/31\tSomething-like-json\t1",
-		"102\t4\t192.168.30.90-192.168.30.128\tBigger-range-should-in-the-back\t1",
-        "103\t6\t2001:db8:1234::-2001:db8:1235::\tBigger-range-should-in-the-back\t1",
-		"104\t6\t2001:db8:1234::1-2001:db8:1234::5210\tSomething-like-json\t1"};
-    const char *table_line_del[TEST_CMD_LINE_NUM] = {
-        "101\t4\t192.168.30.98/31\tSomething-like-json\t0",
-		"102\t4\t192.168.30.90-192.168.30.128\tBigger-range-should-in-the-back\t0",
-        "103\t6\t2001:db8:1234::-2001:db8:1235::\tBigger-range-should-in-the-back\t0",
-		"104\t6\t2001:db8:1234::1-2001:db8:1234::5210\tSomething-like-json\t0"};
-
-    
-    ASSERT_GT(table_id, 0);
+	const char *table_line[TEST_CMD_LINE_NUM] = {
+        "{\"uuid\":\"00000000-0000-0000-0000-000000000101\", \"ip\":\"192.168.30.98/31\", \"buffer\":\"Something-like-json\", \"is_valid\":1}",
+		"{\"uuid\":\"00000000-0000-0000-0000-000000000102\", \"ip\":\"192.168.30.90-192.168.30.128\", \"buffer\":\"Bigger-range-should-in-the-back\", \"is_valid\":1}",
+        "{\"uuid\":\"00000000-0000-0000-0000-000000000103\", \"ip\":\"2001:db8:1234::-2001:db8:1235::\", \"buffer\":\"Bigger-range-should-in-the-back\", \"is_valid\":1}",
+		"{\"uuid\":\"00000000-0000-0000-0000-000000000104\", \"ip\":\"2001:db8:1234::1-2001:db8:1234::5210\", \"buffer\":\"Something-like-json\", \"is_valid\":1}"
+        };
     
     int i = 0, ret = 0;
     struct maat_cmd_line line_rule;
     long long rule_id[TEST_CMD_LINE_NUM] = {0};
+    char rule_uuid_strs[TEST_CMD_LINE_NUM][UUID_STR_LEN];
     //add lines
     for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
         memset(&line_rule, 0, sizeof(line_rule));
         rule_id[i] = maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
-        line_rule.rule_id = rule_id[i];
+        snprintf(rule_uuid_strs[i], UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id[i]);
+        line_rule.rule_uuid_str = rule_uuid_strs[i];
         line_rule.table_name = table_name;
-        line_rule.table_line = table_line_add[i];
+        line_rule.table_line = table_line[i];
         line_rule.expire_after = 0;
 
         ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_ADD);
@@ -8021,28 +8118,33 @@ TEST_F(MaatCmd, UpdateIPPlugin) {
     inet_pton(AF_INET, "192.168.30.99", &(ipv4.ipv4));
 
     memset(results, 0, sizeof(results));
-    ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_id, &ipv4,
+    ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_name, &ipv4,
                                            (void **)results, ARRAY_SIZE);
     EXPECT_EQ(ret, 2);
-    EXPECT_EQ(results[0]->rule_id, 101);
-    EXPECT_EQ(results[1]->rule_id, 102);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0]->rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000101");
+    uuid_unparse(results[1]->rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000102");
 
     ipv6.ip_type = 6;
     inet_pton(AF_INET6, "2001:db8:1234::5210", &(ipv6.ipv6));
 
     memset(results, 0, sizeof(results));
-    ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_id, &ipv6,
+    ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_name, &ipv6,
                                            (void **)results, ARRAY_SIZE);
     EXPECT_EQ(ret, 2);
-    EXPECT_EQ(results[0]->rule_id, 104);
-    EXPECT_EQ(results[1]->rule_id, 103);
+    uuid_unparse(results[0]->rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000104");
+    uuid_unparse(results[1]->rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000103");
 
     //del lines
     for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
         memset(&line_rule, 0, sizeof(line_rule));
-        line_rule.rule_id = rule_id[i];
+        line_rule.rule_uuid_str = rule_uuid_strs[i];
         line_rule.table_name = table_name;
-        line_rule.table_line = table_line_del[i];
+        line_rule.table_line = table_line[i];
         line_rule.expire_after = 0;
 
         ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_DEL);
@@ -8051,13 +8153,15 @@ TEST_F(MaatCmd, UpdateIPPlugin) {
 
     sleep(WAIT_FOR_EFFECTIVE_S); //gc_timeout_s == 3 which configured in table_info
 
-    ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_id, &ipv4,
+    ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_name, &ipv4,
                                           (void **)results, ARRAY_SIZE);
     EXPECT_EQ(ret, 0);
 
     //the data pointed by results[idx] has in garbage queue, but not be freed yet
-    EXPECT_EQ(results[0]->rule_id, 104);
-    EXPECT_EQ(results[1]->rule_id, 103);
+    uuid_unparse(results[0]->rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000104");
+    uuid_unparse(results[1]->rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000103");
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
     //exceed gc_timeout_s, the data pointed by results[idx] has been freed
@@ -8068,32 +8172,26 @@ TEST_F(MaatCmd, UpdateFQDNPlugin) {
 	const int TEST_CMD_LINE_NUM = 5;
 	struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     int *ex_data_counter = MaatCmd::_ex_data_counter;
-    const char *table_line_add[TEST_CMD_LINE_NUM]={
-		"201\twww.example1.com\tcatid=1\t1",
-		"202\t*.example1.com\tcatid=1\t1",
-		"203\tnews.example1.com\tcatid=2\t1",
-		"204\tr3---sn-i3belne6.example2.com\tcatid=3\t1",
-		"205\tr3---sn-i3belne6.example2.com\tcatid=3\t1"};
-    const char *table_line_del[TEST_CMD_LINE_NUM]={
-		"201\twww.example1.com\tcatid=1\t0",
-		"202\t*.example1.com\tcatid=1\t0",
-		"203\tnews.example1.com\tcatid=2\t0",
-		"204\tr3---sn-i3belne6.example2.com\tcatid=3\t0",
-		"205\tr3---sn-i3belne6.example2.com\tcatid=3\t0"};
-    
-    
-    ASSERT_GT(table_id, 0);
+    const char *table_line[TEST_CMD_LINE_NUM]={
+		"{\"uuid\":\"00000000-0000-0000-0000-000000000201\", \"fqdn\":\"www.example1.com\", \"buffer\":\"catid=1\", \"is_valid\":1}",
+		"{\"uuid\":\"00000000-0000-0000-0000-000000000202\", \"fqdn\":\"*.example1.com\", \"buffer\":\"catid=1\", \"is_valid\":1}",
+		"{\"uuid\":\"00000000-0000-0000-0000-000000000203\", \"fqdn\":\"news.example1.com\", \"buffer\":\"catid=2\", \"is_valid\":1}",
+		"{\"uuid\":\"00000000-0000-0000-0000-000000000204\", \"fqdn\":\"r3---sn-i3belne6.example2.com\", \"buffer\":\"catid=3\", \"is_valid\":1}",
+		"{\"uuid\":\"00000000-0000-0000-0000-000000000205\", \"fqdn\":\"r3---sn-i3belne6.example2.com\", \"buffer\":\"catid=3\", \"is_valid\":1}"
+        };
     
     int i = 0, ret = 0;
     long long rule_id[TEST_CMD_LINE_NUM] = {0};
+    char rule_uuid_strs[TEST_CMD_LINE_NUM][UUID_STR_LEN];
     struct maat_cmd_line line_rule;
     //add lines
     for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
         memset(&line_rule, 0, sizeof(line_rule));
         rule_id[i] = maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
-        line_rule.rule_id = rule_id[i];
+        snprintf(rule_uuid_strs[i], UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id[i]);
+        line_rule.rule_uuid_str = rule_uuid_strs[i];
         line_rule.table_name = table_name;
-        line_rule.table_line = table_line_add[i];
+        line_rule.table_line = table_line[i];
         line_rule.expire_after = 0;
 
         ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_ADD);
@@ -8114,7 +8212,7 @@ TEST_F(MaatCmd, UpdateFQDNPlugin) {
     struct fqdn_plugin_ud *results[ARRAY_SIZE];
     memset(results, 0, sizeof(results));
 
-    ret = maat_fqdn_plugin_table_get_ex_data(maat_inst, table_id,
+    ret = maat_fqdn_plugin_table_get_ex_data(maat_inst, table_name,
                                              "r3---sn-i3belne6.example2.com", 
                                              (void**)results, ARRAY_SIZE);
     ASSERT_EQ(ret, 2);
@@ -8123,9 +8221,9 @@ TEST_F(MaatCmd, UpdateFQDNPlugin) {
     //del lines
     for (i = 3; i < TEST_CMD_LINE_NUM; i++) {
         memset(&line_rule, 0, sizeof(line_rule));
-        line_rule.rule_id = rule_id[i];
+        line_rule.rule_uuid_str = rule_uuid_strs[i];
         line_rule.table_name = table_name;
-        line_rule.table_line = table_line_del[i];
+        line_rule.table_line = table_line[i];
         line_rule.expire_after = 0;
 
         ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_DEL);
@@ -8133,7 +8231,7 @@ TEST_F(MaatCmd, UpdateFQDNPlugin) {
     }
 
     sleep(WAIT_FOR_EFFECTIVE_S);
-    ret = maat_fqdn_plugin_table_get_ex_data(maat_inst, table_id, 
+    ret = maat_fqdn_plugin_table_get_ex_data(maat_inst, table_name, 
                                             "r3---sn-i3belne6.example2.com", 
                                             (void**)results, ARRAY_SIZE);
     ASSERT_EQ(ret, 0);                                 
@@ -8148,34 +8246,27 @@ TEST_F(MaatCmd, UpdateBoolPlugin) {
 	const int TEST_CMD_LINE_NUM = 6;
 	struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     int *ex_data_counter = MaatCmd::_ex_data_counter;
-    const char *table_line_add[TEST_CMD_LINE_NUM] = {
-		"301\t1&2&1000\ttunnel1\t1",
-		"302\t101&102\ttunnel2\t1",
-		"303\t102\ttunnel3\t1",
-		"304\t101\ttunnel4\t1",
-		"305\t0&1&2&3&4&5&6&7\ttunnel5\t1",
-		"306\t101&101\tinvalid\t1"};
-    const char *table_line_del[TEST_CMD_LINE_NUM] = {
-        "301\t1&2&1000\ttunnel1\t0",
-		"302\t101&102\ttunnel2\t0",
-		"303\t102\ttunnel3\t0",
-		"304\t101\ttunnel4\t0",
-		"305\t0&1&2&3&4&5&6&7\ttunnel5\t0",
-		"306\t101&101\tinvalid\t0"};
-    
-    
-    ASSERT_GT(table_id, 0);
+    const char *table_line[TEST_CMD_LINE_NUM] = {
+		"{\"uuid\":\"00000000-0000-0000-0000-000000000301\", \"bool_expr\":\"1&2&1000\", \"buffer\":\"tunnel1\", \"is_valid\":1}",
+		"{\"uuid\":\"00000000-0000-0000-0000-000000000302\", \"bool_expr\":\"101&102\", \"buffer\":\"tunnel2\", \"is_valid\":1}",
+		"{\"uuid\":\"00000000-0000-0000-0000-000000000303\", \"bool_expr\":\"102\", \"buffer\":\"tunnel3\", \"is_valid\":1}",
+		"{\"uuid\":\"00000000-0000-0000-0000-000000000304\", \"bool_expr\":\"101\", \"buffer\":\"tunnel4\", \"is_valid\":1}",
+		"{\"uuid\":\"00000000-0000-0000-0000-000000000305\", \"bool_expr\":\"0&1&2&3&4&5&6&7\", \"buffer\":\"tunnel5\", \"is_valid\":1}",
+		"{\"uuid\":\"00000000-0000-0000-0000-000000000306\", \"bool_expr\":\"101&101\", \"buffer\":\"invalid\", \"is_valid\":1}"
+        };
     
     long long rule_id[TEST_CMD_LINE_NUM] = {0};
+    char rule_uuid_strs[TEST_CMD_LINE_NUM][UUID_STR_LEN];
     struct maat_cmd_line line_rule;
     int i = 0, ret = 0;
 
     for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
         memset(&line_rule, 0, sizeof(line_rule));
         rule_id[i] = maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
-        line_rule.rule_id = rule_id[i];
+        snprintf(rule_uuid_strs[i], UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id[i]);
+        line_rule.rule_uuid_str = rule_uuid_strs[i];
         line_rule.table_name = table_name;
-        line_rule.table_line = table_line_add[i];
+        line_rule.table_line = table_line[i];
         line_rule.expire_after = 0;
 
         ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_ADD);
@@ -8196,16 +8287,16 @@ TEST_F(MaatCmd, UpdateBoolPlugin) {
     unsigned long long items[] = {101, 102, 1000};
     struct bool_plugin_ud *results[ARRAY_SIZE];
     memset(results, 0, sizeof(results));
-    ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_id, items, 3,
+    ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_name, items, 3,
                                              (void **)results, ARRAY_SIZE);
     EXPECT_EQ(ret, 4);
-    EXPECT_EQ(results[0]->name_len, 8);
+    EXPECT_EQ(results[0]->name_len, 7);
 
     for (i = 3; i < TEST_CMD_LINE_NUM; i++) {
         memset(&line_rule, 0, sizeof(line_rule));
-        line_rule.rule_id = rule_id[i];
+        line_rule.rule_uuid_str = rule_uuid_strs[i];
         line_rule.table_name = table_name;
-        line_rule.table_line = table_line_del[i];
+        line_rule.table_line = table_line[i];
         line_rule.expire_after = 0;
 
         ret = maat_cmd_set_line(maat_inst, &line_rule, MAAT_OP_DEL);
@@ -8213,10 +8304,10 @@ TEST_F(MaatCmd, UpdateBoolPlugin) {
     }
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_id, items, 3,
+    ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_name, items, 3,
                                              (void **)results, ARRAY_SIZE);
     EXPECT_EQ(ret, 2);
-    EXPECT_EQ(results[0]->name_len, 8);
+    EXPECT_EQ(results[0]->name_len, 7);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
     //exceed gc_timeout_s, the data pointed by results[idx] has been freed
@@ -8224,10 +8315,11 @@ TEST_F(MaatCmd, UpdateBoolPlugin) {
 
 #define RULE_ID_NUMS 1000
 TEST_F(MaatCmd, ObjectInMassRules) {
-    const char* o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char* rule_table_name = "RULE_DEFAULT";
-	const char* table_url = "HTTP_URL";
-	const char* table_appid = "APP_ID";
+	const char* url_table_name = "HTTP_URL";
+    const char* url_attribute_anme = "HTTP_URL";
+	const char* appid_table_name = "APP_ID";
+    const char* appid_attribute_name = "APP_ID";
     int thread_id = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
@@ -8235,22 +8327,34 @@ TEST_F(MaatCmd, ObjectInMassRules) {
     //item_url1 -> object1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    int ret = expr_table_set_line(maat_inst, table_url, MAAT_OP_ADD, item1_id,
-                                  object1_id, "baidu.com&tsg", NULL, 1, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
+    char object1_uuid_str[UUID_STR_LEN] = {0};
+    char item1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object1_id);
+    snprintf(item1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item1_id);
+    int ret = expr_table_set_line(maat_inst, url_table_name, MAAT_OP_ADD, item1_uuid_str,
+                                  object1_uuid_str, "baidu.com&tsg", EXPR_TYPE_AND, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
     //item_url2 -> object2
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_inst, table_url, MAAT_OP_ADD, item2_id,
-                              object2_id, "baidu.com&zhengzhou", NULL, 1, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
+    char object2_uuid_str[UUID_STR_LEN] = {0};
+    char item2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object2_id);
+    snprintf(item2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item2_id);
+    ret = expr_table_set_line(maat_inst, url_table_name, MAAT_OP_ADD, item2_uuid_str,
+                              object2_uuid_str, "baidu.com&zhengzhou", EXPR_TYPE_AND, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
     //item_appid -> object3
     long long object3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
     long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = interval_table_set_line(maat_inst, table_appid, MAAT_OP_ADD, item3_id,
-                                  object3_id, "100", NULL, 0);
+    char object3_uuid_str[UUID_STR_LEN] = {0};
+    char item3_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object3_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object3_id);
+    snprintf(item3_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item3_id);
+    ret = interval_table_set_line(maat_inst, appid_table_name, MAAT_OP_ADD, item3_uuid_str,
+                                  object3_uuid_str, "100", 0);
     EXPECT_EQ(ret, 1);
 
     /*  item_url1 -> object1 -> rule[0 ~ RULE_ID_NUMS] 
@@ -8259,20 +8363,23 @@ TEST_F(MaatCmd, ObjectInMassRules) {
     */
     int i = 0;
     long long rule_id[RULE_ID_NUMS] = {0};
+    struct maat_cmd_and_condition and_conditions[2];
+    and_conditions[0].negate_option = 0;
+    and_conditions[0].or_condition_num = 1;
+    and_conditions[0].or_conditions[0].attribute_name = url_attribute_anme;
+    and_conditions[0].or_conditions[0].object_num = 1;
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object1_uuid_str;
+    and_conditions[1].negate_option = 0;
+    and_conditions[1].or_condition_num = 1;
+    and_conditions[1].or_conditions[0].attribute_name = appid_attribute_name;
+    and_conditions[1].or_conditions[0].object_num = 1;
+    and_conditions[1].or_conditions[0].object_uuids_str[0] = object3_uuid_str;
     for (i = 0; i < RULE_ID_NUMS; i++) {
+        char rule_uuid_str[UUID_STR_LEN] = {0};
         rule_id[i] = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+        snprintf(rule_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id[i]);
         ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule_id[i], "mass_rule", 2, 0);
-        EXPECT_EQ(ret, 1);
-    }
-
-    for (i = 0; i < RULE_ID_NUMS; i++) {
-        ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                           object1_id, rule_id[i], 0, table_url, 0, 0);
-        EXPECT_EQ(ret, 1);
-
-        ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                           object3_id, rule_id[i], 0, table_appid, 2, 0);
+                                     rule_uuid_str, and_conditions, 2, "mass_rule", 0);
         EXPECT_EQ(ret, 1);
     }
 
@@ -8281,14 +8388,21 @@ TEST_F(MaatCmd, ObjectInMassRules) {
               item_appid -> object3_/
     */
     long long target_rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char target_rule_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(target_rule_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", target_rule_id);
+    struct maat_cmd_and_condition target_and_conditions[2];
+    target_and_conditions[0].negate_option = 0;
+    target_and_conditions[0].or_condition_num = 1;
+    target_and_conditions[0].or_conditions[0].attribute_name = url_attribute_anme;
+    target_and_conditions[0].or_conditions[0].object_num = 1;
+    target_and_conditions[0].or_conditions[0].object_uuids_str[0] = object2_uuid_str;
+    target_and_conditions[1].negate_option = 0;
+    target_and_conditions[1].or_condition_num = 1;
+    target_and_conditions[1].or_conditions[0].attribute_name = appid_attribute_name;
+    target_and_conditions[1].or_conditions[0].object_num = 1;
+    target_and_conditions[1].or_conditions[0].object_uuids_str[0] = object3_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 target_rule_id, "null", 2, 0);
-    EXPECT_EQ(ret, 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object2_id, target_rule_id, 0, table_url, 1, 0);
-    EXPECT_EQ(ret, 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object3_id, target_rule_id, 0, table_appid, 2, 0);
+                                 target_rule_uuid_str, target_and_conditions, 2, "null", 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -8297,48 +8411,44 @@ TEST_F(MaatCmd, ObjectInMassRules) {
 	const char* http_url2 = "https://www.baidu.com/s?wd=zhengzhou&rsv_spt=1"
                              "&rsv_iqid=0x8b4cae8100000560&issp=1&f=8&rsv_bp=1";
 
-    int url_table_id = maat_get_table_id(maat_inst, table_url);
-    ASSERT_GT(url_table_id, 0);
-
-    int appid_table_id = maat_get_table_id(maat_inst, table_appid);
-    ASSERT_GT(appid_table_id, 0);
-
-    long long results[4] = {0};
+    uuid_t results[4];
     size_t n_hit_result = 0;
-    ret = maat_scan_string(maat_inst, url_table_id, http_url2, strlen(http_url2),
+    ret = maat_scan_string(maat_inst, url_table_name, url_attribute_anme, http_url2, strlen(http_url2),
                            results, 4, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, url_table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, url_table_name, url_attribute_anme, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_integer(maat_inst, appid_table_id, 100, results, 4,
+    ret = maat_scan_integer(maat_inst, appid_table_name, appid_attribute_name, 100, results, 4,
                             &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], target_rule_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, target_rule_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, appid_table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, appid_table_name, appid_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
-    ret = maat_scan_string(maat_inst, url_table_id, http_url1, strlen(http_url1),
+    ret = maat_scan_string(maat_inst, url_table_name, url_attribute_anme, http_url1, strlen(http_url1),
                            results, 4, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, url_table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, url_table_name, url_attribute_anme, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_integer(maat_inst, appid_table_id, 100, results, 4,
+    ret = maat_scan_integer(maat_inst, appid_table_name, appid_attribute_name, 100, results, 4,
                             &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 4);
 
-    ret = maat_scan_not_logic(maat_inst, appid_table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, appid_table_name, appid_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -8348,43 +8458,59 @@ TEST_F(MaatCmd, ObjectInMassRules) {
 
 TEST_F(MaatCmd, HitObject) {
    const char *rule_table_name = "RULE_DEFAULT";
-	const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
     const char *o2o_table_name = "OBJECT2OBJECT";
 	const char *http_sig_table_name = "HTTP_SIGNATURE";
+    const char *http_req_attr_name = "HTTP_REQUEST_HEADER";
+    const char *http_resp_attr_name = "HTTP_RESPONSE_HEADER";
 	const char *ip_table_name = "IP_CONFIG";
+    const char *ip_attribute_name = "IP_CONFIG";
 	const char *keywords_table_name = "KEYWORDS_TABLE";
-    int thread_id = 0;
+    const char *keywords_attr_name = "KEYWORDS";
+    int thread_id = 0, ret = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    /* rule1 */
-    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_id, "null", 2, 0);
-    EXPECT_EQ(ret, 1);
-
-    //object1 -> rule1
+    //object1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object1_id, rule1_id, 0,
-                                       "HTTP_REQUEST_HEADER", 1, 0);
+    char object1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object1_id);
+
+    //item1 -> object1
+    long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char item1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item1_id);
+    ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD,
+                              item1_uuid_str, object1_uuid_str, "hit object item first",
+                              EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    //item1 -> object1 -> rule1
-    long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD,
-                              item1_id, object1_id, "hit object item first",
-                              "URL", 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
-    EXPECT_EQ(ret, 1);
+    //object21
+    long long object21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char object21_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object21_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object21_id);
 
     /* item1 -> object1 -> rule1
                              /
                     object21_/
     */
-    long long object21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object21_id, rule1_id, 0,
-                                       "HTTP_RESPONSE_HEADER", 2, 0);
+
+    /* rule1 */
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    struct maat_cmd_and_condition and_conditions[2];
+    and_conditions[0].negate_option = 0;
+    and_conditions[0].or_condition_num = 1;
+    and_conditions[0].or_conditions[0].attribute_name = http_req_attr_name;
+    and_conditions[0].or_conditions[0].object_num = 1;
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object1_uuid_str;
+    and_conditions[1].negate_option = 0;
+    and_conditions[1].or_condition_num = 1;
+    and_conditions[1].or_conditions[0].attribute_name = http_resp_attr_name;
+    and_conditions[1].or_conditions[0].object_num = 1;
+    and_conditions[1].or_conditions[0].object_uuids_str[0] = object21_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     /* item1 -> object1 -> rule1
@@ -8392,8 +8518,10 @@ TEST_F(MaatCmd, HitObject) {
         object2 -> object21 _/
     */
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char object2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object2_id);
     ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
-                                     object21_id, object2_id, 0);
+                                     object21_uuid_str, &object2_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
 
     /*       item1 -> object1 -> rule1
@@ -8401,9 +8529,11 @@ TEST_F(MaatCmd, HitObject) {
        item2 -> object2 -> object21 _/
     */
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char item2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item2_id);
     ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD,
-                              item2_id, object2_id, "hit object item second",
-                              "Cookie", 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              item2_uuid_str, object2_uuid_str, "hit object item second",
+                              EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /*
@@ -8414,22 +8544,32 @@ TEST_F(MaatCmd, HitObject) {
      item2 -> object2 -> object21 _/             
     */
     long long object11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char object11_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object11_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object11_id);
     ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
-                                     object11_id, object1_id, 0);
+                                     object11_uuid_str, &object1_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
     
     //item3 -> object3, object3 is not referenced by any rule.
     long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long object3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_id,
-                            object3_id, "220.181.38.150-220.181.38.151", 0);
+    char object3_uuid_str[UUID_STR_LEN] = {0};
+    char item3_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object3_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object3_id);
+    snprintf(item3_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item3_id);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_uuid_str,
+                            object3_uuid_str, "220.181.38.150-220.181.38.151", NULL, 0);
     EXPECT_EQ(ret, 1);
 
     //item4 -> object4, object4 is not referenced by any rule.
     long long item4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long object4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char object4_uuid_str[UUID_STR_LEN] = {0};
+    char item4_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object4_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object4_id);
+    snprintf(item4_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item4_id);
     ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD,
-                              item4_id, object4_id, "hit object item forth", NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              item4_uuid_str, object4_uuid_str, "hit object item forth", EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /*
@@ -8441,10 +8581,12 @@ TEST_F(MaatCmd, HitObject) {
     */
     //item5 -> object1 which means object1 has multi items
     long long item5_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char item5_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item5_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item5_id);
     ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD,
-                              item5_id, object1_id,
+                              item5_uuid_str, object1_uuid_str,
                               "hit object item fifth",
-                              NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -8453,15 +8595,9 @@ TEST_F(MaatCmd, HitObject) {
 	const char* http_resp_hdr_cookie = "laptop=thinkpad X1 extrem;hit object item second"
                                        "main[XWJOKE]=hoho; Hm_lvt_bbac0322e6ee13093f98d5c4b5a10912=1578874808;";
 
-    int http_req_table_id = maat_get_table_id(maat_inst, "HTTP_REQUEST_HEADER");
-    ASSERT_GT(http_req_table_id, 0);
-
-    ret = maat_state_set_scan_district(state, http_req_table_id, "URL", strlen("URL"));
-    EXPECT_EQ(ret, 0);
-
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
-    ret = maat_scan_string(maat_inst, http_req_table_id, http_url, strlen(http_url),
+    ret = maat_scan_string(maat_inst, http_sig_table_name, http_req_attr_name, http_url, strlen(http_url),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -8474,45 +8610,46 @@ TEST_F(MaatCmd, HitObject) {
     size_t n_hit_object = maat_state_get_direct_hit_object_cnt(state);
     maat_state_get_direct_hit_objects(state, hit_objects, n_hit_object);
     EXPECT_EQ(n_hit_object, 1);
-    EXPECT_EQ(hit_objects[0].item_id, item1_id);
-    EXPECT_EQ(hit_objects[0].object_id, object1_id);
-    EXPECT_EQ(hit_objects[0].attribute_id, http_req_table_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(hit_objects[0].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item1_uuid_str);
+    uuid_unparse(hit_objects[0].object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
+    EXPECT_STREQ(hit_objects[0].attribute_name, http_req_attr_name);
 
     memset(hit_objects, 0, sizeof(hit_objects));
     n_hit_object = maat_state_get_indirect_hit_object_cnt(state);
     maat_state_get_indirect_hit_objects(state, hit_objects, n_hit_object);
     EXPECT_EQ(n_hit_object, 1);
-    EXPECT_EQ(hit_objects[0].item_id, 0);
-    EXPECT_EQ(hit_objects[0].object_id, object11_id);
-    EXPECT_EQ(hit_objects[0].attribute_id, http_req_table_id);
+    EXPECT_TRUE(uuid_is_null(hit_objects[0].item_uuid));
+    uuid_unparse(hit_objects[0].object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object11_uuid_str);
+    EXPECT_STREQ(hit_objects[0].attribute_name, http_req_attr_name);
 
     size_t n_last_hit_object = maat_state_get_last_hit_object_cnt(state);
-    struct maat_hit_object last_hit_objects[128] = {0};
+    struct maat_hit_object last_hit_objects[128];
     maat_state_get_last_hit_objects(state, last_hit_objects, 128);
     EXPECT_EQ(n_last_hit_object, 2);
 
-    EXPECT_EQ(last_hit_objects[0].item_id, item1_id);
-    EXPECT_EQ(last_hit_objects[0].object_id, object1_id);
-    EXPECT_EQ(last_hit_objects[0].attribute_id, http_req_table_id);
+    uuid_unparse(last_hit_objects[0].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item1_uuid_str);
+    uuid_unparse(last_hit_objects[0].object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
+    EXPECT_STREQ(last_hit_objects[0].attribute_name, http_req_attr_name);
 
-    EXPECT_EQ(last_hit_objects[1].item_id, 0);
-    EXPECT_EQ(last_hit_objects[1].object_id, object11_id);
-    EXPECT_EQ(last_hit_objects[1].attribute_id, http_req_table_id);
+    EXPECT_TRUE(uuid_is_null(last_hit_objects[1].item_uuid));
+    uuid_unparse(last_hit_objects[1].object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object11_uuid_str);
+    EXPECT_STREQ(last_hit_objects[1].attribute_name, http_req_attr_name);
 
-    int http_res_table_id = maat_get_table_id(maat_inst, "HTTP_RESPONSE_HEADER");
-    ASSERT_GT(http_res_table_id, 0);
 
-    const char *district_str1 = "Cookie";
-    ret = maat_state_set_scan_district(state, http_res_table_id, district_str1,
-                                       strlen(district_str1));
-    EXPECT_EQ(ret, 0);
-
-    ret = maat_scan_string(maat_inst, http_res_table_id, http_resp_hdr_cookie,
+    ret = maat_scan_string(maat_inst, http_sig_table_name, http_resp_attr_name, http_resp_hdr_cookie,
                            strlen(http_resp_hdr_cookie), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule1_id);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 2);
@@ -8522,49 +8659,49 @@ TEST_F(MaatCmd, HitObject) {
     maat_state_get_direct_hit_objects(state, hit_objects, n_hit_object);
     EXPECT_EQ(n_hit_object, 1);
 
-    EXPECT_EQ(hit_objects[0].item_id, item2_id);
-    EXPECT_EQ(hit_objects[0].object_id, object2_id);
-    EXPECT_EQ(hit_objects[0].attribute_id, http_res_table_id);
+    uuid_unparse(hit_objects[0].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item2_uuid_str);
+    uuid_unparse(hit_objects[0].object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object2_uuid_str);
+    EXPECT_STREQ(hit_objects[0].attribute_name, http_resp_attr_name);
 
     memset(hit_objects, 0, sizeof(hit_objects));
     n_hit_object = maat_state_get_indirect_hit_object_cnt(state);
     maat_state_get_indirect_hit_objects(state, hit_objects, n_hit_object);
     EXPECT_EQ(n_hit_object, 1);
-    EXPECT_EQ(hit_objects[0].item_id, 0);
-    EXPECT_EQ(hit_objects[0].object_id, object21_id);
-    EXPECT_EQ(hit_objects[0].attribute_id, http_res_table_id);
+    EXPECT_TRUE(uuid_is_null(hit_objects[0].item_uuid));
+    uuid_unparse(hit_objects[0].object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object21_uuid_str);
+    EXPECT_STREQ(hit_objects[0].attribute_name, http_resp_attr_name);
     
     n_last_hit_object = maat_state_get_last_hit_object_cnt(state);
     maat_state_get_last_hit_objects(state, last_hit_objects, 128);
     EXPECT_EQ(n_last_hit_object, 2);
 
-    EXPECT_EQ(last_hit_objects[0].item_id, item2_id);
-    EXPECT_EQ(last_hit_objects[0].object_id, object2_id);
-    EXPECT_EQ(last_hit_objects[0].attribute_id, http_res_table_id);
+    uuid_unparse(last_hit_objects[0].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item2_uuid_str);
+    uuid_unparse(last_hit_objects[0].object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object2_uuid_str);
+    EXPECT_STREQ(last_hit_objects[0].attribute_name, http_resp_attr_name);
 
-    EXPECT_EQ(last_hit_objects[1].item_id, 0);
-    EXPECT_EQ(last_hit_objects[1].object_id, object21_id);
-    EXPECT_EQ(last_hit_objects[1].attribute_id, http_res_table_id);
+    EXPECT_TRUE(uuid_is_null(last_hit_objects[1].item_uuid));
+    uuid_unparse(last_hit_objects[1].object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object21_uuid_str);
+    EXPECT_STREQ(last_hit_objects[1].attribute_name, http_resp_attr_name);
 
     const char* keywords1="In graph theory, hit object item forth";
     const char *keywords2="To test one object hit object item fifth";
-    
-    int keywords_table_id = maat_get_table_id(maat_inst, keywords_table_name);
-    ASSERT_GT(keywords_table_id, 0);
 
-    struct maat_stream *stream = maat_stream_new(maat_inst, keywords_table_id, state);
+    struct maat_stream *stream = maat_stream_new(maat_inst, keywords_table_name, keywords_attr_name, state);
     ret = maat_stream_scan(stream, keywords1, strlen(keywords1), results, ARRAY_SIZE,
                           &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 3);
 
-    int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
-    ASSERT_GT(ip_table_id, 0);
-
     uint32_t ip_addr;
     inet_pton(AF_INET, "220.181.38.150", &ip_addr);
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results, ARRAY_SIZE,
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, ARRAY_SIZE,
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -8576,13 +8713,17 @@ TEST_F(MaatCmd, HitObject) {
     maat_state_get_direct_hit_objects(state, hit_objects, n_hit_object);
     EXPECT_EQ(n_hit_object, 2);
 
-    EXPECT_EQ(hit_objects[0].item_id, item4_id);
-    EXPECT_EQ(hit_objects[0].object_id, object4_id);
-    EXPECT_EQ(hit_objects[0].attribute_id, keywords_table_id); //physical table(keywords_table) attribute_id is 0
+    uuid_unparse(hit_objects[0].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item4_uuid_str);
+    uuid_unparse(hit_objects[0].object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object4_uuid_str);
+    EXPECT_STREQ(hit_objects[0].attribute_name, keywords_attr_name);
  
-    EXPECT_EQ(hit_objects[1].item_id, item3_id);
-    EXPECT_EQ(hit_objects[1].object_id, object3_id);
-    EXPECT_EQ(hit_objects[1].attribute_id, ip_table_id);
+    uuid_unparse(hit_objects[1].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item3_uuid_str);
+    uuid_unparse(hit_objects[1].object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object3_uuid_str);
+    EXPECT_STREQ(hit_objects[1].attribute_name, ip_attribute_name);
 
     ret = maat_stream_scan(stream, keywords2, strlen(keywords2), results,
                             ARRAY_SIZE, &n_hit_result, state);
@@ -8596,29 +8737,38 @@ TEST_F(MaatCmd, HitObject) {
     maat_state_get_direct_hit_objects(state, hit_objects, n_hit_object);
     EXPECT_EQ(n_hit_object, 2);
 
-    EXPECT_EQ(hit_objects[0].item_id, item5_id);
-    EXPECT_EQ(hit_objects[0].object_id, object1_id);
-    EXPECT_EQ(hit_objects[0].attribute_id, keywords_table_id); //physical table(keywords_table) attribute_id is 0
+    uuid_unparse(hit_objects[0].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item5_uuid_str);
+    uuid_unparse(hit_objects[0].object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
+    EXPECT_STREQ(hit_objects[0].attribute_name, keywords_attr_name);
 
-    EXPECT_EQ(hit_objects[1].item_id, item4_id);
-    EXPECT_EQ(hit_objects[1].object_id, object4_id);
-    EXPECT_EQ(hit_objects[1].attribute_id, keywords_table_id); //physical table(keywords_table) attribute_id is 0
+    uuid_unparse(hit_objects[1].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item4_uuid_str);
+    uuid_unparse(hit_objects[1].object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object4_uuid_str);
+    EXPECT_STREQ(hit_objects[1].attribute_name, keywords_attr_name);
 
     n_last_hit_object = maat_state_get_last_hit_object_cnt(state);
     maat_state_get_last_hit_objects(state, last_hit_objects, 128);
     EXPECT_EQ(n_last_hit_object, 3);
 
-    EXPECT_EQ(last_hit_objects[0].item_id, item5_id);
-    EXPECT_EQ(last_hit_objects[0].object_id, object1_id);
-    EXPECT_EQ(last_hit_objects[0].attribute_id, keywords_table_id);
+    uuid_unparse(last_hit_objects[0].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item5_uuid_str);
+    uuid_unparse(last_hit_objects[0].object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
+    EXPECT_STREQ(last_hit_objects[0].attribute_name, keywords_attr_name);
 
-    EXPECT_EQ(last_hit_objects[1].item_id, item4_id);
-    EXPECT_EQ(last_hit_objects[1].object_id, object4_id);
-    EXPECT_EQ(last_hit_objects[1].attribute_id, keywords_table_id);
+    uuid_unparse(last_hit_objects[1].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item4_uuid_str);
+    uuid_unparse(last_hit_objects[1].object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object4_uuid_str);
+    EXPECT_STREQ(last_hit_objects[1].attribute_name, keywords_attr_name);
 
-    EXPECT_EQ(last_hit_objects[2].item_id, 0);
-    EXPECT_EQ(last_hit_objects[2].object_id, object11_id);
-    EXPECT_EQ(last_hit_objects[2].attribute_id, keywords_table_id);
+    EXPECT_TRUE(uuid_is_null(last_hit_objects[2].item_uuid));
+    uuid_unparse(last_hit_objects[2].object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object11_uuid_str);
+    EXPECT_STREQ(last_hit_objects[2].attribute_name, keywords_attr_name);
 
     maat_stream_free(stream);
     maat_state_free(state);
@@ -8627,33 +8777,30 @@ TEST_F(MaatCmd, HitObject) {
 
 TEST_F(MaatCmd, HitPathBasic) {
     const char *o2o_table_name = "OBJECT2OBJECT";
-	const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *http_sig_table_name = "HTTP_SIGNATURE";
+    const char *http_req_attr_name = "HTTP_REQUEST_HEADER";
+    const char *http_resp_attr_name = "HTTP_RESPONSE_HEADER";
 	const char *ip_table_name = "IP_CONFIG";
+    const char *ip_attribute_name = "IP_CONFIG";
 	const char *keywords_table_name = "KEYWORDS_TABLE";
-    int thread_id = 0;
+    const char *keywords_attr_name = "KEYWORDS";
+    int thread_id = 0, ret = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    /* rule1 */
-    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_id, "null", 2, 0);
-    EXPECT_EQ(ret, 1);
-
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object1_id, rule1_id, 0,
-                                       "HTTP_REQUEST_HEADER", 1, 0);
-    EXPECT_EQ(ret, 1);
+    char object1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object1_id);
 
     //item1 -> object1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char item1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item1_id);
     ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD,
-                              item1_id, object1_id, "graph_theory", "URL",
-                              0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              item1_uuid_str, object1_uuid_str, "graph_theory",
+                              EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /* item1 -> object1 -> rule1
@@ -8661,9 +8808,26 @@ TEST_F(MaatCmd, HitPathBasic) {
                     object21_/
     */
     long long object21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object21_id, rule1_id, 0,
-                                       "HTTP_RESPONSE_HEADER", 2, 0);
+    char object21_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object21_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object21_id);
+
+    /* rule1 */
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    struct maat_cmd_and_condition and_conditions[2];
+    and_conditions[0].negate_option = 0;
+    and_conditions[0].or_condition_num = 1;
+    and_conditions[0].or_conditions[0].attribute_name = http_req_attr_name;
+    and_conditions[0].or_conditions[0].object_num = 1;
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object1_uuid_str;
+    and_conditions[1].negate_option = 0;
+    and_conditions[1].or_condition_num = 1;
+    and_conditions[1].or_conditions[0].attribute_name = http_resp_attr_name;
+    and_conditions[1].or_conditions[0].object_num = 1;
+    and_conditions[1].or_conditions[0].object_uuids_str[0] = object21_uuid_str;
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                rule1_uuid_str, and_conditions, 2, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     /* item1 -> object1 -> rule1
@@ -8671,8 +8835,10 @@ TEST_F(MaatCmd, HitPathBasic) {
         object2 -> object21 _/
     */
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char object2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object2_id);
     ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
-                                     object21_id, object2_id, 0);
+                                     object21_uuid_str, &object2_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
 
     /*       item1 -> object1 -> rule1
@@ -8680,9 +8846,11 @@ TEST_F(MaatCmd, HitPathBasic) {
        item2 -> object2 -> object21 _/
     */
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char item2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item2_id);
     ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD,
-                              item2_id, object2_id, "time=2020-02-11", "Cookie",
-                              0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              item2_uuid_str, object2_uuid_str, "time=2020-02-11",
+                              EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /*
@@ -8693,24 +8861,34 @@ TEST_F(MaatCmd, HitPathBasic) {
      item2 -> object2 -> object21 _/             
     */
     long long object11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char object11_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object11_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object11_id);
     ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
-                                     object11_id, object1_id, 0);
+                                     object11_uuid_str, &object1_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
     
     //item3 -> object3, object3 is not referenced by any rule.
     long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long object3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_id,
-                            object3_id, "220.181.38.148-220.181.38.149", 0);
+    char object3_uuid_str[UUID_STR_LEN] = {0};
+    char item3_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object3_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object3_id);
+    snprintf(item3_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item3_id);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_uuid_str,
+                            object3_uuid_str, "220.181.38.148-220.181.38.149", NULL, 0);
     EXPECT_EQ(ret, 1);
 
     //item4 -> object4, object4 is not referenced by any rule.
     long long item4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long object4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char object4_uuid_str[UUID_STR_LEN] = {0};
+    char item4_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object4_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object4_id);
+    snprintf(item4_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item4_id);
     ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD,
-                              item4_id, object4_id,
+                              item4_uuid_str, object4_uuid_str,
                               "a finite or infinite",
-                              NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -8719,22 +8897,16 @@ TEST_F(MaatCmd, HitPathBasic) {
 	const char* http_resp_hdr_cookie = "laptop=thinkpad X1 extrem;time=2020-02-11T15:34:00;"
                                        "main[XWJOKE]=hoho; Hm_lvt_bbac0322e6ee13093f98d5c4b5a10912=1578874808;";
 
-    int http_req_table_id = maat_get_table_id(maat_inst, "HTTP_REQUEST_HEADER");
-    ASSERT_GT(http_req_table_id, 0);
-
-    ret = maat_state_set_scan_district(state, http_req_table_id, "URL", strlen("URL"));
-    EXPECT_EQ(ret, 0);
-
     int Nth_scan = 0;
 
     Nth_scan++;
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
-    ret = maat_scan_string(maat_inst, http_req_table_id, http_url, strlen(http_url),
+    ret = maat_scan_string(maat_inst, http_sig_table_name, http_req_attr_name, http_url, strlen(http_url),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, http_req_table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_req_attr_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -8748,36 +8920,36 @@ TEST_F(MaatCmd, HitPathBasic) {
 
     int path_idx = 0;
     EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
-	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object1_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object11_id);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, http_req_table_id);
-	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item1_uuid_str);
+    uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
+    uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object11_uuid_str);
+    EXPECT_STREQ(hit_path[path_idx].attribute_name, http_req_attr_name);
+	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
 
     path_idx++;
     EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
-	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object1_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, -1);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, http_req_table_id);
-	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
-
-    int http_res_table_id = maat_get_table_id(maat_inst, "HTTP_RESPONSE_HEADER");
-	ASSERT_GT(http_res_table_id, 0);
-
-    ret = maat_state_set_scan_district(state, http_res_table_id, "Cookie",
-                                       strlen("Cookie"));
-    EXPECT_EQ(ret, 0);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item1_uuid_str);
+    uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
+	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].top_object_uuid) == 1);
+    EXPECT_STREQ(hit_path[path_idx].attribute_name, http_req_attr_name);
+    EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
 
     Nth_scan++;
-    ret = maat_scan_string(maat_inst, http_res_table_id, http_resp_hdr_cookie,
+    ret = maat_scan_string(maat_inst, http_sig_table_name, http_resp_attr_name, http_resp_hdr_cookie,
                            strlen(http_resp_hdr_cookie), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule1_id);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, http_res_table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_resp_attr_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -8789,36 +8961,50 @@ TEST_F(MaatCmd, HitPathBasic) {
     
     path_idx = 0;
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan-1);
-	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object1_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object11_id);
-    EXPECT_EQ(hit_path[path_idx].rule_id, -1);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item1_uuid_str);
+    uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
+	uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object11_uuid_str);
+    EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
 
     path_idx++;
     ASSERT_EQ(path_idx, 1);
     EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan-1);
-	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object1_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object1_id);
-    EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item1_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
+	uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str); 
+	uuid_unparse(hit_path[path_idx].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
     path_idx++;
     ASSERT_EQ(path_idx, 2);
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
-	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object2_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object21_id);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, http_res_table_id);
-	EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item2_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object2_uuid_str);
+	uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object21_uuid_str);
+    EXPECT_STREQ(hit_path[path_idx].attribute_name, http_resp_attr_name);
+	uuid_unparse(hit_path[path_idx].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
     path_idx++;
     ASSERT_EQ(path_idx, 3);
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
-	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object2_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, -1);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, http_res_table_id);
-	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item2_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object2_uuid_str);
+	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].top_object_uuid) == 1);
+    EXPECT_STREQ(hit_path[path_idx].attribute_name, http_resp_attr_name);
+	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1); 
+	
     const char* keywords1="In graph theory, a path in a graph is a finite or infinite \
 sequence of edges which joins a sequence of vertices which, by most definitions,\
 are all distinct (and since the vertices are distinct, so are the edges). ";
@@ -8826,16 +9012,13 @@ are all distinct (and since the vertices are distinct, so are the edges). ";
 sequence of edges which joins a sequence of distinct vertices, but with the added restriction\
 that the edges be all directed in the same direction.";
 
-    int keywords_table_id = maat_get_table_id(maat_inst, keywords_table_name);
-    ASSERT_GT(keywords_table_id, 0);
-
-    struct maat_stream *stream = maat_stream_new(maat_inst, keywords_table_id, state);
+    struct maat_stream *stream = maat_stream_new(maat_inst, keywords_table_name, keywords_attr_name, state);
     Nth_scan++;
     ret = maat_stream_scan(stream, keywords1, strlen(keywords1), results,
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, keywords_table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attr_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -8848,24 +9031,23 @@ that the edges be all directed in the same direction.";
     path_idx++;
 	ASSERT_EQ(path_idx, 4);
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
-	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object4_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, -1);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
-
-    int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
-    ASSERT_GT(ip_table_id, 0);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item4_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object4_uuid_str);
+	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].top_object_uuid) == 1);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, keywords_attr_name);
+	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
 
     Nth_scan++;
     uint32_t ip_addr;
     inet_pton(AF_INET, "220.181.38.148", &ip_addr);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results,
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -8878,18 +9060,20 @@ that the edges be all directed in the same direction.";
     path_idx++;
 	ASSERT_EQ(path_idx, 5);
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
-	EXPECT_EQ(hit_path[path_idx].item_id, item3_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object3_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, -1);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, ip_table_id);
-	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item3_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object3_uuid_str);
+	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].top_object_uuid) == 1);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, ip_attribute_name);
+	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
 
     Nth_scan++;   
     ret = maat_stream_scan(stream, keywords2, strlen(keywords2), results,
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, keywords_table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attr_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -8902,11 +9086,14 @@ that the edges be all directed in the same direction.";
     path_idx++;
 	ASSERT_EQ(path_idx, 6);
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
-	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object4_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, -1);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item4_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object4_uuid_str);
+	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].top_object_uuid) == 1);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, keywords_attr_name);
+	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
+
     maat_stream_free(stream);
     maat_state_free(state);
     state = NULL; 
@@ -8928,32 +9115,27 @@ that the edges be all directed in the same direction.";
 */
 TEST_F(MaatCmd, HitPathAdvanced) {
     const char *o2o_table_name = "OBJECT2OBJECT";
-	const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *ip_table_name = "IP_CONFIG";
+    const char *ip_attribute_name = "IP_CONFIG";
 	const char *keywords_table_name = "KEYWORDS_TABLE";
-    int thread_id = 0;
+    const char *keywords_attr_name = "KEYWORDS";
+    int thread_id = 0, ret = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    /* rule1 */
-    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_id, "null", 2, 0);
-    EXPECT_EQ(ret, 1);
-
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object1_id, rule1_id, 0,
-                                       "KEYWORDS_TABLE", 1, 0); //condition_index:1
-    EXPECT_EQ(ret, 1);
+    char object1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object1_id);
 
     //item1 -> object1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char item1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item1_id);
     ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD,
-                              item1_id, object1_id, "computer_theory", NULL,
-                              0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              item1_uuid_str, object1_uuid_str, "computer_theory",
+                              EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /* item1 -> object1 -> rule1
@@ -8961,9 +9143,26 @@ TEST_F(MaatCmd, HitPathAdvanced) {
                     object21_/
     */
     long long object21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object21_id, rule1_id, 0,
-                                       "KEYWORDS_TABLE", 2, 0); //condition_index:2
+    char object21_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object21_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object21_id);
+
+    /* rule1 */
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    struct maat_cmd_and_condition and_conditions[2];
+    and_conditions[0].negate_option = 0;
+    and_conditions[0].or_condition_num = 1;
+    and_conditions[0].or_conditions[0].attribute_name = keywords_attr_name;
+    and_conditions[0].or_conditions[0].object_num = 1;
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object1_uuid_str;
+    and_conditions[1].negate_option = 0;
+    and_conditions[1].or_condition_num = 1;
+    and_conditions[1].or_conditions[0].attribute_name = keywords_attr_name;
+    and_conditions[1].or_conditions[0].object_num = 1;
+    and_conditions[1].or_conditions[0].object_uuids_str[0] = object21_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     /* item1 -> object1 -> rule1
@@ -8971,8 +9170,10 @@ TEST_F(MaatCmd, HitPathAdvanced) {
         object2 -> object21 _/
     */
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char object2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object2_id);
     ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
-                                     object21_id, object2_id, 0);
+                                     object21_uuid_str, &object2_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
 
     /*       item1 -> object1 -> rule1
@@ -8980,28 +9181,13 @@ TEST_F(MaatCmd, HitPathAdvanced) {
        item2 -> object2 -> object21 _/
     */
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char item2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item2_id);
     ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD,
-                              item2_id, object2_id, "social_theory", NULL,
-                              0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
-    EXPECT_EQ(ret, 1);
-   
-    //rule2
-    long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule2_id, "null", 2, 0);
+                              item2_uuid_str, object2_uuid_str, "social_theory",
+                              EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    /*        item1 -> object1 -> rule1
-                                    /
-       item2 -> object2 -> object21 _/
-                             \
-                              \
-                            rule2    
-    */
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object21_id, rule2_id, 0,
-                                       "KEYWORDS_TABLE", 3, 0); //condition_index:3
-    EXPECT_EQ(ret, 1); 
 
     /*         item1 -> object1 -> rule1
                                     /
@@ -9012,33 +9198,32 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     */
     long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long object3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_id,
-                            object3_id, "220.181.38.168-220.181.38.169", 0);
+    char object3_uuid_str[UUID_STR_LEN] = {0};
+    char item3_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object3_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object3_id);
+    snprintf(item3_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item3_id);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_uuid_str,
+                            object3_uuid_str, "220.181.38.168-220.181.38.169", NULL, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object3_id, rule2_id, 0,
-                                       "IP_CONFIG", 4, 0); //condition_index:4
-    EXPECT_EQ(ret, 1); 
-
-    /*         item1 -> object1 -> rule1
-                                    /
-       item2 -> object2 -> object21 _/
-                             \
-                              \
-        item3 -> object3 -> rule2 
-                    \
-                     \ --> rule3
-    */
-    long long rule3_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    //rule2
+    long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule2_id);
+    and_conditions[0].negate_option = 0;
+    and_conditions[0].or_condition_num = 1;
+    and_conditions[0].or_conditions[0].attribute_name = keywords_attr_name;
+    and_conditions[0].or_conditions[0].object_num = 1;
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object21_uuid_str;
+    and_conditions[1].negate_option = 0;
+    and_conditions[1].or_condition_num = 1;
+    and_conditions[1].or_conditions[0].attribute_name = ip_attribute_name;
+    and_conditions[1].or_conditions[0].object_num = 1;
+    and_conditions[1].or_conditions[0].object_uuids_str[0] = object3_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule3_id, "null", 2, 0);
+                                     rule2_uuid_str, and_conditions, 2, NULL, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object3_id, rule3_id, 0,
-                                       "IP_CONFIG", 5, 0); //condition_index:5
-    EXPECT_EQ(ret, 1); 
 
     /*         item1 -> object1 -> rule1
                                     /
@@ -9056,16 +9241,33 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     */
     long long item4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long object4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char object4_uuid_str[UUID_STR_LEN] = {0};
+    char item4_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object4_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object4_id);
+    snprintf(item4_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item4_id);
     ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD,
-                              item4_id, object4_id,
+                              item4_uuid_str, object4_uuid_str,
                               "basic and advanced",
-                              NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object4_id, rule3_id, 0,
-                                       "KEYWORDS_TABLE", 6, 0); //condition_index:6
-    EXPECT_EQ(ret, 1); 
+    //rule3
+    long long rule3_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule3_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule3_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule3_id);
+    and_conditions[0].negate_option = 0;
+    and_conditions[0].or_condition_num = 1;
+    and_conditions[0].or_conditions[0].attribute_name = ip_attribute_name;
+    and_conditions[0].or_conditions[0].object_num = 1;
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object3_uuid_str;
+    and_conditions[1].negate_option = 0;
+    and_conditions[1].or_condition_num = 1;
+    and_conditions[1].or_conditions[0].attribute_name = keywords_attr_name;
+    and_conditions[1].or_conditions[0].object_num = 1;
+    and_conditions[1].or_conditions[0].object_uuids_str[0] = object4_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule3_uuid_str, and_conditions, 2, NULL, 0);
+    EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
@@ -9077,7 +9279,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
-    ret = maat_scan_string(maat_inst, keywords_table_id, http_url_computer,
+    ret = maat_scan_string(maat_inst, keywords_table_name, keywords_attr_name, http_url_computer,
                            strlen(http_url_computer), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
@@ -9089,63 +9291,75 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 
     int path_idx = 0;
     EXPECT_EQ(hit_path[path_idx].Nth_scan, 1);
-	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object1_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, -1);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item1_uuid_str);
+    uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
+	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].top_object_uuid) == 1);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, keywords_attr_name);
 	EXPECT_EQ(hit_path[path_idx].condition_index, -1);
-	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
+    EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
 
-    ret = maat_scan_string(maat_inst, keywords_table_id, http_url_social,
+    ret = maat_scan_string(maat_inst, keywords_table_name, keywords_attr_name, http_url_social,
                            strlen(http_url_social), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule1_id);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 3);
     
     path_idx = 0;
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, 1);
-	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object1_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object1_id);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].condition_index, 1);
-    EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item1_uuid_str);
+    uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
+	uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, keywords_attr_name);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 0);
+    uuid_unparse(hit_path[path_idx].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
     path_idx++;
     ASSERT_EQ(path_idx, 1);
     EXPECT_EQ(hit_path[path_idx].Nth_scan, 2);
-	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object2_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object21_id);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].condition_index, 2);
-    EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item2_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object2_uuid_str);
+	uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object21_uuid_str);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, keywords_attr_name);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 1);
+    uuid_unparse(hit_path[path_idx].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
     path_idx++;
     ASSERT_EQ(path_idx, 2);
     EXPECT_EQ(hit_path[path_idx].Nth_scan, 2);
-	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object2_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, -1);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item2_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object2_uuid_str);
+	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].top_object_uuid) == 1);
+    EXPECT_STREQ(hit_path[path_idx].attribute_name, keywords_attr_name);
 	EXPECT_EQ(hit_path[path_idx].condition_index, -1);
-    EXPECT_EQ(hit_path[path_idx].rule_id, -1);
+    EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "220.181.38.168", &ip_addr);
 
-    int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
-    ASSERT_GT(ip_table_id, 0);
-
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results,
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule2_id);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule2_uuid_str);
 
     memset(hit_path, 0, sizeof(hit_path));
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
@@ -9153,60 +9367,79 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 
     path_idx = 0;
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, 1);
-	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object1_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object1_id);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].condition_index, 1);
-    EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item1_uuid_str);
+    uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
+    uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, keywords_attr_name);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 0);
+    uuid_unparse(hit_path[path_idx].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
     path_idx++;
     ASSERT_EQ(path_idx, 1);
     EXPECT_EQ(hit_path[path_idx].Nth_scan, 2);
-	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object2_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object21_id);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].condition_index, 3);
-    EXPECT_EQ(hit_path[path_idx].rule_id, rule2_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item2_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object2_uuid_str);
+	uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object21_uuid_str);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, keywords_attr_name);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 0);
+    uuid_unparse(hit_path[path_idx].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, rule2_uuid_str);
 
     path_idx++;
     ASSERT_EQ(path_idx, 2);
     EXPECT_EQ(hit_path[path_idx].Nth_scan, 2);
-	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object2_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, -1);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item2_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object2_uuid_str);
+	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].top_object_uuid) == 1);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, keywords_attr_name);
 	EXPECT_EQ(hit_path[path_idx].condition_index, -1);
-    EXPECT_EQ(hit_path[path_idx].rule_id, -1);
+    EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
 
     path_idx++;
     ASSERT_EQ(path_idx, 3);
     EXPECT_EQ(hit_path[path_idx].Nth_scan, 3);
-	EXPECT_EQ(hit_path[path_idx].item_id, item3_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object3_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object3_id);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, ip_table_id);
-	EXPECT_EQ(hit_path[path_idx].condition_index, 4);
-    EXPECT_EQ(hit_path[path_idx].rule_id, rule2_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item3_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object3_uuid_str);
+	uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object3_uuid_str);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, ip_attribute_name);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 1);
+    uuid_unparse(hit_path[path_idx].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, rule2_uuid_str);
 
     path_idx++;
     ASSERT_EQ(path_idx, 4);
     EXPECT_EQ(hit_path[path_idx].Nth_scan, 2);
-	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object2_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object21_id);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].condition_index, 2);
-    EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item2_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object2_uuid_str);
+	uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object21_uuid_str);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, keywords_attr_name);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 1);
+    uuid_unparse(hit_path[path_idx].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
     const char *keywords1 = "In theory, basic and advanced is common";
-    ret = maat_scan_string(maat_inst, keywords_table_id, keywords1,
+    ret = maat_scan_string(maat_inst, keywords_table_name, keywords_attr_name, keywords1,
                            strlen(keywords1), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule3_id);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule3_uuid_str);
 
     memset(hit_path, 0, sizeof(hit_path));
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
@@ -9214,72 +9447,98 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 
     path_idx = 0;
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, 1);
-	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object1_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object1_id);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].condition_index, 1);
-    EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item1_uuid_str);
+    uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
+    uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, keywords_attr_name);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 0);
+    uuid_unparse(hit_path[path_idx].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
     path_idx++;
     ASSERT_EQ(path_idx, 1);
     EXPECT_EQ(hit_path[path_idx].Nth_scan, 2);
-	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object2_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object21_id);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].condition_index, 3);
-    EXPECT_EQ(hit_path[path_idx].rule_id, rule2_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item2_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object2_uuid_str);
+	uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object21_uuid_str);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, keywords_attr_name);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 0);
+    uuid_unparse(hit_path[path_idx].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, rule2_uuid_str);
 
     path_idx++;
     ASSERT_EQ(path_idx, 2);
     EXPECT_EQ(hit_path[path_idx].Nth_scan, 2);
-	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object2_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, -1);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item2_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object2_uuid_str);
+	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].top_object_uuid) == 1);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, keywords_attr_name);
 	EXPECT_EQ(hit_path[path_idx].condition_index, -1);
-    EXPECT_EQ(hit_path[path_idx].rule_id, -1);
+    EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
 
     path_idx++;
     ASSERT_EQ(path_idx, 3);
     EXPECT_EQ(hit_path[path_idx].Nth_scan, 3);
-	EXPECT_EQ(hit_path[path_idx].item_id, item3_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object3_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object3_id);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, ip_table_id);
-	EXPECT_EQ(hit_path[path_idx].condition_index, 5);
-    EXPECT_EQ(hit_path[path_idx].rule_id, rule3_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item3_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object3_uuid_str);
+	uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object3_uuid_str);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, ip_attribute_name);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 0);
+    uuid_unparse(hit_path[path_idx].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, rule3_uuid_str);
 
     path_idx++;
     ASSERT_EQ(path_idx, 4);
     EXPECT_EQ(hit_path[path_idx].Nth_scan, 4);
-	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object4_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object4_id);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].condition_index, 6);
-    EXPECT_EQ(hit_path[path_idx].rule_id, rule3_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item4_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object4_uuid_str);
+    uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object4_uuid_str);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, keywords_attr_name);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 1);
+    uuid_unparse(hit_path[path_idx].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, rule3_uuid_str);
 
     path_idx++;
     ASSERT_EQ(path_idx, 5);
     EXPECT_EQ(hit_path[path_idx].Nth_scan, 3);
-	EXPECT_EQ(hit_path[path_idx].item_id, item3_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object3_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object3_id);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, ip_table_id);
-	EXPECT_EQ(hit_path[path_idx].condition_index, 4);
-    EXPECT_EQ(hit_path[path_idx].rule_id, rule2_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item3_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object3_uuid_str);
+	uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object3_uuid_str);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, ip_attribute_name);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 1);
+    uuid_unparse(hit_path[path_idx].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, rule2_uuid_str);
 
     path_idx++;
     ASSERT_EQ(path_idx, 6);
     EXPECT_EQ(hit_path[path_idx].Nth_scan, 2);
-	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object2_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object21_id);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].condition_index, 2);
-    EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item2_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object2_uuid_str);
+	uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object21_uuid_str);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, keywords_attr_name);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 1);
+    uuid_unparse(hit_path[path_idx].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
     maat_state_free(state);
     state = NULL;
@@ -9287,32 +9546,29 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 
 TEST_F(MaatCmd, HitPathHasNotObject) {
     const char *o2o_table_name = "OBJECT2OBJECT";
-	const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *http_sig_table_name = "HTTP_SIGNATURE";
+    const char *http_req_attr_name = "HTTP_REQUEST_HEADER";
+    const char *http_resp_attr_name = "HTTP_RESPONSE_HEADER";
 	const char *ip_table_name = "IP_CONFIG";
+    const char *ip_attribute_name = "IP_CONFIG";
 	const char *keywords_table_name = "KEYWORDS_TABLE";
-    int thread_id = 0;
+    const char *keywords_attr_name = "KEYWORDS";
+    int thread_id = 0, ret = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    /* rule1 */
-    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_id, "null", 2, 0);
-    EXPECT_EQ(ret, 1);
-
     // !object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object1_id, rule1_id, 1,
-                                       "HTTP_REQUEST_HEADER", 1, 0);
-    EXPECT_EQ(ret, 1);
+    char object1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object1_id);
 
     // !(item1 -> object1) -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char item1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item1_id);
     ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD,
-                              item1_id, object1_id, "math_theory", "URL", 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              item1_uuid_str, object1_uuid_str, "math_theory", EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /* !(item1 -> object1) -> rule1
@@ -9320,9 +9576,26 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
                     object21_/
     */
     long long object21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object21_id, rule1_id, 0,
-                                       "HTTP_RESPONSE_HEADER", 2, 0);
+    char object21_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object21_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object21_id);
+
+    /* rule1 */
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    struct maat_cmd_and_condition and_conditions[2];
+    and_conditions[0].negate_option = 1;
+    and_conditions[0].or_condition_num = 1;
+    and_conditions[0].or_conditions[0].attribute_name = http_req_attr_name;
+    and_conditions[0].or_conditions[0].object_num = 1;
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object1_uuid_str;
+    and_conditions[1].negate_option = 0;
+    and_conditions[1].or_condition_num = 1;
+    and_conditions[1].or_conditions[0].attribute_name = http_resp_attr_name;
+    and_conditions[1].or_conditions[0].object_num = 1;
+    and_conditions[1].or_conditions[0].object_uuids_str[0] = object21_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     /* !(item1 -> object1) -> rule1
@@ -9330,8 +9603,10 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
         object2 -> object21 _/
     */
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char object2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object2_id);
     ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
-                                     object21_id, object2_id, 0);
+                                     object21_uuid_str, &object2_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
 
     /*       !(item1 -> object1) -> rule1
@@ -9339,9 +9614,11 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
        item2 -> object2 -> object21 _/
     */
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char item2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item2_id);
     ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD,
-                              item2_id, object2_id, "time=2020-02-12", "Cookie",
-                              0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              item2_uuid_str, object2_uuid_str, "time=2020-02-12",
+                              EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /*
@@ -9352,24 +9629,34 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
      item2 -> object2 -> object21 _/
     */
     long long object11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char object11_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object11_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object11_id);
     ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
-                                     object11_id, object1_id, 0);
+                                     object11_uuid_str, &object1_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
     
     //item3 -> object3, object3 is not referenced by any rule.
     long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long object3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_id,
-                            object3_id, "220.181.38.158-220.181.38.159", 0);
+    char object3_uuid_str[UUID_STR_LEN] = {0};
+    char item3_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object3_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object3_id);
+    snprintf(item3_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item3_id);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_uuid_str,
+                            object3_uuid_str, "220.181.38.158-220.181.38.159", NULL, 0);
     EXPECT_EQ(ret, 1);
 
     //item4 -> object4, object4 is not referenced by any rule.
     long long item4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long object4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char object4_uuid_str[UUID_STR_LEN] = {0};
+    char item4_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object4_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object4_id);
+    snprintf(item4_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item4_id);
     ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD,
-                              item4_id, object4_id,
+                              item4_uuid_str, object4_uuid_str,
                               "a finite and infinite",
-                              NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -9378,22 +9665,16 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
 	const char* http_resp_hdr_cookie = "laptop=thinkpad X1 extrem;time=2020-02-12T15:34:00;"
                                        "main[XWJOKE]=hoho; Hm_lvt_bbac0322e6ee13093f98d5c4b5a10912=1578874808;";
 
-    int http_req_table_id = maat_get_table_id(maat_inst, "HTTP_REQUEST_HEADER");
-    ASSERT_GT(http_req_table_id, 0);
-
-    ret = maat_state_set_scan_district(state, http_req_table_id, "URL", strlen("URL"));
-    EXPECT_EQ(ret, 0);
-
     int Nth_scan = 0;
 
     Nth_scan++;
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
-    ret = maat_scan_string(maat_inst, http_req_table_id, http_url, strlen(http_url),
+    ret = maat_scan_string(maat_inst, http_sig_table_name, http_req_attr_name, http_url, strlen(http_url),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, http_req_table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_req_attr_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -9407,38 +9688,37 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
 
     int path_idx = 0;
     EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
-	EXPECT_EQ(hit_path[path_idx].item_id, -1);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object1_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object11_id);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, http_req_table_id);
+    EXPECT_TRUE(uuid_is_null(hit_path[path_idx].item_uuid) == 1);
+	char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
+	uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object11_uuid_str);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, http_req_attr_name);
     EXPECT_EQ(hit_path[path_idx].negate_option, 1);
-	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
+    EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
 
     path_idx++;
     EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
-	EXPECT_EQ(hit_path[path_idx].item_id, -1);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object1_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, -1);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, http_req_table_id);
+    EXPECT_TRUE(uuid_is_null(hit_path[path_idx].item_uuid) == 1);
+    uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
+	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].top_object_uuid) == 1);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, http_req_attr_name);    
     EXPECT_EQ(hit_path[path_idx].negate_option, 1);
-	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
+    EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
 
-    int http_res_table_id = maat_get_table_id(maat_inst, "HTTP_RESPONSE_HEADER");
-	ASSERT_GT(http_res_table_id, 0);
-
-    ret = maat_state_set_scan_district(state, http_res_table_id, "Cookie",
-                                       strlen("Cookie"));
-    EXPECT_EQ(ret, 0);
 
     Nth_scan++;
-    ret = maat_scan_string(maat_inst, http_res_table_id, http_resp_hdr_cookie,
+    ret = maat_scan_string(maat_inst, http_sig_table_name, http_resp_attr_name, http_resp_hdr_cookie,
                            strlen(http_resp_hdr_cookie), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule1_id);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, http_res_table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_resp_attr_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -9450,40 +9730,51 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     
     path_idx = 0;
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan-1);
-	EXPECT_EQ(hit_path[path_idx].item_id, -1);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object1_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object11_id);
+    EXPECT_TRUE(uuid_is_null(hit_path[path_idx].item_uuid) == 1);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
+	uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object11_uuid_str);
     EXPECT_EQ(hit_path[path_idx].negate_option, 1);
-    EXPECT_EQ(hit_path[path_idx].rule_id, -1);
+    EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
 
     path_idx++;
     ASSERT_EQ(path_idx, 1);
     EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan-1);
-	EXPECT_EQ(hit_path[path_idx].item_id, -1);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object1_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object1_id);
+    EXPECT_TRUE(uuid_is_null(hit_path[path_idx].item_uuid) == 1);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
+	uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object1_uuid_str);
     EXPECT_EQ(hit_path[path_idx].negate_option, 1);
-    EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
+    uuid_unparse(hit_path[path_idx].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
     path_idx++;
     ASSERT_EQ(path_idx, 2);
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
-	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object2_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, object21_id);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, http_res_table_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item2_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object2_uuid_str);
+	uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object21_uuid_str);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, http_resp_attr_name);
     EXPECT_EQ(hit_path[path_idx].negate_option, 0);
-	EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
+    uuid_unparse(hit_path[path_idx].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
     path_idx++;
     ASSERT_EQ(path_idx, 3);
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
-	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object2_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, -1);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, http_res_table_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item2_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object2_uuid_str);
+	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].top_object_uuid) == 1);
+	EXPECT_STREQ(hit_path[path_idx].attribute_name, http_resp_attr_name);
     EXPECT_EQ(hit_path[path_idx].negate_option, 0);
-	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
+    EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
    
     const char *keywords1 = "In math theory, a finite and infinite come up all the time.";
     const char *keywords2= "a finite and infinite come up again.";
@@ -9491,13 +9782,13 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     int keywords_table_id = maat_get_table_id(maat_inst, keywords_table_name);
     ASSERT_GT(keywords_table_id, 0);
 
-    struct maat_stream *stream = maat_stream_new(maat_inst, keywords_table_id, state);
+    struct maat_stream *stream = maat_stream_new(maat_inst, keywords_table_name, keywords_attr_name, state);
     Nth_scan++;
     ret = maat_stream_scan(stream, keywords1, strlen(keywords1), results,
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, keywords_table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attr_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -9510,24 +9801,23 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     path_idx++;
 	ASSERT_EQ(path_idx, 4);
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
-	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object4_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, -1);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item4_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object4_uuid_str);
+	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].top_object_uuid) == 1);
+    EXPECT_STREQ(hit_path[path_idx].attribute_name, keywords_attr_name);
     EXPECT_EQ(hit_path[path_idx].negate_option, 0);
-	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
-
-    int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
-    ASSERT_GT(ip_table_id, 0);
+    EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
 
     Nth_scan++;
     uint32_t ip_addr;
     inet_pton(AF_INET, "220.181.38.158", &ip_addr);
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results,
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -9540,19 +9830,21 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     path_idx++;
 	ASSERT_EQ(path_idx, 5);
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
-	EXPECT_EQ(hit_path[path_idx].item_id, item3_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object3_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, -1);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, ip_table_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item3_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object3_uuid_str);
+	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].top_object_uuid) == 1);
+    EXPECT_STREQ(hit_path[path_idx].attribute_name, ip_attribute_name);
     EXPECT_EQ(hit_path[path_idx].negate_option, 0);
-	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
+    EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
 
     Nth_scan++;   
     ret = maat_stream_scan(stream, keywords2, strlen(keywords2), results,
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, keywords_table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attr_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -9565,12 +9857,14 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     path_idx++;
 	ASSERT_EQ(path_idx, 6);
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
-	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
-	EXPECT_EQ(hit_path[path_idx].sub_object_id, object4_id);
-	EXPECT_EQ(hit_path[path_idx].top_object_id, -1);
-	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item4_uuid_str);
+	uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object4_uuid_str);
+	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].top_object_uuid) == 1);
+    EXPECT_STREQ(hit_path[path_idx].attribute_name, keywords_attr_name);
     EXPECT_EQ(hit_path[path_idx].negate_option, 0);
-	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
+    EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
 
     maat_stream_free(stream);
     maat_state_free(state);
@@ -9580,9 +9874,9 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
 TEST_F(MaatCmd, SameSuperObjectRefByMultiRule) {
     int thread_id = 0;
     const char *o2o_table_name = "OBJECT2OBJECT";
-	const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *http_sig_table_name = "HTTP_SIGNATURE";
+    const char *http_resp_attr_name = "HTTP_RESPONSE_HEADER";
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
 
     /* item5 -> object5 -> object52 -> rule2
@@ -9591,60 +9885,64 @@ TEST_F(MaatCmd, SameSuperObjectRefByMultiRule) {
     */
     long long item5_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long object5_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char object5_uuid_str[UUID_STR_LEN] = {0};
+    char item5_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object5_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object5_id);
+    snprintf(item5_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item5_id);
     int ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD,
-                                  item5_id, object5_id,
+                                  item5_uuid_str, object5_uuid_str,
                                   "same superobject referenced by multi rule",
-                                  "KEY", 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                                  EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     long long object52_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char object52_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object52_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object52_id);
     ret = object2object_table_set_line(maat_inst, o2o_table_name, MAAT_OP_ADD,
-                                     object52_id, object5_id, 0);
+                                     object52_uuid_str, &object5_uuid_str, 1, NULL, 0, 0);
     EXPECT_EQ(ret, 1);
 
     long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule2_id);
+    struct maat_cmd_and_condition and_condition;
+    and_condition.negate_option = 0;
+    and_condition.or_condition_num = 1;
+    and_condition.or_conditions[0].attribute_name = http_resp_attr_name;
+    and_condition.or_conditions[0].object_num = 1;
+    and_condition.or_conditions[0].object_uuids_str[0] = object52_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule2_id, "HTTP_RESPONSE_HEADER", 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object52_id, rule2_id, 0,
-                                       "HTTP_RESPONSE_HEADER", 0, 0);
+                                 rule2_uuid_str, &and_condition, 1, "HTTP_RESPONSE_HEADER", 0);
     EXPECT_EQ(ret, 1);
 
     long long rule3_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule3_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule3_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule3_id);
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule3_id, "HTTP_RESPONSE_HEADER", 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object52_id, rule3_id, 0,
-                                       "HTTP_RESPONSE_HEADER", 0, 0);
+                                 rule3_uuid_str, &and_condition, 1, "HTTP_RESPONSE_HEADER", 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
-    int http_res_table_id = maat_get_table_id(maat_inst, "HTTP_RESPONSE_HEADER");
-	ASSERT_GT(http_res_table_id, 0);
 
-    struct maat_state *state = maat_state_new(maat_inst, thread_id);
-    ret = maat_state_set_scan_district(state, http_res_table_id, "KEY", strlen("KEY"));
-    EXPECT_EQ(ret, 0);
-    
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);    
     const char *http_res_key_str = "same superobject referenced by multi rule";
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_hit_path hit_path[128];
 
-    ret = maat_scan_string(maat_inst, http_res_table_id, http_res_key_str,
+    ret = maat_scan_string(maat_inst, http_sig_table_name, http_resp_attr_name, http_res_key_str,
                            strlen(http_res_key_str), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], rule3_id);
-    EXPECT_EQ(results[1], rule2_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule3_uuid_str);
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, rule2_uuid_str);
     
-    ret = maat_scan_not_logic(maat_inst, http_res_table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_resp_attr_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -9654,66 +9952,93 @@ TEST_F(MaatCmd, SameSuperObjectRefByMultiRule) {
 
     int path_idx = 0;
     EXPECT_EQ(hit_path[path_idx].Nth_scan, 1);
-    EXPECT_EQ(hit_path[path_idx].item_id, item5_id);
-    EXPECT_EQ(hit_path[path_idx].sub_object_id, object5_id);
-    EXPECT_EQ(hit_path[path_idx].top_object_id, object52_id);
-    EXPECT_EQ(hit_path[path_idx].rule_id, rule3_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item5_uuid_str);
+    uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object5_uuid_str);
+    uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object52_uuid_str);
+    uuid_unparse(hit_path[path_idx].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, rule3_uuid_str);
 
     path_idx++;
     EXPECT_EQ(hit_path[path_idx].Nth_scan, 1);
-    EXPECT_EQ(hit_path[path_idx].item_id, item5_id);
-    EXPECT_EQ(hit_path[path_idx].sub_object_id, object5_id);
-    EXPECT_EQ(hit_path[path_idx].top_object_id, -1);
-    EXPECT_EQ(hit_path[path_idx].rule_id, -1);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item5_uuid_str);
+    uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object5_uuid_str);
+    EXPECT_TRUE(uuid_is_null(hit_path[path_idx].top_object_uuid) == 1);
+    EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
 
     path_idx++;
     EXPECT_EQ(hit_path[path_idx].Nth_scan, 1);
-    EXPECT_EQ(hit_path[path_idx].item_id, item5_id);
-    EXPECT_EQ(hit_path[path_idx].sub_object_id, object5_id);
-    EXPECT_EQ(hit_path[path_idx].top_object_id, object52_id);
-    EXPECT_EQ(hit_path[path_idx].rule_id, rule2_id);
+    uuid_unparse(hit_path[path_idx].item_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, item5_uuid_str);
+    uuid_unparse(hit_path[path_idx].sub_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object5_uuid_str);
+    uuid_unparse(hit_path[path_idx].top_object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, object52_uuid_str);
+    uuid_unparse(hit_path[path_idx].rule_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, rule2_uuid_str);
 
     maat_state_free(state);
     state = NULL;
 }
 
-TEST_F(MaatCmd, SameScanStatusWhenConditionUpdate_TSG6419) {
-    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
+TEST_F(MaatCmd, SameScanStatusWhenConditionUpdate_TSG6419) {//TODO: rule will update with all conditions
 	const char* rule_table_name = "RULE_DEFAULT";
 	const char* ip_table_name = "IP_PLUS_CONFIG";
+    const char *ip_attribute_name = "IP_PLUS_CONFIG";
     const char *app_id_table_name = "APP_ID";
-    int thread_id = 0;
+    const char *app_id_attribute_name = "APP_ID";
+    int thread_id = 0, ret = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-
-    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_id, "null", 2, 0);
-    EXPECT_EQ(ret, 1);
 
     /* item11 -> object11 -> condition1 -> rule1
                                           /
            item21 -> object21 -> condition2 _/
     */
     long long object11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object11_id, rule1_id, 0, ip_table_name, 1, 0);
-    EXPECT_EQ(ret, 1);
+    char object11_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object11_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object11_id);
 
     long long item11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item11_id,
-                            object11_id, "192.168.2.1-192.168.2.4", 0);
+    char item11_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item11_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item11_id);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item11_uuid_str,
+                            object11_uuid_str, "192.168.2.1-192.168.2.4", NULL, 0);
     EXPECT_EQ(ret, 1);
 
     long long object21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object21_id, rule1_id, 0, app_id_table_name, 2, 0);
-    EXPECT_EQ(ret, 1);
+    char object21_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object21_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object21_id);
 
     long long item21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char item21_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item21_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item21_id);
     ret = interval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD,
-                                  item21_id, object21_id, "31", NULL, 0);
+                                  item21_uuid_str, object21_uuid_str, "31", 0);
     EXPECT_EQ(ret, 1);
+
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    struct maat_cmd_and_condition and_conditions[3];
+    and_conditions[0].negate_option = 0;
+    and_conditions[0].or_condition_num = 1;
+    and_conditions[0].or_conditions[0].attribute_name = ip_attribute_name;
+    and_conditions[0].or_conditions[0].object_num = 1;
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object11_uuid_str;
+    and_conditions[1].negate_option = 0;
+    and_conditions[1].or_condition_num = 1;
+    and_conditions[1].or_conditions[0].attribute_name = app_id_attribute_name;
+    and_conditions[1].or_conditions[0].object_num = 1;
+    and_conditions[1].or_conditions[0].object_uuids_str[0] = object21_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
+    EXPECT_EQ(ret, 1);
+
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     uuid_t results[ARRAY_SIZE];
@@ -9721,22 +10046,20 @@ TEST_F(MaatCmd, SameScanStatusWhenConditionUpdate_TSG6419) {
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.2.2", &ip_addr);
 
-    int table_id = maat_get_table_id(maat_inst, ip_table_name);
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results,
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     int scan_app_id = 32;
-    table_id = maat_get_table_id(maat_inst, app_id_table_name);
-    ret = maat_scan_integer(maat_inst, table_id, scan_app_id, results,
+    ret = maat_scan_integer(maat_inst, app_id_table_name, app_id_attribute_name, scan_app_id, results,
                             ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, app_id_table_name, app_id_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -9745,41 +10068,49 @@ TEST_F(MaatCmd, SameScanStatusWhenConditionUpdate_TSG6419) {
            item21 -> object21 -> condition2 _/
           item22 -> object22 -> condition3 _/
     */
-    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
-                                 rule1_id, "null", 2, 0);
-    EXPECT_EQ(ret, 1);
-    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule1_id, "null", 3, 0);
-    EXPECT_EQ(ret, 1);
-
     long long object22_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object22_id, rule1_id, 0, app_id_table_name, 3, 0);
-    EXPECT_EQ(ret, 1);
+    char object22_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object22_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object22_id);
 
     long long item22_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char item22_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item22_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item22_id);
     ret = interval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD,
-                                  item22_id, object22_id, "32", NULL, 0);
+                                  item22_uuid_str, object22_uuid_str, "32", 0);
+    EXPECT_EQ(ret, 1);
+
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
+                                 rule1_uuid_str, and_conditions, 2, NULL, 0);
+    EXPECT_EQ(ret, 1);
+
+    and_conditions[2].negate_option = 0;
+    and_conditions[2].or_condition_num = 1;
+    and_conditions[2].or_conditions[0].attribute_name = app_id_attribute_name;
+    and_conditions[2].or_conditions[0].object_num = 1;
+    and_conditions[2].or_conditions[0].object_uuids_str[0] = object22_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                 rule1_uuid_str, and_conditions, 3, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
-    table_id = maat_get_table_id(maat_inst, app_id_table_name);
-    ret = maat_scan_integer(maat_inst, table_id, 31, results, ARRAY_SIZE,
+    ret = maat_scan_integer(maat_inst, app_id_table_name, app_id_attribute_name, 31, results, ARRAY_SIZE,
                             &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, app_id_table_name, app_id_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_integer(maat_inst, table_id, scan_app_id, results,
+    ret = maat_scan_integer(maat_inst, app_id_table_name, app_id_attribute_name, scan_app_id, results,
                             ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule1_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, app_id_table_name, app_id_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -9788,40 +10119,56 @@ TEST_F(MaatCmd, SameScanStatusWhenConditionUpdate_TSG6419) {
 }
 
 TEST_F(MaatCmd, ObjectEdit) {
-    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *ip_table_name = "IP_PLUS_CONFIG"; 
+    const char *ip_attribute_name = "IP_PLUS_CONFIG";
     const char *app_id_table_name = "APP_ID";
-    int thread_id = 0;
+    const char *app_id_attribute_name = "APP_ID";
+    int thread_id = 0, ret = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-
-    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_id, "null", 2, 0);
-    EXPECT_EQ(ret, 1);
 
     /* item11 -> object11 -> condition1 -> rule1
            item21 -> object21 -> condition2 _/
     */
     long long object11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object11_id, rule1_id, 0, ip_table_name, 1, 0);
-    EXPECT_EQ(ret, 1);
+    char object11_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object11_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object11_id);
 
     long long item11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item11_id,
-                            object11_id, "192.168.3.1-192.168.3.4", 0);
+    char item11_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item11_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item11_id);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item11_uuid_str,
+                            object11_uuid_str, "192.168.3.1-192.168.3.4", NULL, 0);
     EXPECT_EQ(ret, 1);
 
     long long object21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object21_id, rule1_id, 0, app_id_table_name, 2, 0);
-    EXPECT_EQ(ret, 1);
+    char object21_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object21_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object21_id);
 
     long long item21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char item21_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item21_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item21_id);
     ret = interval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD,
-                                  item21_id, object21_id, "41", NULL, 0);
+                                  item21_uuid_str, object21_uuid_str, "41", 0);
+    EXPECT_EQ(ret, 1);
+
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    struct maat_cmd_and_condition and_conditions[2];
+    and_conditions[0].negate_option = 0;
+    and_conditions[0].or_condition_num = 1;
+    and_conditions[0].or_conditions[0].attribute_name = ip_attribute_name;
+    and_conditions[0].or_conditions[0].object_num = 1;
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object11_uuid_str;
+    and_conditions[1].negate_option = 0;
+    and_conditions[1].or_condition_num = 1;
+    and_conditions[1].or_conditions[0].attribute_name = app_id_attribute_name;
+    and_conditions[1].or_conditions[0].object_num = 1;
+    and_conditions[1].or_conditions[0].object_uuids_str[0] = object21_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -9832,26 +10179,20 @@ TEST_F(MaatCmd, ObjectEdit) {
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
 
-    int table_id = maat_get_table_id(maat_inst, ip_table_name);
-    ASSERT_GT(table_id, 0);
-
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results,
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    table_id = maat_get_table_id(maat_inst, app_id_table_name);
-    ASSERT_GT(table_id, 0);
-
     int scan_app_id = 42;
-    ret = maat_scan_integer(maat_inst, table_id, scan_app_id, results,
+    ret = maat_scan_integer(maat_inst, app_id_table_name, app_id_attribute_name, scan_app_id, results,
                             ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, app_id_table_name, app_id_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -9864,29 +10205,28 @@ TEST_F(MaatCmd, ObjectEdit) {
     char scan_app_id_str[8] = {0};
     snprintf(scan_app_id_str, sizeof(scan_app_id_str), "%d", scan_app_id);
     long long item22_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char item22_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item22_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item22_id);
     ret = interval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD,
-                                  item22_id, object21_id, scan_app_id_str, NULL, 0);
+                                  item22_uuid_str, object21_uuid_str, scan_app_id_str, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    table_id = maat_get_table_id(maat_inst, ip_table_name);
-    ASSERT_GT(table_id, 0);
-
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results,
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
                          ARRAY_SIZE, &n_hit_result, state);
-    //TODO: EXPECT_EQ(ret,?)
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    table_id = maat_get_table_id(maat_inst, app_id_table_name);
-    ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_integer(maat_inst, table_id, scan_app_id, results,
+    ret = maat_scan_integer(maat_inst, app_id_table_name, app_id_attribute_name, scan_app_id, results,
                             ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule1_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, app_id_table_name, app_id_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -9901,27 +10241,25 @@ TEST_F(MaatCmd, ObjectEdit) {
            item21 -> object21 -> condition2 _/
     */
     ret = interval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_DEL,
-                                item22_id, object21_id, scan_app_id_str, NULL, 0);
+                                item22_uuid_str, object21_uuid_str, scan_app_id_str, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     memset(results, 0, sizeof(results));
-    table_id = maat_get_table_id(maat_inst, ip_table_name);
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results,
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    table_id = maat_get_table_id(maat_inst, app_id_table_name);
-    ret = maat_scan_integer(maat_inst, table_id, scan_app_id, results,
+    ret = maat_scan_integer(maat_inst, app_id_table_name, app_id_attribute_name, scan_app_id, results,
                             ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, app_id_table_name, app_id_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -9930,27 +10268,36 @@ TEST_F(MaatCmd, ObjectEdit) {
 }
 
 TEST_F(MaatCmd, RuleDelete_TSG6548) {
-    const char* o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char* rule_table_name = "RULE_DEFAULT";
 	const char* ip_table_name = "IP_PLUS_CONFIG";
-    int thread_id = 0;
+    const char *ip_attribute_name = "IP_PLUS_CONFIG";
+    int thread_id = 0, ret = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-
     //item11 -> object11 -> condition1 -> rule1
     long long object11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object11_id, rule1_id, 0, ip_table_name, 1, 0);
-    EXPECT_EQ(ret, 1);
+    char object11_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object11_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object11_id);
 
     long long item11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item11_id,
-                            object11_id, "192.168.73.163-192.168.73.180", 0);
+    char item11_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item11_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item11_id);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item11_uuid_str,
+                            object11_uuid_str, "192.168.73.163-192.168.73.180", NULL, 0);
+    EXPECT_EQ(ret, 1);
+
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    struct maat_cmd_and_condition and_conditions[1];
+    and_conditions[0].negate_option = 0;
+    and_conditions[0].or_condition_num = 1;
+    and_conditions[0].or_conditions[0].attribute_name = ip_attribute_name;
+    and_conditions[0].or_conditions[0].object_num = 1;
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object11_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_uuid_str, and_conditions, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -9964,22 +10311,20 @@ TEST_F(MaatCmd, RuleDelete_TSG6548) {
     int table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results,
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule1_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
-                                 rule1_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_DEL,
-                                       object11_id, rule1_id, 0, ip_table_name, 1, 0);
+                                 rule1_uuid_str, and_conditions, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     int hit_cnt = 0;
@@ -9987,11 +10332,12 @@ TEST_F(MaatCmd, RuleDelete_TSG6548) {
     time_t update_time = time(NULL);
 	time_t now = update_time;
 	while (now - update_time < 3) {
-		ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results,
+		ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
                              ARRAY_SIZE, &n_hit_result, state);
 		if (ret == MAAT_SCAN_HIT) {
 			hit_cnt++;
-			EXPECT_EQ(results[0], rule1_id);
+            uuid_unparse(results[0], uuid_str);
+            EXPECT_STREQ(uuid_str, rule1_uuid_str);
 		} 
         if (ret == MAAT_SCAN_HALF_HIT) {
 			miss_cnt++;
@@ -10005,28 +10351,37 @@ TEST_F(MaatCmd, RuleDelete_TSG6548) {
 }
 
 TEST_F(MaatCmd, UpdateDeadLockDetection) {
-    const char* o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char* rule_table_name = "RULE_DEFAULT";
 	const char* table_http_url = "HTTP_URL";
-    int thread_id = 0;
+    const char *attribute_http_url = "HTTP_URL";
+    int thread_id = 0, ret = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object1_id, rule1_id, 0, table_http_url, 0, 0);
-    EXPECT_EQ(ret, 1);
+    char object1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object1_id);
 
     //item1 -> object1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_inst, table_http_url, MAAT_OP_ADD, item1_id,
-                              object1_id, "part-1", NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+    char item1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item1_id);
+    ret = expr_table_set_line(maat_inst, table_http_url, MAAT_OP_ADD, item1_uuid_str,
+                              object1_uuid_str, "part-1", EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+    EXPECT_EQ(ret, 1);
+
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    struct maat_cmd_and_condition and_conditions[1];
+    and_conditions[0].negate_option = 0;
+    and_conditions[0].or_condition_num = 1;
+    and_conditions[0].or_conditions[0].attribute_name = attribute_http_url;
+    and_conditions[0].or_conditions[0].object_num = 1;
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object1_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_uuid_str, and_conditions, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -10037,34 +10392,38 @@ TEST_F(MaatCmd, UpdateDeadLockDetection) {
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
 
-    int table_id = maat_get_table_id(maat_inst, table_http_url);
-    ASSERT_GT(table_id, 0);
-
-    ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1),
+    ret = maat_scan_string(maat_inst, table_http_url, attribute_http_url, scan_data1, strlen(scan_data1),
                           results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule1_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, table_http_url, attribute_http_url, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule2_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
 
     //object2 -> rule2
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object2_id, rule2_id, 0, table_http_url, 0, 0);
-    EXPECT_EQ(ret, 1);
+    char object2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object2_id);
 
     //item2 -> object2 -> rule2
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_inst, table_http_url, MAAT_OP_ADD, item2_id,
-                              object2_id, "part-2", NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+    char item2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item2_id);
+    ret = expr_table_set_line(maat_inst, table_http_url, MAAT_OP_ADD, item2_uuid_str,
+                              object2_uuid_str, "part-2", EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+    EXPECT_EQ(ret, 1);
+
+    long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule2_id);
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object2_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                 rule2_uuid_str, and_conditions, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     //DON'T DO THIS!!!
@@ -10076,12 +10435,12 @@ TEST_F(MaatCmd, UpdateDeadLockDetection) {
 	sleep(10);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_string(maat_inst, table_id, scan_data2, strlen(scan_data2),
+    ret = maat_scan_string(maat_inst, table_http_url, attribute_http_url, scan_data2, strlen(scan_data2),
                            results, ARRAY_SIZE, &n_hit_result, state);
     //After full update, condition ids are re-orgnized, therefore mid are not compatible to the new scanner (hierarchy).
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT); 
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, table_http_url, attribute_http_url, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -10090,22 +10449,29 @@ TEST_F(MaatCmd, UpdateDeadLockDetection) {
 }
 
 TEST_F(MaatCmd, StreamScanWhenExprTableIncUpdate) {
-    const char* o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char* rule_table_name = "RULE_DEFAULT";
 	const char* scan_table_name = "KEYWORDS_TABLE";
-    int thread_id = 0;
+    const char *scan_attribute_name = "KEYWORDS_TABLE";
+    int thread_id = 0, ret = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object1_id, rule1_id, 0, scan_table_name, 0, 0);
+    char object1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object1_id);
+
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    struct maat_cmd_and_condition and_conditions[1];
+    and_conditions[0].negate_option = 0;
+    and_conditions[0].or_condition_num = 1;
+    and_conditions[0].or_conditions[0].attribute_name = scan_attribute_name;
+    and_conditions[0].or_conditions[0].object_num = 1;
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object1_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_uuid_str, and_conditions, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -10114,23 +10480,22 @@ TEST_F(MaatCmd, StreamScanWhenExprTableIncUpdate) {
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
 
-    int table_id = maat_get_table_id(maat_inst, scan_table_name);
-    ASSERT_GT(table_id, 0);
-
-    struct maat_stream *stream = maat_stream_new(maat_inst, table_id, state);
+    struct maat_stream *stream = maat_stream_new(maat_inst, scan_table_name, scan_attribute_name, state);//TODO: create stream failed when expr_matcher is NULL
     ret = maat_stream_scan(stream, scan_data, strlen(scan_data), results,
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, scan_table_name, scan_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     //item1 -> object1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char item1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item1_id);
     ret = expr_table_set_line(maat_inst, scan_table_name, MAAT_OP_ADD,
-                              item1_id, object1_id, "stream-keywords-001-inc-update",
-                              NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              item1_uuid_str, object1_uuid_str, "stream-keywords-001-inc-update",
+                              EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -10142,20 +10507,22 @@ TEST_F(MaatCmd, StreamScanWhenExprTableIncUpdate) {
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, scan_table_name, scan_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_stream_free(stream);
 
-    stream = maat_stream_new(maat_inst, table_id, state);
+    stream = maat_stream_new(maat_inst, scan_table_name, scan_attribute_name, state);
     ret = maat_stream_scan(stream, scan_data, strlen(scan_data), results,
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule1_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, scan_table_name, scan_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -10165,28 +10532,37 @@ TEST_F(MaatCmd, StreamScanWhenExprTableIncUpdate) {
 }
 
 TEST_F(MaatCmd, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
-    const char* o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char* rule_table_name = "RULE_DEFAULT";
 	const char* scan_table_name = "KEYWORDS_TABLE";
-    int thread_id = 0;
+    const char *scan_attribute_name = "KEYWORDS_TABLE";
+    int thread_id = 0, ret = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object1_id, rule1_id, 0, scan_table_name, 0, 0);
-    EXPECT_EQ(ret, 1);
+    char object1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object1_id);
 
     //item1 -> object1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_inst, scan_table_name, MAAT_OP_ADD, item1_id,
-                              object1_id, "stream-keywords-002", NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+    char item1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item1_id);
+    ret = expr_table_set_line(maat_inst, scan_table_name, MAAT_OP_ADD, item1_uuid_str,
+                              object1_uuid_str, "stream-keywords-002", EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+    EXPECT_EQ(ret, 1);
+
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    struct maat_cmd_and_condition and_conditions[1];
+    and_conditions[0].negate_option = 0;
+    and_conditions[0].or_condition_num = 1;
+    and_conditions[0].or_conditions[0].attribute_name = scan_attribute_name;
+    and_conditions[0].or_conditions[0].object_num = 1;
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object1_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_uuid_str, and_conditions, 1, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -10195,17 +10571,16 @@ TEST_F(MaatCmd, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
 
-    int table_id = maat_get_table_id(maat_inst, scan_table_name);
-    ASSERT_GT(table_id, 0);
-
-    struct maat_stream *stream = maat_stream_new(maat_inst, table_id, state);
+    struct maat_stream *stream = maat_stream_new(maat_inst, scan_table_name, scan_attribute_name, state);
     ret = maat_stream_scan(stream, scan_data, strlen(scan_data), results,
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule1_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, scan_table_name, scan_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -10222,7 +10597,7 @@ TEST_F(MaatCmd, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
                            ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_OK); //Scan was interupted after full update.
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, scan_table_name, scan_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -10232,29 +10607,26 @@ TEST_F(MaatCmd, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
 }
 
 TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
-    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *expr_table_name = "KEYWORDS_TABLE";
+    const char *expr_attribute_name = "KEYWORDS_TABLE";
     const char *ip_table_name = "IP_PLUS_CONFIG";
-    int thread_id = 0;
+    const char *ip_attribute_name = "IP_PLUS_CONFIG";
+    int thread_id = 0, ret = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_id, "null", 2, 0);
-    EXPECT_EQ(ret, 1);
-
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object1_id, rule1_id, 0, expr_table_name, 0, 0);
-    EXPECT_EQ(ret, 1);
+    char object1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object1_id);
 
     //item1 -> object1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_inst, expr_table_name, MAAT_OP_ADD, item1_id,
-                              object1_id, "stream-keywords-003", NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+    char item1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item1_id);
+    ret = expr_table_set_line(maat_inst, expr_table_name, MAAT_OP_ADD, item1_uuid_str,
+                              object1_uuid_str, "stream-keywords-003", EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /* item1 -> object1 -> rule1 
@@ -10263,12 +10635,30 @@ TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
     */
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item2_id,
-                            object2_id, "100.100.100.1", 0);
+    char object2_uuid_str[UUID_STR_LEN] = {0};
+    char item2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object2_id);
+    snprintf(item2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item2_id);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item2_uuid_str,
+                            object2_uuid_str, "100.100.100.1", NULL, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object2_id, rule1_id, 0, ip_table_name, 1, 0);
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    struct maat_cmd_and_condition and_conditions[2];
+    and_conditions[0].negate_option = 0;
+    and_conditions[0].or_condition_num = 1;
+    and_conditions[0].or_conditions[0].attribute_name = expr_attribute_name;
+    and_conditions[0].or_conditions[0].object_num = 1;
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object1_uuid_str;
+    and_conditions[1].negate_option = 0;
+    and_conditions[1].or_condition_num = 1;
+    and_conditions[1].or_conditions[0].attribute_name = ip_attribute_name;
+    and_conditions[1].or_conditions[0].object_num = 1;
+    and_conditions[1].or_conditions[0].object_uuids_str[0] = object2_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -10283,47 +10673,50 @@ TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
     int table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results, 
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     //add rule2 for rule runtime inc update
     long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule2_id);
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule2_id, "null", 1, 0);
+                                 rule2_uuid_str, and_conditions, 2, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     const char *scan_data = "Here is a stream-keywords-003, this should hit.";
-    table_id = maat_get_table_id(maat_inst, expr_table_name);
-    ASSERT_GT(table_id, 0);
 
-    struct maat_stream *stream = maat_stream_new(maat_inst, table_id, state);
+    struct maat_stream *stream = maat_stream_new(maat_inst, expr_table_name, expr_attribute_name, state);
     ret = maat_stream_scan(stream, scan_data, strlen(scan_data), results,
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule1_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     /* 
         becase rule1_id has been returned, maat_scan_xx will not return duplicate rule_id again
     */
-    table_id = maat_get_table_id(maat_inst, ip_table_name);
-    ASSERT_GT(table_id, 0);
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results, 
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, 
                          ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule2_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -10333,30 +10726,27 @@ TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
 }
 
 TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
-    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *ip_table_name = "IP_PLUS_CONFIG";
+    const char *ip_attribute_name = "IP_PLUS_CONFIG";
     const char *expr_table_name = "KEYWORDS_TABLE";
-    int thread_id = 0;
+    const char *expr_attribute_name = "KEYWORDS_TABLE";
+    int thread_id = 0, ret = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object1_id, rule1_id, 0, expr_table_name, 0, 0);
-    EXPECT_EQ(ret, 1);
+    char object1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object1_id);
 
     //item1 -> object1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char item1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item1_id);
     ret = expr_table_set_line(maat_inst, expr_table_name, MAAT_OP_ADD,
-                              item1_id, object1_id, "stream-keywords-004",
-                              NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              item1_uuid_str, object1_uuid_str, "stream-keywords-004",
+                              EXPR_TYPE_AND, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /* item1 -> object1 -> rule1 
@@ -10365,12 +10755,30 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
     */
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    char object2_uuid_str[UUID_STR_LEN] = {0};
+    char item2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object2_id);
+    snprintf(item2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item2_id);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD,
-                            item2_id, object2_id, "100.100.100.2", 0);
+                            item2_uuid_str, object2_uuid_str, "100.100.100.2", NULL, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object2_id, rule1_id, 0, ip_table_name, 1, 0);
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    struct maat_cmd_and_condition and_conditions[2];
+    and_conditions[0].negate_option = 0;
+    and_conditions[0].or_condition_num = 1;
+    and_conditions[0].or_conditions[0].attribute_name = expr_attribute_name;
+    and_conditions[0].or_conditions[0].object_num = 1;
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object1_uuid_str;
+    and_conditions[1].negate_option = 0;
+    and_conditions[1].or_condition_num = 1;
+    and_conditions[1].or_conditions[0].attribute_name = ip_attribute_name;
+    and_conditions[1].or_conditions[0].object_num = 1;
+    and_conditions[1].or_conditions[0].object_uuids_str[0] = object2_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -10382,14 +10790,11 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
     ret = inet_pton(AF_INET, ip_str, &ip_addr);
     EXPECT_EQ(ret, 1);
 
-    int table_id = maat_get_table_id(maat_inst, ip_table_name);
-    ASSERT_GT(table_id, 0);
-
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results, 
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -10401,15 +10806,13 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
 	sleep(10);
 
     const char *scan_data = "Here is a stream-keywords-004, this should hit.";
-    table_id = maat_get_table_id(maat_inst, expr_table_name);
-    ASSERT_GT(table_id, 0);
 
-    struct maat_stream *stream = maat_stream_new(maat_inst, table_id, state);
+    struct maat_stream *stream = maat_stream_new(maat_inst, expr_table_name, expr_attribute_name, state);
     ret = maat_stream_scan(stream, scan_data, strlen(scan_data), results,
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -10417,13 +10820,11 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
        After full updating, new rule_rt version is different from that of maat_state,
        so MAAT_SCAN_HIT will never happen.
     */
-    table_id = maat_get_table_id(maat_inst, ip_table_name);
-    ASSERT_GT(table_id, 0);
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results, 
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -10433,30 +10834,27 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
 }
 
 TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
-     const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *expr_table_name = "HTTP_URL";
+    const char *expr_attribute_name = "HTTP_URL";
     const char *ip_table_name = "IP_PLUS_CONFIG";
+    const char *ip_attribute_name = "IP_PLUS_CONFIG";
     const char *keywords = "IP&stringinc";
-    int thread_id = 0;
+    int thread_id = 0, ret = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_id, "null", 2, 0);
-    EXPECT_EQ(ret, 1);
-
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object1_id, rule1_id, 0, expr_table_name, 0, 0);
-    EXPECT_EQ(ret, 1);
+    char object1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object1_id);
 
     //item1 -> object1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_inst, expr_table_name, MAAT_OP_ADD, item1_id,
-                              object1_id, keywords, NULL, 1, 0); /*EXPR_TYPE_AND MATCH_METHOD_SUB*/
+    char item1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item1_id);
+    ret = expr_table_set_line(maat_inst, expr_table_name, MAAT_OP_ADD, item1_uuid_str,
+                              object1_uuid_str, keywords, EXPR_TYPE_AND, 0); /*EXPR_TYPE_AND MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /* item1 -> object1 -> rule1 
@@ -10465,12 +10863,30 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
     */
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item2_id,
-                            object2_id, "100.100.100.1", 0);
+    char object2_uuid_str[UUID_STR_LEN] = {0};
+    char item2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object2_id);
+    snprintf(item2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item2_id);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item2_uuid_str,
+                            object2_uuid_str, "100.100.100.1", NULL, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object2_id, rule1_id, 0, ip_table_name, 1, 0);
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    struct maat_cmd_and_condition and_conditions[2];
+    and_conditions[0].negate_option = 0;
+    and_conditions[0].or_condition_num = 1;
+    and_conditions[0].or_conditions[0].attribute_name = expr_attribute_name;
+    and_conditions[0].or_conditions[0].object_num = 1;
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object1_uuid_str;
+    and_conditions[1].negate_option = 0;
+    and_conditions[1].or_condition_num = 1;
+    and_conditions[1].or_conditions[0].attribute_name = ip_attribute_name;
+    and_conditions[1].or_conditions[0].object_num = 1;
+    and_conditions[1].or_conditions[0].object_uuids_str[0] = object2_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -10482,49 +10898,49 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
     ret = inet_pton(AF_INET, ip_str, &ip_addr);
     EXPECT_EQ(ret, 1);
 
-    int table_id = maat_get_table_id(maat_inst, ip_table_name);
-    ASSERT_GT(table_id, 0);
-
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results, ARRAY_SIZE,
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, ARRAY_SIZE,
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     //add rule2 for rule runtime inc update
     long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule2_id);
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule2_id, "null", 1, 0);
+                                 rule2_uuid_str, and_conditions, 2, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     const char *scan_data = "Here is a IP and stringinc, this should hit.";
-    table_id = maat_get_table_id(maat_inst, expr_table_name);
-    ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
+    ret = maat_scan_string(maat_inst, expr_table_name, expr_attribute_name, scan_data, strlen(scan_data),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], rule1_id);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     /* 
         becase rule1_id has been returned, maat_scan_xx will not return duplicate rule_id again
     */
-    table_id = maat_get_table_id(maat_inst, ip_table_name);
-    ASSERT_GT(table_id, 0);
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results, 
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, 
                          ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule2_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -10533,30 +10949,27 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
 }
 
 TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
-    const char *o2r_table_name = "OBJECT2RULE_DEFAULT";
     const char *rule_table_name = "RULE_DEFAULT";
     const char *ip_table_name = "IP_PLUS_CONFIG";
+    const char *ip_attribute_name = "IP_PLUS_CONFIG";
     const char *expr_table_name = "HTTP_URL";
+    const char *expr_attribute_name = "HTTP_URL";
     const char *keywords = "IP&string";
-    int thread_id = 0;
+    int thread_id = 0, ret = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_id, "null", 1, 0);
-    EXPECT_EQ(ret, 1);
-
     //object1 -> rule1
     long long object1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object1_id, rule1_id, 0, expr_table_name, 0, 0);
-    EXPECT_EQ(ret, 1);
+    char object1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object1_id);
 
     //item1 -> object1 -> rule1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_inst, expr_table_name, MAAT_OP_ADD, item1_id,
-                              object1_id, keywords, "null", 1, 0); /*EXPR_TYPE_AND MATCH_METHOD_SUB*/
+    char item1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(item1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item1_id);
+    ret = expr_table_set_line(maat_inst, expr_table_name, MAAT_OP_ADD, item1_uuid_str,
+                              object1_uuid_str, keywords, EXPR_TYPE_AND, 0); /*EXPR_TYPE_AND MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /* item1 -> object1 -> rule1 
@@ -10565,12 +10978,30 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
     */
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item2_id,
-                            object2_id, "100.100.100.3", 0);
+    char object2_uuid_str[UUID_STR_LEN] = {0};
+    char item2_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(object2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object2_id);
+    snprintf(item2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item2_id);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item2_uuid_str,
+                            object2_uuid_str, "100.100.100.3", NULL, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = object2rule_table_set_line(maat_inst, o2r_table_name, MAAT_OP_ADD,
-                                       object2_id, rule1_id, 0, ip_table_name, 1, 0);
+    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    char rule1_uuid_str[UUID_STR_LEN] = {0};
+    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
+    struct maat_cmd_and_condition and_conditions[2];
+    and_conditions[0].negate_option = 0;
+    and_conditions[0].or_condition_num = 1;
+    and_conditions[0].or_conditions[0].attribute_name = expr_attribute_name;
+    and_conditions[0].or_conditions[0].object_num = 1;
+    and_conditions[0].or_conditions[0].object_uuids_str[0] = object1_uuid_str;
+    and_conditions[1].negate_option = 0;
+    and_conditions[1].or_condition_num = 1;
+    and_conditions[1].or_conditions[0].attribute_name = ip_attribute_name;
+    and_conditions[1].or_conditions[0].object_num = 1;
+    and_conditions[1].or_conditions[0].object_uuids_str[0] = object2_uuid_str;
+    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
+                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -10582,14 +11013,11 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
     ret = inet_pton(AF_INET, ip_str, &ip_addr);
     EXPECT_EQ(ret, 1);
 
-    int table_id = maat_get_table_id(maat_inst, ip_table_name);
-    ASSERT_GT(table_id, 0);
-
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results, 
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -10601,14 +11029,12 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
 	sleep(10);
 
     const char *scan_data = "scan IP and string, this should hit.";
-    table_id = maat_get_table_id(maat_inst, expr_table_name);
-    ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
+    ret = maat_scan_string(maat_inst, expr_table_name, expr_attribute_name, scan_data, strlen(scan_data),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -10616,21 +11042,17 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
        After full updating, new rule_rt version is different from that of maat_state,
        so MAAT_SCAN_HIT will never happen.
     */
-    table_id = maat_get_table_id(maat_inst, ip_table_name);
-    ASSERT_GT(table_id, 0);
-
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results, 
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
 	maat_state_free(state);
     state = NULL;
 }
-#endif
 
 class MaatRollback : public testing::Test
 {
