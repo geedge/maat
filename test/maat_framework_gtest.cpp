@@ -7830,6 +7830,8 @@ void foreign_key_test_entry_cb(const char *table_name, const char *table_line, e
 		strcpy(file2_to_del, file2_localname);
 		g_test_foreign_del_OK = 1;
 	}
+
+    cJSON_Delete(json);
 }
 
 TEST_F(MaatCmd, SetFile) {
@@ -8011,6 +8013,8 @@ void plugin_ex_new_cb(const char *table_name, const char *key,
     tmp_obj = cJSON_GetObjectItem(json, "name");
     EXPECT_TRUE(tmp_obj != NULL);
     snprintf(u->name, sizeof(u->name), "%s", tmp_obj->valuestring);
+
+    cJSON_Delete(json);
 
 	*ad = u;
 	(*counter)++;

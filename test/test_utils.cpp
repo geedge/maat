@@ -199,12 +199,11 @@ int object_group_table_set_line(struct maat *maat_inst, const char *table_name,
                                const char exc_object_uuid_strs[][UUID_STR_LEN], int exc_object_num, int expire_after)
 {
     cJSON *json_root = cJSON_CreateObject();
-    cJSON *inc_object_uuid_str_array = cJSON_CreateArray();
-    cJSON *exc_object_uuid_str_array = cJSON_CreateArray();
 
     cJSON_AddStringToObject(json_root, "object_uuid", object_uuid_str);
 
     if (inc_object_num > 0) {
+        cJSON *inc_object_uuid_str_array = cJSON_CreateArray();
         for (int i = 0; i < inc_object_num; i++) {
             cJSON_AddItemToArray(inc_object_uuid_str_array, cJSON_CreateString(inc_object_uuid_strs[i]));
         }
@@ -212,6 +211,7 @@ int object_group_table_set_line(struct maat *maat_inst, const char *table_name,
     }
 
     if (exc_object_num > 0) {
+        cJSON *exc_object_uuid_str_array = cJSON_CreateArray();
         for (int i = 0; i < exc_object_num; i++) {
             cJSON_AddItemToArray(exc_object_uuid_str_array, cJSON_CreateString(exc_object_uuid_strs[i]));
         }
