@@ -68,7 +68,7 @@ struct table_condition {
     UT_hash_handle hh;
 };
 
-struct table_object {
+struct negate_attribute_object {
     char attribute_name[MAX_ATTR_NAME_LEN];
     UT_array *object_uuids;
     UT_hash_handle hh;
@@ -147,7 +147,7 @@ struct rule_compile_state {
     UT_array *indirect_hit_objects;
     UT_array *last_hit_objects;
     UT_array *hit_rule_table_ids;
-    struct table_object *hit_not_tbl_objects;
+    struct negate_attribute_object *hit_negate_attribute_objects;
 };
 
 UT_icd ut_condition_id_icd = {sizeof(long long), NULL, NULL, NULL};
@@ -890,29 +890,29 @@ struct rule_compile_state *rule_compile_state_new(void)
     utarray_new(rule_compile_state->indirect_hit_objects, &ut_maat_hit_object_icd);
     utarray_new(rule_compile_state->last_hit_objects, &ut_maat_hit_object_icd);
     utarray_new(rule_compile_state->hit_rule_table_ids, &ut_hit_rule_table_id_icd);
-    rule_compile_state->hit_not_tbl_objects = NULL;
+    rule_compile_state->hit_negate_attribute_objects = NULL;
 
 	return rule_compile_state;
 }
 
 static long long
-rule_compile_state_hit_not_tbl_objects_free(struct rule_compile_state *rule_compile_state)
+rule_compile_state_hit_not_condition_objects_free(struct rule_compile_state *rule_compile_state)
 {
     if (NULL == rule_compile_state) {
         return 0;
     }
 
     long long free_bytes = 0;
-    struct table_object *tbl_object = NULL, *tmp_tbl_object = NULL;
-    HASH_ITER(hh, rule_compile_state->hit_not_tbl_objects, tbl_object, tmp_tbl_object) {
+    struct negate_attribute_object *negate_attr_obj = NULL, *tmp_negate_attr_obj = NULL;
+    HASH_ITER(hh, rule_compile_state->hit_negate_attribute_objects, negate_attr_obj, tmp_negate_attr_obj) {
         free_bytes +=
-            (sizeof(tbl_object) + utarray_len(tbl_object->object_uuids) * sizeof(uuid_t));
-        HASH_DEL(rule_compile_state->hit_not_tbl_objects, tbl_object);
-        if (tbl_object->object_uuids != NULL) {
-            utarray_free(tbl_object->object_uuids);
-            tbl_object->object_uuids = NULL;
+            (sizeof(negate_attr_obj) + utarray_len(negate_attr_obj->object_uuids) * sizeof(uuid_t));
+        HASH_DEL(rule_compile_state->hit_negate_attribute_objects, negate_attr_obj);
+        if (negate_attr_obj->object_uuids != NULL) {
+            utarray_free(negate_attr_obj->object_uuids);
+            negate_attr_obj->object_uuids = NULL;
         }
-        FREE(tbl_object);
+        FREE(negate_attr_obj);
     }
 
     return free_bytes;
@@ -938,9 +938,9 @@ void rule_compile_state_reset(struct rule_compile_state *rule_compile_state)
     utarray_clear(rule_compile_state->last_hit_objects);
     utarray_clear(rule_compile_state->hit_rule_table_ids);
 
-    struct table_object *tbl_object = NULL, *tmp_tbl_object = NULL;
-    HASH_ITER(hh, rule_compile_state->hit_not_tbl_objects, tbl_object, tmp_tbl_object) {
-        utarray_clear(tbl_object->object_uuids);
+    struct negate_attribute_object *negate_attr_obj = NULL, *tmp_negate_attr_obj = NULL;
+    HASH_ITER(hh, rule_compile_state->hit_negate_attribute_objects, negate_attr_obj, tmp_negate_attr_obj) {
+        utarray_clear(negate_attr_obj->object_uuids);
     }
 }
 
@@ -1015,7 +1015,7 @@ void rule_compile_state_free(struct rule_compile_state *rule_compile_state,
         rule_compile_state->hit_rule_table_ids = NULL;
     }
 
-    free_bytes += rule_compile_state_hit_not_tbl_objects_free(rule_compile_state);
+    free_bytes += rule_compile_state_hit_not_condition_objects_free(rule_compile_state);
 
 	FREE(rule_compile_state);
 
@@ -1386,18 +1386,18 @@ rule_compile_state_cache_hit_not_objects(struct rule_compile_state *rule_compile
         qsort(hit_object_uuids, n_hit_object_uuid, sizeof(uuid_t), compare_object_uuid);
     }
 
-    struct table_object *tbl_object = NULL;
-    HASH_FIND_STR(rule_compile_state->hit_not_tbl_objects, attribute_name, tbl_object);
-    if (tbl_object != NULL) {
+    struct negate_attribute_object *negate_attr_obj = NULL;
+    HASH_FIND_STR(rule_compile_state->hit_negate_attribute_objects, attribute_name, negate_attr_obj);
+    if (negate_attr_obj != NULL) {
         for (size_t i = 0; i < n_hit_object_uuid; i++) {
-            uuid_t *object_uuid = (uuid_t *)utarray_find(tbl_object->object_uuids,
+            uuid_t *object_uuid = (uuid_t *)utarray_find(negate_attr_obj->object_uuids,
                                                             &hit_object_uuids[i],
                                                             compare_object_uuid);
             if (NULL == object_uuid) {
                 continue;
             }
-            size_t remove_idx = utarray_eltidx(tbl_object->object_uuids, object_uuid);
-            utarray_erase(tbl_object->object_uuids, remove_idx, 1);
+            size_t remove_idx = utarray_eltidx(negate_attr_obj->object_uuids, object_uuid);
+            utarray_erase(negate_attr_obj->object_uuids, remove_idx, 1);
         }
     }
 
@@ -1414,21 +1414,21 @@ rule_compile_state_cache_hit_not_objects(struct rule_compile_state *rule_compile
             continue;
         }
 
-        if (NULL == tbl_object) {
-            tbl_object = ALLOC(struct table_object, 1);
-            snprintf(tbl_object->attribute_name, sizeof(tbl_object->attribute_name), "%s", attribute_name);
-            utarray_new(tbl_object->object_uuids, &ut_rule_object_uuid_icd);
-            HASH_ADD_STR(rule_compile_state->hit_not_tbl_objects, attribute_name, tbl_object);
+        if (NULL == negate_attr_obj) {
+            negate_attr_obj = ALLOC(struct negate_attribute_object, 1);
+            snprintf(negate_attr_obj->attribute_name, sizeof(negate_attr_obj->attribute_name), "%s", attribute_name);
+            utarray_new(negate_attr_obj->object_uuids, &ut_rule_object_uuid_icd);
+            HASH_ADD_STR(rule_compile_state->hit_negate_attribute_objects, attribute_name, negate_attr_obj);
         }
 
-        if (!utarray_find(tbl_object->object_uuids, &(condition_id_kv->key.object_uuid),
+        if (!utarray_find(negate_attr_obj->object_uuids, &(condition_id_kv->key.object_uuid),
                           compare_object_uuid)) {
-            utarray_push_back(tbl_object->object_uuids, &(condition_id_kv->key.object_uuid));
+            utarray_push_back(negate_attr_obj->object_uuids, &(condition_id_kv->key.object_uuid));
         }
     }
 
-    if (tbl_object != NULL) {
-        utarray_sort(tbl_object->object_uuids, compare_object_uuid);
+    if (negate_attr_obj != NULL) {
+        utarray_sort(negate_attr_obj->object_uuids, compare_object_uuid);
     }
 }
 
@@ -1842,17 +1842,17 @@ void rule_compile_state_not_logic_update(struct rule_compile_state *rule_compile
     rule_compile_state->Nth_scan = Nth_scan;
     utarray_clear(rule_compile_state->this_scan_hit_not_conditions);
 
-    struct table_object *tbl_object = NULL;
-    HASH_FIND_STR(rule_compile_state->hit_not_tbl_objects, attribute_name, tbl_object);
-    if (NULL == tbl_object) {
+    struct negate_attribute_object *negate_attr_obj = NULL;
+    HASH_FIND_STR(rule_compile_state->hit_negate_attribute_objects, attribute_name, negate_attr_obj);
+    if (NULL == negate_attr_obj) {
         return;
     }
 
     struct condition_id_kv *condition_id_kv = NULL;
-    for (size_t i = 0; i < utarray_len(tbl_object->object_uuids); i++) {
+    for (size_t i = 0; i < utarray_len(negate_attr_obj->object_uuids); i++) {
         struct condition_query_key key;
 
-        uuid_t *object_uuid = utarray_eltptr(tbl_object->object_uuids, i);
+        uuid_t *object_uuid = utarray_eltptr(negate_attr_obj->object_uuids, i);
         memset(&key, 0, sizeof(key));
         
         snprintf(key.attribute_name, sizeof(key.attribute_name), "%s", attribute_name);

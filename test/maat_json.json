@@ -2304,7 +2304,6 @@
 						},
 						{
 							"attribute_name": "IP_PLUS_CONFIG",
-							"negate_option": true,
 							"object_uuids": [
 								"00000000-0000-0000-0000-000000000014"
 							]
@@ -4194,6 +4193,36 @@
 									"table_name": "KEYWORDS_TABLE",
 									"table_content": {
 										"expression": "王守仁",
+										"expr_type": "and"
+									}
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+        {
+			"uuid": "00000000-0000-0000-0000-000000000238",
+			"service": 0,
+			"action": 0,
+			"do_blacklist": 0,
+			"do_log": 0,
+			"action_parameter": "null",
+			"is_valid": "yes",
+			"and_conditions": [
+				{
+					"attribute_name": "KEYWORDS_TABLE",
+					"objects": [
+						{
+							"object_name": "238_keywords_object",
+							"uuid": "00000000-0000-0000-0000-000000000264",
+							"items": [
+								{
+									"table_type": "expr",
+									"table_name": "KEYWORDS_TABLE",
+									"table_content": {
+										"expression": "(offset=0,depth=20)|00A12B3CEEFF|",
 										"expr_type": "and"
 									}
 								}

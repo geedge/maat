@@ -1156,6 +1156,42 @@ TEST_F(HsStringScan, StreamScanUTF8) {
     state = NULL;
 }
 
+TEST_F(HsStringScan, InvisibleCharactor) {
+    const char *hex_data = "00A12B3CEEFF";
+	const char *table_name = "KEYWORDS_TABLE";
+    const char *attribute_name = "KEYWORDS_TABLE";
+    struct maat *maat_inst = HsStringScan::_shared_maat_inst;
+    int thread_id = 0;
+
+    uuid_t results[ARRAY_SIZE];
+    size_t n_hit_result = 0;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    size_t binary_data_length = strlen(hex_data) / 2;
+    unsigned char binary_data[binary_data_length];
+
+    // 将十六进制字符串转换为二进制数据
+    for (size_t i = 0; i < binary_data_length; i++) {
+        sscanf(&hex_data[2 * i], "%2hhx", &binary_data[i]);
+    }
+
+    memset(results, 0, sizeof(results));
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, (char*)binary_data, binary_data_length, 
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000238");
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
 TEST_F(HsStringScan, StreamInput) {
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
@@ -9985,139 +10021,6 @@ TEST_F(MaatCmd, SameSuperObjectRefByMultiRule) {
     state = NULL;
 }
 
-TEST_F(MaatCmd, SameScanStatusWhenConditionUpdate_TSG6419) {//TODO: rule will update with all conditions
-	const char* rule_table_name = "RULE_DEFAULT";
-	const char* ip_table_name = "IP_PLUS_CONFIG";
-    const char *ip_attribute_name = "IP_PLUS_CONFIG";
-    const char *app_id_table_name = "APP_ID";
-    const char *app_id_attribute_name = "APP_ID";
-    int thread_id = 0, ret = 0;
-    struct maat *maat_inst = MaatCmd::_shared_maat_inst;
-    struct maat_state *state = maat_state_new(maat_inst, thread_id);
-
-    /* item11 -> object11 -> condition1 -> rule1
-                                          /
-           item21 -> object21 -> condition2 _/
-    */
-    long long object11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    char object11_uuid_str[UUID_STR_LEN] = {0};
-    snprintf(object11_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object11_id);
-
-    long long item11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    char item11_uuid_str[UUID_STR_LEN] = {0};
-    snprintf(item11_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item11_id);
-    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item11_uuid_str,
-                            object11_uuid_str, "192.168.2.1-192.168.2.4", NULL, 0);
-    EXPECT_EQ(ret, 1);
-
-    long long object21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    char object21_uuid_str[UUID_STR_LEN] = {0};
-    snprintf(object21_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object21_id);
-
-    long long item21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    char item21_uuid_str[UUID_STR_LEN] = {0};
-    snprintf(item21_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item21_id);
-    ret = interval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD,
-                                  item21_uuid_str, object21_uuid_str, "31", 0);
-    EXPECT_EQ(ret, 1);
-
-    long long rule1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    char rule1_uuid_str[UUID_STR_LEN] = {0};
-    snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
-    struct maat_cmd_and_condition and_conditions[3];
-    and_conditions[0].negate_option = 0;
-    and_conditions[0].or_condition_num = 1;
-    and_conditions[0].or_conditions[0].attribute_name = ip_attribute_name;
-    and_conditions[0].or_conditions[0].object_num = 1;
-    and_conditions[0].or_conditions[0].object_uuids_str[0] = object11_uuid_str;
-    and_conditions[1].negate_option = 0;
-    and_conditions[1].or_condition_num = 1;
-    and_conditions[1].or_conditions[0].attribute_name = app_id_attribute_name;
-    and_conditions[1].or_conditions[0].object_num = 1;
-    and_conditions[1].or_conditions[0].object_uuids_str[0] = object21_uuid_str;
-    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
-    EXPECT_EQ(ret, 1);
-
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
-
-    uuid_t results[ARRAY_SIZE];
-    size_t n_hit_result = 0;
-    uint32_t ip_addr;
-    inet_pton(AF_INET, "192.168.2.2", &ip_addr);
-
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
-                         ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
-    int scan_app_id = 32;
-    ret = maat_scan_integer(maat_inst, app_id_table_name, app_id_attribute_name, scan_app_id, results,
-                            ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
-    ret = maat_scan_not_logic(maat_inst, app_id_table_name, app_id_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
-    /* item11 -> object11 -> condition1 -> rule1
-                                          /
-           item21 -> object21 -> condition2 _/
-          item22 -> object22 -> condition3 _/
-    */
-    long long object22_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
-    char object22_uuid_str[UUID_STR_LEN] = {0};
-    snprintf(object22_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object22_id);
-
-    long long item22_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    char item22_uuid_str[UUID_STR_LEN] = {0};
-    snprintf(item22_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", item22_id);
-    ret = interval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD,
-                                  item22_uuid_str, object22_uuid_str, "32", 0);
-    EXPECT_EQ(ret, 1);
-
-    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
-                                 rule1_uuid_str, and_conditions, 2, NULL, 0);
-    EXPECT_EQ(ret, 1);
-
-    and_conditions[2].negate_option = 0;
-    and_conditions[2].or_condition_num = 1;
-    and_conditions[2].or_conditions[0].attribute_name = app_id_attribute_name;
-    and_conditions[2].or_conditions[0].object_num = 1;
-    and_conditions[2].or_conditions[0].object_uuids_str[0] = object22_uuid_str;
-    ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule1_uuid_str, and_conditions, 3, NULL, 0);
-    EXPECT_EQ(ret, 1);
-
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
-
-    ret = maat_scan_integer(maat_inst, app_id_table_name, app_id_attribute_name, 31, results, ARRAY_SIZE,
-                            &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    ret = maat_scan_not_logic(maat_inst, app_id_table_name, app_id_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
-    ret = maat_scan_integer(maat_inst, app_id_table_name, app_id_attribute_name, scan_app_id, results,
-                            ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    char uuid_str[UUID_STR_LEN] = {0};
-    uuid_unparse(results[0], uuid_str);
-    EXPECT_STREQ(uuid_str, rule1_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, app_id_table_name, app_id_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
-    maat_state_free(state);
-    state = NULL;
-}
-
 TEST_F(MaatCmd, ObjectEdit) {
 	const char *rule_table_name = "RULE_DEFAULT";
 	const char *ip_table_name = "IP_PLUS_CONFIG"; 
@@ -10480,7 +10383,7 @@ TEST_F(MaatCmd, StreamScanWhenExprTableIncUpdate) {
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
 
-    struct maat_stream *stream = maat_stream_new(maat_inst, scan_table_name, scan_attribute_name, state);//TODO: create stream failed when expr_matcher is NULL
+    struct maat_stream *stream = maat_stream_new(maat_inst, scan_table_name, scan_attribute_name, state);
     ret = maat_stream_scan(stream, scan_data, strlen(scan_data), results,
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);

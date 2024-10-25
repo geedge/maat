@@ -891,8 +891,8 @@ expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id)
     expr_rt_stream->ref_expr_rt = expr_rt;
     expr_rt_stream->handle = expr_matcher_stream_open(expr_rt->matcher, thread_id);
     if (NULL == expr_rt_stream->handle) {
-        FREE(expr_rt_stream);
-        return NULL;
+        log_info(expr_rt->logger, MODULE_EXPR,
+                 "[%s:%d] expr_matcher_stream_open failed, expr_rt->matcher is %p", __FUNCTION__, __LINE__, expr_rt->matcher);
     }
 
     return expr_rt_stream;
