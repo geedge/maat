@@ -156,9 +156,11 @@ static int expr_rule_pattern_count(struct expr_rule *rules, size_t n_rule,
         for (size_t j = 0; j < rules[i].n_patterns; j++) {
             /* pat_len should not 0 */
             if (0 == rules[i].patterns[j].pat_len) {
+                char uuid_str[37];
+                uuid_unparse(rules[i].expr_uuid, uuid_str);
                 log_fatal(logger, MODULE_EXPR_MATCHER,
-                          "[%s:%d] expr pattern length should not 0",
-                          __FUNCTION__, __LINE__);
+                          "[%s:%d] expr rule %s pattern length should not 0",
+                          __FUNCTION__, __LINE__, uuid_str);
                 return -1;
             }
 

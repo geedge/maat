@@ -508,6 +508,10 @@ static int expr_keywords_to_expr_pattern(char *keywords, struct expr_pattern *pa
         pattern->pat_len = pattern_len;
     }
 
+    if (pattern->pat_len == 0) {
+        return -1;
+    }
+
     return 0;
 }
 
