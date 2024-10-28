@@ -1241,14 +1241,14 @@ TEST_F(HsStringScan, StreamHitDirectObject) {
     int ret;
     struct maat *maat_inst = HsStringScan::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-    const char *table_name = "HTTP_URL";
-    const char *attribute_name = "HTTP_URL";
+    const char *table_name_url = "HTTP_URL";
+    const char *attribute_name_url = "HTTP_URL";
     const char *scan_data1 = "www.3300av.com";
 	const char *scan_data2 = "sdadhuadhasdgufgh;sdfhjaufhiwebfiusdafhaos;dhfaluhjweh";
 
     memset(results, 0, sizeof(results));
 
-	struct maat_stream *sp = maat_stream_new(maat_inst, table_name, attribute_name, state);
+	struct maat_stream *sp = maat_stream_new(maat_inst, table_name_url, attribute_name_url, state);
 	ASSERT_TRUE(sp != NULL);
 
 	ret = maat_stream_scan(sp, scan_data1, strlen(scan_data1), results,
@@ -1265,7 +1265,7 @@ TEST_F(HsStringScan, StreamHitDirectObject) {
     uuid_unparse(object_array[0].object_uuid, uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000112");
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, table_name_url, attribute_name_url, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -1274,10 +1274,46 @@ TEST_F(HsStringScan, StreamHitDirectObject) {
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     ret = maat_state_get_direct_hit_objects(state, object_array, ARRAY_SIZE);
     EXPECT_EQ(ret, 0);
-
     maat_stream_free(sp);
 
 
+    maat_state_reset(state);
+    const char *attribute_name_sig = "HTTP_SIGNATURE";
+    const char *table_name_sig = "HTTP_SIGNATURE";
+    const char *scan_data3 = "abckkk";
+    const char *scan_data4 = "123";
+    sp = maat_stream_new(maat_inst, table_name_sig, attribute_name_sig, state);
+    ASSERT_TRUE(sp != NULL);
+
+    ret = maat_stream_scan(sp, scan_data3, strlen(scan_data3), results,
+                           ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_stream_scan(sp, scan_data4, strlen(scan_data4), results,
+                           ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000128");
+
+    ret = maat_state_get_direct_hit_objects(state, object_array, ARRAY_SIZE);
+    EXPECT_EQ(ret, 1);
+    uuid_unparse(object_array[0].object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000107");
+
+    ret = maat_scan_not_logic(maat_inst, table_name_sig, attribute_name_sig, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_stream_scan(sp, scan_data4, strlen(scan_data4), results,
+                           ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);//rule has been hit before
+
+    ret = maat_state_get_direct_hit_objects(state, object_array, ARRAY_SIZE);
+    EXPECT_EQ(ret, 1);
+    uuid_unparse(object_array[0].object_uuid, uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000107");
+
+    maat_stream_free(sp);
 	maat_state_free(state);
     state = NULL;
 }
@@ -8775,7 +8811,7 @@ TEST_F(MaatCmd, HitObject) {
     memset(hit_objects, 0, sizeof(hit_objects));
     n_hit_object = maat_state_get_direct_hit_object_cnt(state);
     maat_state_get_direct_hit_objects(state, hit_objects, n_hit_object);
-    EXPECT_EQ(n_hit_object, 2);
+    EXPECT_EQ(n_hit_object, 1);
 
     uuid_unparse(hit_objects[0].item_uuid, uuid_str);
     EXPECT_STREQ(uuid_str, item5_uuid_str);
@@ -8783,15 +8819,9 @@ TEST_F(MaatCmd, HitObject) {
     EXPECT_STREQ(uuid_str, object1_uuid_str);
     EXPECT_STREQ(hit_objects[0].attribute_name, keywords_attr_name);
 
-    uuid_unparse(hit_objects[1].item_uuid, uuid_str);
-    EXPECT_STREQ(uuid_str, item4_uuid_str);
-    uuid_unparse(hit_objects[1].object_uuid, uuid_str);
-    EXPECT_STREQ(uuid_str, object4_uuid_str);
-    EXPECT_STREQ(hit_objects[1].attribute_name, keywords_attr_name);
-
     n_last_hit_object = maat_state_get_last_hit_object_cnt(state);
     maat_state_get_last_hit_objects(state, last_hit_objects, 128);
-    EXPECT_EQ(n_last_hit_object, 3);
+    EXPECT_EQ(n_last_hit_object, 2);
 
     uuid_unparse(last_hit_objects[0].item_uuid, uuid_str);
     EXPECT_STREQ(uuid_str, item5_uuid_str);
@@ -8799,16 +8829,10 @@ TEST_F(MaatCmd, HitObject) {
     EXPECT_STREQ(uuid_str, object1_uuid_str);
     EXPECT_STREQ(last_hit_objects[0].attribute_name, keywords_attr_name);
 
-    uuid_unparse(last_hit_objects[1].item_uuid, uuid_str);
-    EXPECT_STREQ(uuid_str, item4_uuid_str);
+    EXPECT_TRUE(uuid_is_null(last_hit_objects[1].item_uuid));
     uuid_unparse(last_hit_objects[1].object_uuid, uuid_str);
-    EXPECT_STREQ(uuid_str, object4_uuid_str);
-    EXPECT_STREQ(last_hit_objects[1].attribute_name, keywords_attr_name);
-
-    EXPECT_TRUE(uuid_is_null(last_hit_objects[2].item_uuid));
-    uuid_unparse(last_hit_objects[2].object_uuid, uuid_str);
     EXPECT_STREQ(uuid_str, object11_uuid_str);
-    EXPECT_STREQ(last_hit_objects[2].attribute_name, keywords_attr_name);
+    EXPECT_STREQ(last_hit_objects[1].attribute_name, keywords_attr_name);
 
     maat_stream_free(stream);
     maat_state_free(state);

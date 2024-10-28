@@ -65,10 +65,6 @@ struct expr_pattern {
 	size_t pat_len;
 };
 
-struct expr_scan_result {
-	uuid_t rule_uuid;
-};
-
 /* logic AND expression, such as (rule1 & rule2) */
 struct expr_rule {
 	uuid_t expr_uuid;   /* AND expression ID */
@@ -106,7 +102,7 @@ void expr_matcher_free(struct expr_matcher *matcher);
 */
 int expr_matcher_match(struct expr_matcher *matcher, int thread_id,
 					   const char *data, size_t data_len,
-					   struct expr_scan_result *result_array,
+					   uuid_t *result_array,
                        size_t array_size, size_t *n_hit_result,
 					   size_t *n_hit_pattern);
 
@@ -121,7 +117,7 @@ expr_matcher_stream_open(struct expr_matcher *matcher, int thread_id);
  */
 int expr_matcher_stream_match(struct expr_matcher_stream *stream,
 							  const char *data, size_t data_len,
-							  struct expr_scan_result *result_array, 
+							  uuid_t *result_array, 
 						      size_t array_size, size_t *n_hit_result,
 							  size_t *n_hit_pattern);
 

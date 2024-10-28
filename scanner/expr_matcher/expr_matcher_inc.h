@@ -36,7 +36,9 @@ struct pattern_attribute {
 };
 
 struct matched_pattern {
-    UT_array *pattern_ids;
+    unsigned long long *pattern_ids;
+    size_t *n_pattern_id;
+    size_t pattern_ids_size;
     struct bloom *ref_bloom;
     struct pattern_attribute *ref_pat_attr;
     size_t scan_data_len;

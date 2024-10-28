@@ -832,7 +832,7 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
 
     size_t n_hit_item = 0;
     size_t n_hit_pattern = 0;
-    struct expr_scan_result hit_results[MAX_HIT_ITEM_NUM];
+    uuid_t hit_results[MAX_HIT_ITEM_NUM];
     int ret = expr_matcher_match(expr_rt->matcher, thread_id, data, data_len, 
                                  hit_results, MAX_HIT_ITEM_NUM, &n_hit_item,
                                  &n_hit_pattern);
@@ -854,7 +854,7 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
 
     for (size_t i = 0; i < n_hit_item; i++) {
         struct expr_item *expr_item = (struct expr_item *)rcu_hash_find(expr_rt->item_hash, 
-                                                                        (char *)&hit_results[i].rule_uuid,
+                                                                        (char *)&hit_results[i],
                                                                         sizeof(uuid_t));
         if (!expr_item) {
             // item config has been deleted
@@ -924,7 +924,7 @@ int expr_runtime_stream_scan(struct expr_runtime_stream *expr_rt_stream,
 
     size_t n_hit_item = 0;
     size_t n_hit_pattern = 0;
-    struct expr_scan_result hit_results[MAX_HIT_ITEM_NUM];
+    uuid_t hit_results[MAX_HIT_ITEM_NUM];
 
     int ret = expr_matcher_stream_match(expr_rt_stream->handle, data, data_len, hit_results,
                                         MAX_HIT_ITEM_NUM, &n_hit_item, &n_hit_pattern);
@@ -947,7 +947,7 @@ int expr_runtime_stream_scan(struct expr_runtime_stream *expr_rt_stream,
 
     for (size_t i = 0; i < n_hit_item; i++) {
         expr_item = (struct expr_item *)rcu_hash_find(expr_rt->item_hash,
-                                                      (char *)&hit_results[i].rule_uuid,
+                                                      (char *)&hit_results[i],
                                                       sizeof(uuid_t));
         if (!expr_item) {
             // item config has been deleted

@@ -44,6 +44,7 @@ struct expr_matcher {
     struct bool_matcher *bm;
     struct bool_expr_match **bool_match_buffs;
     struct log_handle *logger;
+    struct bool_expr *bool_exprs;
 };
 
 struct expr_matcher_stream {
@@ -51,6 +52,7 @@ struct expr_matcher_stream {
     enum expr_engine_type engine_type;
     void *lit_stream;
     void *regex_stream;
+    UT_array *all_hit_lit_pattern_ids;
     struct expr_matcher *ref_matcher;
 };
 
@@ -62,6 +64,8 @@ struct db_operations {
                                   char *pat, size_t pat_len, int case_sensitive);
     int (*build_db)(void **lit_db, void *compile_data, struct log_handle *logger);
 };
+
+UT_icd ut_pattern_id_icd = {sizeof(unsigned long long), NULL, NULL, NULL};
 
 struct db_operations db_ops[EXPR_ENGINE_TYPE_AUTO] = {
     {
@@ -230,6 +234,7 @@ static struct bool_expr *bool_exprs_new(struct expr_rule *rules, size_t n_rule,
         
         uuid_copy(bool_exprs[i].expr_uuid, rules[i].expr_uuid);
         bool_exprs[i].item_num = rules[i].n_patterns;
+        bool_exprs[i].user_tag = &(bool_exprs[i]);
     }
 
     return bool_exprs;
@@ -268,6 +273,10 @@ void expr_matcher_free(struct expr_matcher *matcher)
 
     if (matcher->pat_attr != NULL) {
         FREE(matcher->pat_attr);
+    }
+
+    if (matcher->bool_exprs != NULL) {
+        FREE(matcher->bool_exprs);
     }
 
     FREE(matcher);
@@ -322,6 +331,7 @@ expr_matcher_new(struct expr_rule *rules, size_t n_rule,
     matcher->pat_attr = pat_attr;
     matcher->engine_type = engine_type;
     matcher->logger = logger;
+    matcher->bool_exprs = bool_exprs;
     matcher->bm = bool_matcher_new(bool_exprs, n_rule, &mem_size);
     if (matcher->bm != NULL) {
         log_info(logger, MODULE_EXPR_MATCHER, 
@@ -333,7 +343,6 @@ expr_matcher_new(struct expr_rule *rules, size_t n_rule,
                   __FUNCTION__, __LINE__);
         bm_ret = -1;
     }
-    FREE(bool_exprs);
 
     matcher->bool_match_buffs = ALLOC(struct bool_expr_match *, n_thread);
     for (size_t i = 0; i < n_thread; i++) {
@@ -405,8 +414,7 @@ static inline int compare_pattern_id(const void *a, const void *b)
 
 static int expr_matcher_bool_matcher_match(struct bool_matcher *bm, struct bool_expr_match *match_buff,
                                            size_t buff_size, unsigned long long *hit_pattern_ids,
-                                           size_t n_hit_pattern, struct expr_scan_result *result_array,
-                                           size_t array_size, size_t *n_hit_result)
+                                           size_t n_hit_pattern, size_t *n_hit_result)
 {
     
     unsigned long long prev_pat_id = 0xFFFFFFFFFFFFFFFF;
@@ -430,13 +438,10 @@ static int expr_matcher_bool_matcher_match(struct bool_matcher *bm, struct bool_
         goto next;
     }
 
-    if (bool_matcher_ret > (int)array_size) {
-        bool_matcher_ret = array_size;
+    if (bool_matcher_ret > (int)buff_size) {
+        bool_matcher_ret = buff_size;
     }
 
-    for (int index = 0; index < bool_matcher_ret; index++) {
-        uuid_copy(result_array[index].rule_uuid, match_buff[index].expr_uuid);
-    }
     *n_hit_result = bool_matcher_ret;
 
 next:
@@ -445,7 +450,7 @@ next:
 
 int expr_matcher_match(struct expr_matcher *matcher, int thread_id,
                        const char *data, size_t data_len,
-                       struct expr_scan_result *result_array,
+                       uuid_t *result_array,
                        size_t array_size, size_t *n_hit_result,
                        size_t *n_hit_pattern)
 {
@@ -492,9 +497,16 @@ int expr_matcher_match(struct expr_matcher *matcher, int thread_id,
     
     struct bool_expr_match *match_buff = matcher->bool_match_buffs[thread_id];
 
-    return expr_matcher_bool_matcher_match(matcher->bm, match_buff, MAX_HIT_PATTERN_NUM,
-                                           lit_pat_ids, pat_cnt, result_array,
-                                           array_size, n_hit_result);
+    ret = expr_matcher_bool_matcher_match(matcher->bm, match_buff, MAX_HIT_PATTERN_NUM,
+                                           lit_pat_ids, pat_cnt, n_hit_result);
+    for (size_t i = 0; i < *n_hit_result && i < array_size; i++) {
+        uuid_copy(result_array[i], match_buff[i].expr_uuid);
+    }
+    if (*n_hit_result > array_size) {
+        *n_hit_result = array_size;
+    }
+
+    return ret;
 }
 
 struct expr_matcher_stream *
@@ -533,13 +545,27 @@ expr_matcher_stream_open(struct expr_matcher *matcher, int thread_id)
     stream->lit_stream = lit_stream;
     stream->regex_stream = regex_stream;
     stream->ref_matcher = matcher;
+    utarray_new(stream->all_hit_lit_pattern_ids, &ut_pattern_id_icd);
 
     return stream;
 }
 
+static int expr_has_pattern_id_in_array(struct bool_expr *expr, unsigned long long *pat_ids, size_t n_pat)
+{
+    for (size_t i = 0; i < expr->item_num; i++) {
+        for (size_t j = 0; j < n_pat; j++) {
+            if (expr->items[i].item_id == pat_ids[j]) {
+                return 1;
+            }
+        }
+    }
+
+    return 0;
+}
+
 int expr_matcher_stream_match(struct expr_matcher_stream *stream,
                               const char *data, size_t data_len,
-                              struct expr_scan_result *result_array, 
+                              uuid_t *result_array, 
 						      size_t array_size, size_t *n_hit_result,
                               size_t *n_hit_pattern)
 {
@@ -554,7 +580,7 @@ int expr_matcher_stream_match(struct expr_matcher_stream *stream,
     unsigned long long regex_pat_ids[MAX_HIT_PATTERN_NUM];
     size_t lit_pat_cnt = 0;
     size_t regex_pat_cnt = 0;
-    size_t pat_cnt = 0;
+    size_t all_hit_pat_cnt = 0;
 
     int ret = engine_ops[stream->engine_type].scan_stream(stream->lit_stream, data, data_len,
                                                            lit_pat_ids, MAX_HIT_PATTERN_NUM,
@@ -573,23 +599,62 @@ int expr_matcher_stream_match(struct expr_matcher_stream *stream,
         return -1;
     }
 
-    pat_cnt = lit_pat_cnt + regex_pat_cnt;
-    *n_hit_pattern = pat_cnt;
-    if (pat_cnt > MAX_HIT_PATTERN_NUM) {
-        pat_cnt = MAX_HIT_PATTERN_NUM;
+    *n_hit_pattern = lit_pat_cnt + regex_pat_cnt;
+
+    /*
+        1.some expr items may contain multi patterns such as "aaa&bbb", so we need to keep all hit patterns to ensure no expr item is missed by scanning multi times.
+        2.while thinking of maat api function maat_state_get_direct_hit_objects, bool_matcher(all_hit_patterns) will return all expr items every time, while this scan
+          may not hit some of items, so we need to check them.
+    */
+
+    //1. add lit pattern ids to all_hit_lit_pattern_ids, and remove duplicate
+    for (size_t i = 0; i < lit_pat_cnt; i++) {
+        if (utarray_find(stream->all_hit_lit_pattern_ids, &lit_pat_ids[i], compare_pattern_id) == NULL) {
+            utarray_push_back(stream->all_hit_lit_pattern_ids, &lit_pat_ids[i]);
+            utarray_sort(stream->all_hit_lit_pattern_ids, compare_pattern_id);
+        }
     }
 
-    size_t j = 0;
-    for (size_t i = lit_pat_cnt; i < pat_cnt; i++, j++) {
-        lit_pat_ids[i] = regex_pat_ids[j];
+    //2. find expr item uuid by all hit lit pattern ids with bool_matcher
+    size_t all_hit_lit_pat_cnt = utarray_len(stream->all_hit_lit_pattern_ids);
+    unsigned long long all_hit_pat_ids[MAX_HIT_PATTERN_NUM];
+
+    all_hit_pat_cnt = all_hit_lit_pat_cnt + regex_pat_cnt;
+    if (all_hit_pat_cnt > MAX_HIT_PATTERN_NUM) {
+        all_hit_pat_cnt = MAX_HIT_PATTERN_NUM;
+    }
+
+    for (size_t i = 0; i < all_hit_lit_pat_cnt; i++) {
+        all_hit_pat_ids[i] = *(unsigned long long *)utarray_eltptr(stream->all_hit_lit_pattern_ids, i);
+    }
+
+    for (size_t i = all_hit_lit_pat_cnt, j = 0; i < all_hit_pat_cnt; i++, j++) {
+        all_hit_pat_ids[i] = regex_pat_ids[j];
     }
     
     struct expr_matcher *matcher = stream->ref_matcher;
     struct bool_expr_match *match_buff = matcher->bool_match_buffs[stream->thread_id];
+    size_t n_hit_expr = 0;
 
-    return expr_matcher_bool_matcher_match(matcher->bm, match_buff, MAX_HIT_PATTERN_NUM,
-                                           lit_pat_ids, pat_cnt, result_array, array_size,
-                                           n_hit_result);
+    ret = expr_matcher_bool_matcher_match(matcher->bm, match_buff, MAX_HIT_PATTERN_NUM,
+                                           all_hit_pat_ids, all_hit_pat_cnt, &n_hit_expr);
+
+    //3. check the result of bool_matcher
+    *n_hit_result = 0;
+    for (size_t i = 0; i < n_hit_expr; i++) {
+        struct bool_expr *expr = (struct bool_expr *)match_buff[i].user_tag;
+        if (expr_has_pattern_id_in_array(expr, lit_pat_ids, lit_pat_cnt) ||
+            expr_has_pattern_id_in_array(expr, regex_pat_ids, regex_pat_cnt)) {
+            uuid_copy(result_array[*n_hit_result], expr->expr_uuid);
+            (*n_hit_result)++;
+
+            if (*n_hit_result >= array_size) {
+                break;
+            }
+        }
+    }
+    
+    return ret;
 }
 
 void expr_matcher_stream_close(struct expr_matcher_stream *stream)
@@ -606,6 +671,10 @@ void expr_matcher_stream_close(struct expr_matcher_stream *stream)
     if (stream->regex_stream != NULL) {
         hs_regex_stream_close(stream->regex_stream);
         stream->regex_stream = NULL;
+    }
+
+    if (stream->all_hit_lit_pattern_ids != NULL) {
+        utarray_free(stream->all_hit_lit_pattern_ids);
     }
 
     FREE(stream);

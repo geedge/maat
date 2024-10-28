@@ -303,7 +303,7 @@ TEST(hs_expr_matcher_match, literal_sub_has_normal_offset)
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello aaa";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -360,7 +360,7 @@ TEST(rs_expr_matcher_match, literal_sub_has_normal_offset)
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello aaa";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -417,7 +417,7 @@ TEST(hs_expr_matcher_match, literal_sub_has_left_unlimit_offset)
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello bbb";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -475,7 +475,7 @@ TEST(rs_expr_matcher_match, literal_sub_has_left_unlimit_offset)
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello bbb";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -533,7 +533,7 @@ TEST(hs_expr_matcher_match, literal_sub_has_right_unlimit_offset)
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello ccc";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -600,7 +600,7 @@ TEST(rs_expr_matcher_match, literal_sub_has_right_unlimit_offset)
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello ccc";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -667,7 +667,7 @@ TEST(hs_expr_matcher_match, literal_sub_with_no_offset)
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello ddd";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -725,7 +725,7 @@ TEST(rs_expr_matcher_match, literal_sub_with_no_offset)
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello ddd";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -783,7 +783,7 @@ TEST(hs_expr_matcher_match, literal_exactly)
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello eee";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -831,7 +831,7 @@ TEST(rs_expr_matcher_match, literal_exactly)
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello eee";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -880,7 +880,7 @@ TEST(hs_expr_matcher_match, literal_prefix)
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello fff";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -940,7 +940,7 @@ TEST(rs_expr_matcher_match, literal_prefix)
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello fff";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -1000,7 +1000,7 @@ TEST(hs_expr_matcher_match, literal_suffix)
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello ggg";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -1060,7 +1060,7 @@ TEST(rs_expr_matcher_match, literal_suffix)
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello ggg";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -1120,7 +1120,7 @@ TEST(hs_expr_matcher_match, literal_sub_with_hex)
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "Content-Type: /html";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -1159,7 +1159,7 @@ TEST(rs_expr_matcher_match, literal_sub_with_hex)
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "Content-Type: /html";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -1198,7 +1198,7 @@ TEST(hs_expr_matcher_match, literal_with_chinese)
     expr_array_free(rules, n_rule);
 
     char data0[64] = "#中国 你好";
-    struct expr_scan_result result0[64] = {0};
+    uuid_t result0[64] = {0};
     size_t n_result0 = 0;
     size_t n_hit_pattern = 0;
 
@@ -1227,7 +1227,7 @@ TEST(rs_expr_matcher_match, literal_with_chinese)
     expr_array_free(rules, n_rule);
 
     char data0[64] = "#中国 你好";
-    struct expr_scan_result result0[64] = {0};
+    uuid_t result0[64] = {0};
     size_t n_result0 = 0;
     size_t n_hit_pattern = 0;
 
@@ -1256,7 +1256,7 @@ TEST(hs_expr_matcher_match, same_pattern_different_offset)
     expr_array_free(rules, n_rule);
 
     char data[64] = "onetoday,anothertoday";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -1285,7 +1285,7 @@ TEST(rs_expr_matcher_match, same_pattern_different_offset)
     expr_array_free(rules, n_rule);
 
     char data[64] = "onetoday,anothertoday";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -1316,7 +1316,7 @@ TEST(hs_expr_matcher_match, long_scan_data)
     const char* scan_data = "A directed path in a directed graph is a finite or infinite\
 sequence of edges which joins a sequence of distinct vertices, but with the added restriction\
 that the edges be all directed in the same direction.";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -1347,7 +1347,7 @@ TEST(rs_expr_matcher_match, long_scan_data)
     const char* scan_data = "A directed path in a directed graph is a finite or infinite\
 sequence of edges which joins a sequence of distinct vertices, but with the added restriction\
 that the edges be all directed in the same direction.";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -1396,7 +1396,7 @@ TEST(hs_expr_matcher_stream, basic)
     const char *scan_data2 = " or infinite sequence of edges which joins a "
                              "sequence of distinct vertices";
 
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_hit_result = 0;
     size_t n_hit_pattern = 0;
     int thread_id = 0;
@@ -1440,7 +1440,7 @@ TEST(rs_expr_matcher_stream, basic)
     const char *scan_data2 = " or infinite sequence of edges which joins a "
                              "sequence of distinct vertices";
 
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_hit_result = 0;
     size_t n_hit_pattern = 0;
     int thread_id = 0;
@@ -1485,7 +1485,7 @@ TEST(hs_expr_matcher, regex_basic)
     const char *scan_data1 = "http://www.cyberessays.com/search_results.php?"
                              "action=search&query=username,abckkk,1234567";
     //const char *scan_data2 = "8rain";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -1518,7 +1518,7 @@ TEST(rs_expr_matcher, regex_basic)
     const char *scan_data1 = "http://www.cyberessays.com/search_results.php?"
                              "action=search&query=username,abckkk,1234567";
     
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -1547,7 +1547,7 @@ TEST(hs_expr_matcher, regex_unicode)
     expr_array_free(rules, n_rule);
 
     const char *scan_data = "string contains É";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -1575,7 +1575,7 @@ TEST(rs_expr_matcher, regex_unicode)
     expr_array_free(rules, n_rule);
 
     const char *scan_data = "string contains É";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
@@ -1604,7 +1604,7 @@ TEST(hs_expr_matcher, hit_pattern_num)
 
     const char *scan_data1 = "string has one two";
     const char *scan_data2 = "string has one two three";
-    struct expr_scan_result result[64] = {0};
+    uuid_t result[64] = {0};
     size_t n_result = 0;
     size_t n_hit_pattern = 0;
 
