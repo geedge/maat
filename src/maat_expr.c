@@ -96,7 +96,7 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
     uuid_copy(expr_item->item_uuid, item_uuid);
 
     tmp_obj = cJSON_GetObjectItem(json, "object_uuid");
-    if (tmp_obj == NULL && tmp_obj->type != cJSON_String) {
+    if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
         char *json_str = cJSON_Print(json);
         log_fatal(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> has no object_id in line:%s",
@@ -471,7 +471,6 @@ static int expr_keywords_to_expr_pattern(char *keywords, struct expr_pattern *pa
         region_str_len = hex2bin(hex_str_start, strlen(hex_str_start), region_string, region_str_len);
         
         tmp_start_str = str_unescape(tmp_start_str);
-        //snprintf(tmp_keywords + pattern_len, MAX_KEYWORDS_STR_LEN - pattern_len, "%s%s", tmp_start_str, region_string);
         if (pattern_len + strlen(tmp_start_str) + region_str_len > MAX_KEYWORDS_STR_LEN) {
             return -1;
         }
