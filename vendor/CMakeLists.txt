@@ -39,9 +39,18 @@ ExternalProject_Add(ragel PREFIX ragel
 	                INSTALL_COMMAND make install
 	                BUILD_IN_SOURCE 1)
 
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "AMD64")
+	set(HYPERSCAN_TGZ "hyperscan-5.4.2.tar.gz")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64")
+	set(HYPERSCAN_TGZ "hyperscan-v5.4.2.aarch64.zip")
+else()
+	message(FATAL_ERROR "Unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+endif()					
+
+message(STATUS "Using Hyperscan package: ${HYPERSCAN_TGZ}")
 # HyperScan 5.4.2
 ExternalProject_Add(hyperscan PREFIX hyperscan
-                    URL ${CMAKE_CURRENT_SOURCE_DIR}/hyperscan-5.4.2.tar.gz
+                    URL ${CMAKE_CURRENT_SOURCE_DIR}/${HYPERSCAN_TGZ}
 	                DEPENDS ragel
 	                CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${VENDOR_BUILD} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS="-fPIC" -DCMAKE_CXX_FLAGS="-fPIC")
 
