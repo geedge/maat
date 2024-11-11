@@ -81,7 +81,12 @@ file(MAKE_DIRECTORY ${VENDOR_BUILD}/include)
 #rulescan 3.0.1
 ExternalProject_Add(rulescan PREFIX rulescan
                     URL ${CMAKE_CURRENT_SOURCE_DIR}/rulescan-3.0.1.tar.gz
-	                CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${VENDOR_BUILD} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS="-fPIC" -DCMAKE_CXX_FLAGS="-fPIC")
+	                CMAKE_ARGS 
+						-DCMAKE_INSTALL_PREFIX=${VENDOR_BUILD} 
+						-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} 
+						-DCMAKE_C_FLAGS="-fPIC" 
+						-DCMAKE_CXX_FLAGS="-fPIC"
+						-DCMAKE_CXX_FLAGS="-Wno-error=narrowing")
 
 ExternalProject_Get_Property(rulescan INSTALL_DIR)
 file(MAKE_DIRECTORY ${VENDOR_BUILD}/include)
