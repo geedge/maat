@@ -303,18 +303,34 @@ void maat_stream_free(struct maat_stream *stream);
 
 /* maat state API */
 struct maat_state *maat_state_new(struct maat *instance, int thread_id);
+/*
+security rule 1 src_ip & src_port
+security rule 2 src_ip & fqdn
+statistics rule 3 src_ip & src_port
+statistics rule 4 src_ip & fqdn
+
+scan(src_ip);
+scan(src_port);
+maat_state_compile("security", rule_array[]);
+scan(src_ip);
+scan(src_port);
+scan(fqdn);
+maat_state_compile("security", rule_array[]);
+maat_state_compile("statistics", rule_array[]);
+ */
+size_t maat_state_compile(struct maat_state *state, const char *table_name, uuid_t rule_array[], void *ex_data_array[], size_t n_result);//TODO: new API, return all rules every time, without removing duplicate rules
 
 void maat_state_reset(struct maat_state *state);
 
 void maat_state_free(struct maat_state *state);
 
-int maat_state_set_scan_rule_table(struct maat_state *state, const char *rule_table_name);
+int maat_state_set_scan_rule_table(struct maat_state *state, const char *rule_table_name);//TODO: delete
 
 int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *path_array, 
                              size_t array_size);
 
 int maat_state_get_rule_table_names(struct maat_state *state, uuid_t *rule_ids,
-                                    size_t n_rule_ids, char *rule_table_names[]);
+                                    size_t n_rule_ids, char *rule_table_names[]);//TODO: delete
                              
 /**
  * @brief get the total number of scans after maat_state_new
@@ -329,7 +345,7 @@ size_t maat_state_get_scan_count(struct maat_state *state);
 */
 int maat_state_get_direct_hit_objects(struct maat_state *state,
                                      struct maat_hit_object *object_array,
-                                     size_t array_size);
+                                     size_t array_size);//TODO:delete
 size_t maat_state_get_direct_hit_object_cnt(struct maat_state *state);
 
 /**
@@ -337,19 +353,42 @@ size_t maat_state_get_direct_hit_object_cnt(struct maat_state *state);
  * 
  * NOTE: hit objects may be duplicated
 */
-int maat_state_get_indirect_hit_objects(struct maat_state *state,
-                                       struct maat_hit_object *object_array,
-                                       size_t array_size);
-size_t maat_state_get_indirect_hit_object_cnt(struct maat_state *state);
+
 
 /**
  * @brief get last scan hit objects(including direct/indirect)
 */
 int maat_state_get_last_hit_objects(struct maat_state *state,
                                    struct maat_hit_object *object_array,
-                                   size_t array_size);
+                                   size_t array_size);//TODO:delete
 
-size_t maat_state_get_last_hit_object_cnt(struct maat_state *state);
+size_t maat_state_get_last_hit_object_cnt(struct maat_state *state);//TODO:delete
+
+
+
+size_t maat_state_get_hit_objects(struct maat_state *state,
+                              const char *attribute_name,
+                              uuid_t object_array[],
+                              size_t array_size);//TODO: new API, return all hit objects
+
+size_t maat_state_get_hit_object_cnt(struct maat_state *state,
+                                     const char *attribute_name);//TODO: new API
+
+size_t maat_state_get_hit_items(struct maat_state *state,
+                                const char *attribute_name,
+                                uuid_t item_array[],
+                                uuid_t direct_object_array[],
+                                size_t array_size);//TODO: new API, return direct hit items and direct hit objects
+
+size_t maat_state_get_hit_item_cnt(struct maat_state *state,
+                                   const char *attribute_name);//TODO: new API
+
+size_t maat_state_get_indirect_hit_objects(struct maat_state *state,
+                                           const char *attribute_name,
+                                           uuid_t object_array[],
+                                           size_t array_size);//TODO: new API
+
+size_t maat_state_get_indirect_hit_object_cnt(struct maat_state *state, const char *attribute_name);//TODO: add "const" prefix
 
 #ifdef __cplusplus
 }

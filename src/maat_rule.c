@@ -145,7 +145,7 @@ struct rule_compile_state {
     UT_array *exclude_not_conditions;
     UT_array *direct_hit_objects;
     UT_array *indirect_hit_objects;
-    UT_array *last_hit_objects;
+    UT_array *last_hit_objects;//TODO: ???????
     UT_array *hit_rule_table_ids;
     struct negate_attribute_object *hit_negate_attribute_objects;
 };
