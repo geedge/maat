@@ -1382,12 +1382,34 @@ rule_compile_state_cache_hit_not_objects(struct rule_compile_state *rule_compile
         return;
     }
 
-    if (n_hit_object_uuid != 0) {
-        qsort(hit_object_uuids, n_hit_object_uuid, sizeof(uuid_t), compare_object_uuid);
-    }
-
     struct negate_attribute_object *negate_attr_obj = NULL;
     HASH_FIND_STR(rule_compile_state->hit_negate_attribute_objects, attribute_name, negate_attr_obj);
+
+    if (negate_attr_obj == NULL || utarray_len(negate_attr_obj->object_uuids) == 0) {
+        struct condition_id_kv *condition_id_kv = NULL, *tmp_condition_id_kv = NULL;
+        HASH_ITER(hh, rule_rt->not_condition_id_kv_hash, condition_id_kv, tmp_condition_id_kv) {
+            if (strncmp(condition_id_kv->key.attribute_name, attribute_name, strlen(attribute_name)) != 0) {
+                continue;
+            }
+
+            if (NULL == negate_attr_obj) {
+                negate_attr_obj = ALLOC(struct negate_attribute_object, 1);
+                snprintf(negate_attr_obj->attribute_name, sizeof(negate_attr_obj->attribute_name), "%s", attribute_name);
+                utarray_new(negate_attr_obj->object_uuids, &ut_rule_object_uuid_icd);
+                HASH_ADD_STR(rule_compile_state->hit_negate_attribute_objects, attribute_name, negate_attr_obj);
+            }
+
+            if (!utarray_find(negate_attr_obj->object_uuids, &(condition_id_kv->key.object_uuid),
+                            compare_object_uuid)) {
+                utarray_push_back(negate_attr_obj->object_uuids, &(condition_id_kv->key.object_uuid));
+            }
+        }
+
+        if (negate_attr_obj != NULL) {
+            utarray_sort(negate_attr_obj->object_uuids, compare_object_uuid);
+        }
+    }
+
     if (negate_attr_obj != NULL) {
         for (size_t i = 0; i < n_hit_object_uuid; i++) {
             uuid_t *object_uuid = (uuid_t *)utarray_find(negate_attr_obj->object_uuids,
@@ -1399,36 +1421,6 @@ rule_compile_state_cache_hit_not_objects(struct rule_compile_state *rule_compile
             size_t remove_idx = utarray_eltidx(negate_attr_obj->object_uuids, object_uuid);
             utarray_erase(negate_attr_obj->object_uuids, remove_idx, 1);
         }
-    }
-
-    struct condition_id_kv *condition_id_kv = NULL, *tmp_condition_id_kv = NULL;
-    HASH_ITER(hh, rule_rt->not_condition_id_kv_hash, condition_id_kv, tmp_condition_id_kv) {
-        if (strncmp(condition_id_kv->key.attribute_name, attribute_name, strlen(attribute_name)) != 0) {
-            continue;
-        }
-
-        uuid_t *tmp_object_uuid =
-            bsearch(&(condition_id_kv->key.object_uuid), hit_object_uuids,
-                    n_hit_object_uuid, sizeof(uuid_t), compare_object_uuid);
-        if (tmp_object_uuid != NULL) {
-            continue;
-        }
-
-        if (NULL == negate_attr_obj) {
-            negate_attr_obj = ALLOC(struct negate_attribute_object, 1);
-            snprintf(negate_attr_obj->attribute_name, sizeof(negate_attr_obj->attribute_name), "%s", attribute_name);
-            utarray_new(negate_attr_obj->object_uuids, &ut_rule_object_uuid_icd);
-            HASH_ADD_STR(rule_compile_state->hit_negate_attribute_objects, attribute_name, negate_attr_obj);
-        }
-
-        if (!utarray_find(negate_attr_obj->object_uuids, &(condition_id_kv->key.object_uuid),
-                          compare_object_uuid)) {
-            utarray_push_back(negate_attr_obj->object_uuids, &(condition_id_kv->key.object_uuid));
-        }
-    }
-
-    if (negate_attr_obj != NULL) {
-        utarray_sort(negate_attr_obj->object_uuids, compare_object_uuid);
     }
 }
 
@@ -1745,7 +1737,7 @@ int rule_runtime_match(struct rule_runtime *rule_rt, uuid_t *rule_uuids,
     return MIN(bool_match_ret, rule_ids_size);
 }
 
-int rule_compile_state_update(struct rule_compile_state *rule_compile_state, struct maat *maat_inst,
+int rule_compile_state_update(struct maat_state *maat_state, struct maat *maat_inst,
                          const char *attribute_name, int custom_rule_tbl_id, int Nth_scan,
                          struct maat_item *hit_items, size_t n_hit_item)
 {
@@ -1753,6 +1745,7 @@ int rule_compile_state_update(struct rule_compile_state *rule_compile_state, str
     size_t hit_cnt = n_hit_item;
     uuid_t hit_object_uuids[MAX_HIT_OBJECT_NUM];
     struct maat_hit_object hit_object;
+    struct rule_compile_state *rule_compile_state = maat_state->rule_compile_state;
 
     utarray_clear(rule_compile_state->this_scan_hit_conditions);
     rule_compile_state->this_scan_not_logic = 0;
@@ -1773,7 +1766,7 @@ int rule_compile_state_update(struct rule_compile_state *rule_compile_state, str
     uuid_t super_object_uuids[MAX_HIT_OBJECT_NUM];
     size_t super_object_cnt = object_group_runtime_get_super_objects(object_group_rt, hit_object_uuids,
                                                                   hit_cnt, super_object_uuids,
-                                                                  MAX_HIT_OBJECT_NUM);
+                                                                  MAX_HIT_OBJECT_NUM, maat_state->thread_id);
     for (i = 0; i < super_object_cnt; i++) {
         uuid_clear(hit_object.item_uuid);
         uuid_copy(hit_object.object_uuid, super_object_uuids[i]);
@@ -1942,7 +1935,7 @@ size_t rule_compile_state_get_direct_hit_object_cnt(struct rule_compile_state *r
     return utarray_len(rule_compile_state->direct_hit_objects);
 }
 
-size_t rule_compile_state_get_internal_hit_paths(struct rule_compile_state *rule_compile_state,
+size_t rule_compile_state_get_internal_hit_paths(struct maat_state *maat_state,
                                             struct rule_runtime *rule_rt,
                                             struct object_group_runtime *object_group_rt,
                                             struct maat_hit_path *hit_path_array, 
@@ -1950,6 +1943,7 @@ size_t rule_compile_state_get_internal_hit_paths(struct rule_compile_state *rule
 {
     size_t hit_path_cnt = 0;
     struct internal_hit_path *internal_path = NULL;
+    struct rule_compile_state *rule_compile_state = maat_state->rule_compile_state;
 
     for (int i = 0; i < utarray_len(rule_compile_state->internal_hit_paths); i++) {
         internal_path =
@@ -1963,7 +1957,7 @@ size_t rule_compile_state_get_internal_hit_paths(struct rule_compile_state *rule
 
         size_t super_object_cnt =
             object_group_runtime_get_super_objects(object_group_rt, &(internal_path->object_uuid), 1,
-                                                 super_object_uuids, MAX_HIT_OBJECT_NUM);
+                                                 super_object_uuids, MAX_HIT_OBJECT_NUM, maat_state->thread_id);
         for (size_t idx = 0; idx < super_object_cnt; idx++) {
             utarray_push_back(valid_super_object_uuids, &super_object_uuids[idx]);
         }

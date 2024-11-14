@@ -877,7 +877,7 @@ next:
                                   state->thread_id, 1);
     }
 
-    return rule_compile_state_update(state->rule_compile_state, state->maat_inst, attribute_name,
+    return rule_compile_state_update(state, state->maat_inst, attribute_name,
                                 state->rule_table_id, state->Nth_scan,
                                 hit_maat_items, real_hit_item_num);
 }
@@ -970,7 +970,7 @@ next:
                                   state->thread_id, 1);
     }
 
-    return rule_compile_state_update(state->rule_compile_state, state->maat_inst, attribute_name,
+    return rule_compile_state_update(state, state->maat_inst, attribute_name,
                                 state->rule_table_id, state->Nth_scan,
                                 hit_maat_items, real_hit_item_cnt);
 }

@@ -68,7 +68,7 @@ void rule_compile_state_reset(struct rule_compile_state *rule_compile_state);
 void rule_compile_state_free(struct rule_compile_state *rule_compile_state,
                         struct maat *maat_instance, int thread_id);
 
-int rule_compile_state_update(struct rule_compile_state *rule_compile_state, struct maat *maat_inst,
+int rule_compile_state_update(struct maat_state *maat_state, struct maat *maat_inst,
                          const char *attribute_name, int custom_rule_tbl_id, int Nth_scan,
                          struct maat_item *hit_items, size_t n_hit_item);
 
@@ -79,7 +79,7 @@ void rule_compile_state_not_logic_update(struct rule_compile_state *rule_compile
                                     struct maat *maat_inst, const char *attribute_name,
                                     int Nth_scan);
 
-size_t rule_compile_state_get_internal_hit_paths(struct rule_compile_state *rule_compile_state,
+size_t rule_compile_state_get_internal_hit_paths(struct maat_state *maat_state,
                                             struct rule_runtime *rule_rt,
                                             struct object_group_runtime *object_group_rt,
                                             struct maat_hit_path *hit_path_array, 

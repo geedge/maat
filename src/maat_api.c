@@ -1617,7 +1617,7 @@ static void maat_state_add_hit_object(struct maat_state *state, const char *attr
         uuid_copy(hit_items[i].object_uuid, objects[i].object_uuid);
     }
 
-    rule_compile_state_update(state->rule_compile_state, maat_inst, attribute_name,
+    rule_compile_state_update(state, maat_inst, attribute_name,
                          state->rule_table_id, state->Nth_scan,
                          hit_items, n_hit_item);
 }
@@ -2037,7 +2037,7 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
     void *object_group_runtime = table_manager_get_runtime(maat_inst->tbl_mgr, object_group_table_id);
 
     size_t hit_path_cnt =
-        rule_compile_state_get_internal_hit_paths(state->rule_compile_state,
+        rule_compile_state_get_internal_hit_paths(state,
                                             (struct rule_runtime *)rule_rt,
                                             (struct object_group_runtime *)object_group_runtime,
                                              path_array, array_size);

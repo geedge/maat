@@ -65,6 +65,14 @@ struct object_group_runtime {
     long long update_err_cnt;
     int updating_flag;
 
+    size_t max_thread_num;
+    UT_array **all_hit_group_ids;
+    UT_array **candidate_group_ids;
+    UT_array **candidate_super_group_ids;
+    UT_array **kept_super_group_ids;
+    UT_array **verify_candidate_group_ids;
+
+
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
 };
@@ -245,6 +253,23 @@ void *object_group_runtime_new(void *object_group_schema, size_t max_thread_num,
     object_group_rt->ref_garbage_bin = garbage_bin;
     object_group_rt->logger = logger;
 
+    object_group_rt->max_thread_num = max_thread_num;
+    object_group_rt->all_hit_group_ids = ALLOC(UT_array *, max_thread_num);
+    object_group_rt->candidate_group_ids = ALLOC(UT_array *, max_thread_num);
+    object_group_rt->kept_super_group_ids = ALLOC(UT_array *, max_thread_num);
+    object_group_rt->candidate_super_group_ids = ALLOC(UT_array *, max_thread_num);
+    object_group_rt->verify_candidate_group_ids = ALLOC(UT_array *, max_thread_num);
+
+    for (int i = 0; i < max_thread_num; i++) {
+        utarray_new(object_group_rt->all_hit_group_ids[i], &ut_object_uuid_icd);
+        utarray_new(object_group_rt->candidate_group_ids[i], &ut_object_uuid_icd);
+        utarray_new(object_group_rt->kept_super_group_ids[i], &ut_object_uuid_icd);
+        utarray_new(object_group_rt->candidate_super_group_ids[i], &ut_object_uuid_icd);
+        utarray_new(object_group_rt->verify_candidate_group_ids[i], &ut_object_uuid_icd);
+    }
+
+
+
 	return object_group_rt;
 }
 
@@ -265,6 +290,66 @@ void object_group_runtime_free(void *object_group_runtime)
         maat_object_topology_free(object_group_rt->updating_object_topo);
         object_group_rt->updating_object_topo = NULL;
     }
+
+    if (object_group_rt->all_hit_group_ids != NULL) {
+        for (int i = 0; i < object_group_rt->max_thread_num; i++) {
+            if (object_group_rt->all_hit_group_ids[i] != NULL) {
+                utarray_free(object_group_rt->all_hit_group_ids[i]);
+                object_group_rt->all_hit_group_ids[i] = NULL;
+            }
+        }
+        FREE(object_group_rt->all_hit_group_ids);
+        object_group_rt->all_hit_group_ids = NULL;
+
+    }
+
+    if (object_group_rt->candidate_group_ids != NULL) {
+        for (int i = 0; i < object_group_rt->max_thread_num; i++) {
+            if (object_group_rt->candidate_group_ids[i] != NULL) {
+                utarray_free(object_group_rt->candidate_group_ids[i]);
+                object_group_rt->candidate_group_ids[i] = NULL;
+            }
+        }
+        FREE(object_group_rt->candidate_group_ids);
+        object_group_rt->candidate_group_ids = NULL;
+
+    }
+
+    if (object_group_rt->kept_super_group_ids != NULL) {
+        for (int i = 0; i < object_group_rt->max_thread_num; i++) {
+            if (object_group_rt->kept_super_group_ids[i] != NULL) {
+                utarray_free(object_group_rt->kept_super_group_ids[i]);
+                object_group_rt->kept_super_group_ids[i] = NULL;
+            }
+        }
+        FREE(object_group_rt->kept_super_group_ids);
+        object_group_rt->kept_super_group_ids = NULL;
+
+    }
+
+    if (object_group_rt->candidate_super_group_ids != NULL) {
+        for (int i = 0; i < object_group_rt->max_thread_num; i++) {
+            if (object_group_rt->candidate_super_group_ids[i] != NULL) {
+                utarray_free(object_group_rt->candidate_super_group_ids[i]);
+                object_group_rt->candidate_super_group_ids[i] = NULL;
+            }
+        }
+        FREE(object_group_rt->candidate_super_group_ids);
+        object_group_rt->candidate_super_group_ids = NULL;
+
+    }
+
+    if (object_group_rt->verify_candidate_group_ids != NULL) {
+        for (int i = 0; i < object_group_rt->max_thread_num; i++) {
+            if (object_group_rt->verify_candidate_group_ids[i] != NULL) {
+                utarray_free(object_group_rt->verify_candidate_group_ids[i]);
+                object_group_rt->verify_candidate_group_ids[i] = NULL;
+            }
+        }
+        FREE(object_group_rt->verify_candidate_group_ids);
+        object_group_rt->verify_candidate_group_ids = NULL;
+    }
+
 
     FREE(object_group_rt);
 }
@@ -959,15 +1044,14 @@ static void verify_object_by_sub_exclude_objects(struct maat_object *object,
     }
 }
 
-static void verify_candidate_super_object_ids(struct maat_object_topology *object_topo,
+static void verify_candidate_super_object_ids(struct object_group_runtime *object_group_rt,
                                              UT_array *candidate_super_object_uuids,
                                              UT_array *all_hit_object_uuids,
-                                             UT_array *kept_super_object_uuids)
+                                             UT_array *kept_super_object_uuids, int thread_id)
 {
     uuid_t *p = NULL;
-    UT_array *candidate_object_uuids;
-
-    utarray_new(candidate_object_uuids, &ut_object_uuid_icd);
+    UT_array *candidate_object_uuids = object_group_rt->verify_candidate_group_ids[thread_id];
+    struct maat_object_topology *object_topo = object_group_rt->object_topo;
 
     /* merge this round of candidate super objects with hit objects from the previous round */
     for (p = (uuid_t *)utarray_front(candidate_super_object_uuids); p != NULL;
@@ -1049,15 +1133,18 @@ static void verify_candidate_super_object_ids(struct maat_object_topology *objec
                                            kept_super_object_uuids, all_hit_object_uuids);
     }
 
-    utarray_free(candidate_object_uuids);
+    utarray_clear(candidate_object_uuids);
 }
 
-static void get_super_object_ids(struct maat_object_topology *object_topo,
+static void get_super_object_ids(struct object_group_runtime *object_group_rt,
                                 UT_array *hit_object_uuids, UT_array *all_hit_object_uuids,
-                                size_t depth)
+                                size_t depth, int thread_id)
 {
-    UT_array *candidate_super_object_uuids;
-    UT_array *kept_super_object_uuids;
+    UT_array *candidate_super_object_uuids = object_group_rt->candidate_super_group_ids[thread_id];
+    UT_array *kept_super_object_uuids = object_group_rt->kept_super_group_ids[thread_id];
+    struct maat_object_topology *object_topo = object_group_rt->object_topo;
+
+    utarray_clear(candidate_super_object_uuids);
 
     if (depth >= MAX_RECURSION_DEPTH) {
         log_error(object_topo->logger, MODULE_OBJECT,
@@ -1072,10 +1159,7 @@ static void get_super_object_ids(struct maat_object_topology *object_topo,
                       __FUNCTION__, __LINE__, uuid_str);
         }
         return;
-    }
-
-    utarray_new(kept_super_object_uuids, &ut_object_uuid_icd);
-    utarray_new(candidate_super_object_uuids, &ut_object_uuid_icd);   
+    } 
 
     /**
        candidate super objects means all hit objects' super include object,
@@ -1090,7 +1174,7 @@ static void get_super_object_ids(struct maat_object_topology *object_topo,
     get_candidate_super_object_ids(object_topo, hit_object_uuids, candidate_super_object_uuids);
 
     if (0 == utarray_len(candidate_super_object_uuids)) {
-        goto next;
+        return;
     }
 
     /**
@@ -1117,24 +1201,22 @@ static void get_super_object_ids(struct maat_object_topology *object_topo,
             after verify candidates, kept super objects = {g7, g8}, 
                                      all hit objects = {g4, g11, g7, g8}
     */
-    verify_candidate_super_object_ids(object_topo, candidate_super_object_uuids, all_hit_object_uuids,
-                                     kept_super_object_uuids);
+    utarray_clear(kept_super_object_uuids);//kept_super_object_ids is used as the hit_object_ids parameter when invoke get_super_object_ids recursively, so can't clear it at the beginning
+    verify_candidate_super_object_ids(object_group_rt, candidate_super_object_uuids, all_hit_object_uuids,
+                                     kept_super_object_uuids, thread_id);
 
     depth++;
-    get_super_object_ids(object_topo, kept_super_object_uuids, all_hit_object_uuids, depth);
-next: 
-    utarray_free(candidate_super_object_uuids);
-    utarray_free(kept_super_object_uuids);
+    get_super_object_ids(object_group_rt, kept_super_object_uuids, all_hit_object_uuids, depth, thread_id);
 }
 
-static size_t object_topology_get_super_objects(struct maat_object_topology *object_topo, 
+static size_t object_topology_get_super_objects(struct object_group_runtime *object_group_rt, 
                                               uuid_t *object_uuids, size_t n_object_uuids,
                                               uuid_t *super_object_uuids,
-                                              size_t super_object_uuids_size)
+                                              size_t super_object_uuids_size, int thread_id)
 {
     size_t i = 0, idx = 0;
-    UT_array *all_hit_object_uuids;
-    UT_array *candidate_object_uuids;
+    UT_array *all_hit_object_uuids = object_group_rt->all_hit_group_ids[thread_id];
+    UT_array *candidate_object_uuids = object_group_rt->candidate_group_ids[thread_id];
 
     utarray_new(all_hit_object_uuids, &ut_object_uuid_icd);
     utarray_new(candidate_object_uuids, &ut_object_uuid_icd);
@@ -1144,7 +1226,7 @@ static size_t object_topology_get_super_objects(struct maat_object_topology *obj
         utarray_push_back(candidate_object_uuids, &(object_uuids[i]));
     }
 
-    get_super_object_ids(object_topo, candidate_object_uuids, all_hit_object_uuids, 0);
+    get_super_object_ids(object_group_rt, candidate_object_uuids, all_hit_object_uuids, 0, thread_id);
 
     for (i = 0; i < n_object_uuids; i++) {
         uuid_t *tmp_id = utarray_find(all_hit_object_uuids, &(object_uuids[i]),
@@ -1164,15 +1246,15 @@ static size_t object_topology_get_super_objects(struct maat_object_topology *obj
         uuid_copy(super_object_uuids[idx++], *p);
     }
 
-    utarray_free(all_hit_object_uuids);
-    utarray_free(candidate_object_uuids);
+    utarray_clear(all_hit_object_uuids);
+    utarray_clear(candidate_object_uuids);
 
     return idx;
 }
 
 size_t object_group_runtime_get_super_objects(void *object_group_runtime, uuid_t *object_uuids, 
                                             size_t n_object_uuids, uuid_t *super_object_uuids,
-                                            size_t super_object_uuids_size)
+                                            size_t super_object_uuids_size, int thread_id)
 {
     if (NULL == object_group_runtime || NULL == object_uuids || 0 == n_object_uuids) {
         return 0;
@@ -1195,8 +1277,8 @@ size_t object_group_runtime_get_super_objects(void *object_group_runtime, uuid_t
         return 0;
     }
 
-    return object_topology_get_super_objects(object_group_rt->object_topo, object_group_object_uuids, object_group_object_uuids_cnt,
-                                           super_object_uuids, super_object_uuids_size);
+    return object_topology_get_super_objects(object_group_rt, object_group_object_uuids, object_group_object_uuids_cnt,
+                                           super_object_uuids, super_object_uuids_size, thread_id);
 }
 
 long long object_group_runtime_rule_count(void *object_group_runtime)

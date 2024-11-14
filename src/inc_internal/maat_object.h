@@ -43,7 +43,7 @@ int object_group_runtime_commit(void *object_group_runtime, const char *table_na
 
 size_t object_group_runtime_get_super_objects(void *object_group_runtime, uuid_t *object_uuids, 
                                             size_t n_object_uuids, uuid_t *super_object_uuids,
-                                            size_t super_object_uuids_size);
+                                            size_t super_object_uuids_size, int thread_id);
                                        
 long long object_group_runtime_rule_count(void *object_group_runtime);
 
