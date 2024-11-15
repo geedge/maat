@@ -371,6 +371,9 @@ size_t maat_state_get_hit_objects(struct maat_state *state,
                               uuid_t object_array[],
                               size_t array_size);//TODO: new API, return all hit objects
 
+size_t maat_state_get_attribute_cnt(struct maat_state *state);//TODO: new API
+size_t maat_state_get_attribute_names(struct maat_state *state, const char *attribute_names[], size_t array_size);//TODO: new API
+
 size_t maat_state_get_hit_object_cnt(struct maat_state *state,
                                      const char *attribute_name);//TODO: new API
 
