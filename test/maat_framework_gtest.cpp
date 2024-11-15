@@ -463,8 +463,9 @@ class StringScan : public testing::TestWithParam<const char*> {
 protected:
     static struct log_handle *logger;
     static struct maat *_shared_maat_inst;
+    static const char *current_expr_engine;
 
-    static void SetUpTestCaseWrapper(const char* expr_engine) {
+    static void SetUpTestSuite(const char* expr_engine) {
         const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
                                   "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
         char redis_ip[64] = "127.0.0.1";
@@ -503,22 +504,33 @@ protected:
         }
     }
 
-    static void TearDownTestCaseWrapper() {
+    static void TearDownTestSuite() {
         maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
     }
 
-    void SetUp() override {
-        SetUpTestCaseWrapper(GetParam());
+    void SetUp() override 
+    {
+        const char *expr_engine = GetParam();
+        if (current_expr_engine == nullptr || strcmp(expr_engine, current_expr_engine) != 0)
+        {
+            if (_shared_maat_inst != nullptr)
+            {
+                TearDownTestSuite();
+            }
+            SetUpTestSuite(expr_engine);
+            current_expr_engine = expr_engine;
+        }
     }
-
-    void TearDown() override {
-        TearDownTestCaseWrapper();
+    void TearDown() override 
+    {
+        // no-op
     }
 };
 
 struct maat *StringScan::_shared_maat_inst;
 struct log_handle *StringScan::logger;
+const char *StringScan::current_expr_engine = nullptr;
 
 TEST_P(StringScan, ScanDataOnlyOneByte) {
     const char *table_name = "HTTP_URL";
@@ -1333,28 +1345,260 @@ TEST_P(StringScan, StreamHitDirectObject) {
 
 //TODO
 TEST_P(StringScan, StreamLiteralPrefix)
-{}
+{
+    uuid_t results[ARRAY_SIZE];
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    int ret;
+    struct maat *maat_inst = StringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    const char *table_name_url = "KEYWORDS_TABLE";
+    const char *attribute_name_url = "KEYWORDS_TABLE";
+    const char *scan_data = "test-literal-prefix abcd";
+
+    memset(results, 0, sizeof(results));
+
+	struct maat_stream *sp = maat_stream_new(maat_inst, table_name_url, attribute_name_url, state);
+	ASSERT_TRUE(sp != NULL);
+
+	ret = maat_stream_scan(sp, scan_data, strlen(scan_data), results,
+                           ARRAY_SIZE, &n_hit_result, state);
+
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000239");
+
+    ret = maat_scan_not_logic(maat_inst, table_name_url, attribute_name_url, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+
+    maat_stream_free(sp);
+	maat_state_free(state);
+    state = NULL;
+}
 
 TEST_P(StringScan, StreamLiteralSuffix)
-{}
+{
+    uuid_t results[ARRAY_SIZE];
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    int ret;
+    struct maat *maat_inst = StringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    const char *table_name_url = "KEYWORDS_TABLE";
+    const char *attribute_name_url = "KEYWORDS_TABLE";
+    const char *scan_data = "abcd test-literal-suffix";
+
+    memset(results, 0, sizeof(results));
+
+	struct maat_stream *sp = maat_stream_new(maat_inst, table_name_url, attribute_name_url, state);
+	ASSERT_TRUE(sp != NULL);
+
+	ret = maat_stream_scan(sp, scan_data, strlen(scan_data), results,
+                           ARRAY_SIZE, &n_hit_result, state);
+
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000241");
+
+    ret = maat_scan_not_logic(maat_inst, table_name_url, attribute_name_url, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+
+    maat_stream_free(sp);
+	maat_state_free(state);
+    state = NULL;
+}
 
 TEST_P(StringScan, StreamRegexPrefix)
-{}
+{
+    uuid_t results[ARRAY_SIZE];
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    int ret;
+    struct maat *maat_inst = StringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    const char *table_name_url = "KEYWORDS_TABLE";
+    const char *attribute_name_url = "KEYWORDS_TABLE";
+    const char *scan_data = "test-regex-prefix abcd";
+
+    memset(results, 0, sizeof(results));
+
+	struct maat_stream *sp = maat_stream_new(maat_inst, table_name_url, attribute_name_url, state);
+	ASSERT_TRUE(sp != NULL);
+
+	ret = maat_stream_scan(sp, scan_data, strlen(scan_data), results,
+                           ARRAY_SIZE, &n_hit_result, state);
+
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000240");
+
+    ret = maat_scan_not_logic(maat_inst, table_name_url, attribute_name_url, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+
+    maat_stream_free(sp);
+	maat_state_free(state);
+    state = NULL;
+}
 
 TEST_P(StringScan, StreamRegexSuffix)
-{}
+{
+    uuid_t results[ARRAY_SIZE];
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    int ret;
+    struct maat *maat_inst = StringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    const char *table_name_url = "KEYWORDS_TABLE";
+    const char *attribute_name_url = "KEYWORDS_TABLE";
+    const char *scan_data = "abcd test-regex-suffix";
+
+    memset(results, 0, sizeof(results));
+
+	struct maat_stream *sp = maat_stream_new(maat_inst, table_name_url, attribute_name_url, state);
+	ASSERT_TRUE(sp != NULL);
+
+	ret = maat_stream_scan(sp, scan_data, strlen(scan_data), results,
+                           ARRAY_SIZE, &n_hit_result, state);
+
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000242");
+
+    ret = maat_scan_not_logic(maat_inst, table_name_url, attribute_name_url, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+
+    maat_stream_free(sp);
+	maat_state_free(state);
+    state = NULL;
+}
 
 TEST_P(StringScan, LiteralPrefix)
-{}
+{
+    const char *table_name = "KEYWORDS_TABLE";
+    const char *attribute_name = "KEYWORDS_TABLE";
+    struct maat *maat_inst = StringScan::_shared_maat_inst;
+
+    uuid_t results[ARRAY_SIZE];
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    const char *scan_data = "test-literal-prefix abcde";
+
+    memset(results, 0, sizeof(results));
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), 
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000239");
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_free(state);
+    state = NULL;
+}
 
 TEST_P(StringScan, LiteralSuffix)
-{}
+{
+    const char *table_name = "KEYWORDS_TABLE";
+    const char *attribute_name = "KEYWORDS_TABLE";
+    struct maat *maat_inst = StringScan::_shared_maat_inst;
+
+    uuid_t results[ARRAY_SIZE];
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    const char *scan_data = "abcd test-literal-suffix";
+
+    memset(results, 0, sizeof(results));
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), 
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000241");
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_free(state);
+    state = NULL;
+}
 
 TEST_P(StringScan, RegexPrefix)
-{}
+{
+    const char *table_name = "KEYWORDS_TABLE";
+    const char *attribute_name = "KEYWORDS_TABLE";
+    struct maat *maat_inst = StringScan::_shared_maat_inst;
+
+    uuid_t results[ARRAY_SIZE];
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    const char *scan_data = "test-regex-prefix abcde";
+
+    memset(results, 0, sizeof(results));
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), 
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000240");
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_free(state);
+    state = NULL;
+}
 
 TEST_P(StringScan, RegexSuffix)
-{}
+{
+    const char *table_name = "KEYWORDS_TABLE";
+    const char *attribute_name = "KEYWORDS_TABLE";
+    struct maat *maat_inst = StringScan::_shared_maat_inst;
+
+    uuid_t results[ARRAY_SIZE];
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    const char *scan_data = "abcd test-regex-suffix";
+
+    memset(results, 0, sizeof(results));
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), 
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000242");
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_free(state);
+    state = NULL;
+}
 
 TEST_P(StringScan, dynamic_config) {
     const char *table_name = "HTTP_URL";

@@ -4231,6 +4231,126 @@
 					]
 				}
 			]
+		},
+		{
+			"uuid": "00000000-0000-0000-0000-000000000239",
+			"service": 0,
+			"action": 0,
+			"do_blacklist": 0,
+			"do_log": 0,
+			"action_parameter": "null",
+			"is_valid": "yes",
+			"and_conditions": [
+				{
+					"attribute_name": "KEYWORDS_TABLE",
+					"objects": [
+						{
+							"object_name": "239_keywords_object",
+							"uuid": "00000000-0000-0000-0000-000000000265",
+							"items": [
+								{
+									"table_type": "expr",
+									"table_name": "KEYWORDS_TABLE",
+									"table_content": {
+										"expression": "^test-literal-prefix",
+										"expr_type": "and"
+									}
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"uuid": "00000000-0000-0000-0000-000000000240",
+			"service": 0,
+			"action": 0,
+			"do_blacklist": 0,
+			"do_log": 0,
+			"action_parameter": "null",
+			"is_valid": "yes",
+			"and_conditions": [
+				{
+					"attribute_name": "KEYWORDS_TABLE",
+					"objects": [
+						{
+							"object_name": "240_keywords_object",
+							"uuid": "00000000-0000-0000-0000-000000000266",
+							"items": [
+								{
+									"table_type": "expr",
+									"table_name": "KEYWORDS_TABLE",
+									"table_content": {
+										"expression": "^test-regex-prefix",
+										"expr_type": "regex"
+									}
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"uuid": "00000000-0000-0000-0000-000000000241",
+			"service": 0,
+			"action": 0,
+			"do_blacklist": 0,
+			"do_log": 0,
+			"action_parameter": "null",
+			"is_valid": "yes",
+			"and_conditions": [
+				{
+					"attribute_name": "KEYWORDS_TABLE",
+					"objects": [
+						{
+							"object_name": "241_keywords_object",
+							"uuid": "00000000-0000-0000-0000-000000000267",
+							"items": [
+								{
+									"table_type": "expr",
+									"table_name": "KEYWORDS_TABLE",
+									"table_content": {
+										"expression": "test-literal-suffix$",
+										"expr_type": "and"
+									}
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"uuid": "00000000-0000-0000-0000-000000000242",
+			"service": 0,
+			"action": 0,
+			"do_blacklist": 0,
+			"do_log": 0,
+			"action_parameter": "null",
+			"is_valid": "yes",
+			"and_conditions": [
+				{
+					"attribute_name": "KEYWORDS_TABLE",
+					"objects": [
+						{
+							"object_name": "242_keywords_object",
+							"uuid": "00000000-0000-0000-0000-000000000268",
+							"items": [
+								{
+									"table_type": "expr",
+									"table_name": "KEYWORDS_TABLE",
+									"table_content": {
+										"expression": "test-regex-suffix$",
+										"expr_type": "regex"
+									}
+								}
+							]
+						}
+					]
+				}
+			]
 		}
 	],
 	"plugin_table": [
