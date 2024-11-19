@@ -68,7 +68,6 @@ After that, call maat_new to create a maat instance. Next, for the two main usag
 * [maat_state_reset](#maat_state_reset)
 * [maat_state_free](#maat_state_free)
 * [maat_state_set_scan_district](#maat_state_set_scan_district)
-* [maat_state_set_scan_rule_table](#maat_state_set_scan_rule_table)
 * [maat_state_get_hit_paths](#maat_state_get_hit_paths)
 * [maat_state_get_rule_table_ids](#maat_state_get_rule_table_ids)
 * [maat_state_get_scan_count](#maat_state_get_scan_count)
@@ -600,23 +599,6 @@ To set the field to be matched in the next scan, for example: if you want to mat
 * district_len - The length of string.
 
 **Returns**: success(0) failure(-1)
-
-
-### maat_state_set_scan_rule_table
-
-```c
-int maat_state_set_scan_rule_table(struct maat_state *state,
-                                      int rule_table_id);
-```
-
-Maat supports loading multiple rule tables and building their respective runtime. Within the table schema, there is a rule table that has a `default_rule_table` field, indicating that maat will use the runtime of this table to calculate which rule_id will be hit by the hit object_id. If the caller wants to use another rule table runtime for the above calculation, this interface can be invoked to set it up.
-
-**Parameters**:
-* state - Pointer to the maat state structure.
-* rule_table_id - The rule table ID.
-
-**Returns**: success(0) failure(-1)
-
 
 ### maat_state_get_hit_paths
 

@@ -411,11 +411,6 @@ long long interval_runtime_rule_count(void *interval_runtime)
 int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id, 
                           long long integer, const char *attribute_name, struct maat_state *state)
 {
-    //clear rule_state->last_hit_object
-    if (state != NULL && state->rule_compile_state != NULL) {
-        rule_compile_state_clear_last_hit_object(state->rule_compile_state);
-    }
-
     if (0 == interval_rt->rule_num) {
         //empty interval table
         return 0;

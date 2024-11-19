@@ -1343,7 +1343,6 @@ TEST_P(StringScan, StreamHitDirectObject) {
     state = NULL;
 }
 
-//TODO
 TEST_P(StringScan, StreamLiteralPrefix)
 {
     uuid_t results[ARRAY_SIZE];
@@ -2523,35 +2522,6 @@ TEST_F(ObjectScan, Attribute) {
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000233");
-
-    maat_state_free(state);
-    state = NULL;
-    sleep(2);
-}
-
-TEST_F(ObjectScan, SetScanRuleTable) {
-    uuid_t results[ARRAY_SIZE];
-    size_t n_hit_result = 0;
-    int thread_id = 0;
-	const char *table_name = "KEYWORDS_TABLE";
-    const char *attribute_name = "KEYWORDS_TABLE";
-    struct maat *maat_inst = ObjectScan::_shared_maat_inst;
-    struct maat_state *state = maat_state_new(maat_inst, thread_id);
-
-    const char *rule_table_name = "RULE_FIREWALL_CONJUNCTION";
-
-    int ret = maat_state_set_scan_rule_table(state, rule_table_name);
-    EXPECT_EQ(ret, 0);
-
-    struct maat_hit_object hit_object;
-    uuid_parse("00000000-0000-0000-0000-000000000248", hit_object.object_uuid);
-    ret = maat_scan_object(maat_inst, table_name, attribute_name, &hit_object, 1, results,
-                          ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    char uuid_str[UUID_STR_LEN] = {0};
-    uuid_unparse(results[0], uuid_str);
-    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000227");
 
     maat_state_free(state);
     state = NULL;

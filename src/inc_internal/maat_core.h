@@ -185,7 +185,7 @@ struct maat_state {
     struct rule_compile_state *rule_compile_state;
     int Nth_scan;
 	uint16_t thread_id;
-    int16_t rule_table_id;
+    int16_t rule_table_id;//TODO: need remove ???
     uint8_t logic_negate_option;
 };
 

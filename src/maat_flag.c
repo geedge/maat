@@ -403,11 +403,6 @@ long long flag_runtime_rule_count(void *flag_runtime)
 int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id, 
                       long long flag, const char *attribute_name, struct maat_state *state)
 {
-    //clear rule_state->last_hit_object
-    if (state != NULL && state->rule_compile_state != NULL) {
-        rule_compile_state_clear_last_hit_object(state->rule_compile_state);
-    }
-
     if (0 == flag_rt->rule_num) {
         //empty flag table
         return 0;

@@ -41,17 +41,10 @@ struct maat_hit_path {
     uuid_t rule_uuid;
 };
 
-struct maat_hit_object {
-    uuid_t item_uuid;
-    uuid_t object_uuid;
-    char attribute_name[MAX_ATTR_NAME_LEN];
-};
-
 enum maat_scan_status {
     MAAT_SCAN_ERR = -1,  //scan error
-    MAAT_SCAN_OK,        //scan but not hit(object or rule)
-    MAAT_SCAN_HALF_HIT,  //half hit: hit object, not hit rule
-    MAAT_SCAN_HIT        //scan hit rule
+    MAAT_SCAN_OK,        //scan but not hit object
+    MAAT_SCAN_HIT        //scan hit object
 };
 
 enum maat_update_type {
@@ -255,143 +248,110 @@ struct maat_state;
  *         MAAT_SCAN_HIT       
 */
 int maat_scan_flag(struct maat *instance, const char *table_name, const char *attribute_name, 
-                   long long flag, uuid_t *results, size_t n_result, size_t *n_hit_result,
-                   struct maat_state *state);
+                   long long flag, struct maat_state *state);
 
 int maat_scan_integer(struct maat *instance, const char *table_name, const char *attribute_name,
-                      long long integer, uuid_t *results, size_t n_result, size_t *n_hit_result,
-                      struct maat_state *state);
+                      long long integer, struct maat_state *state);
 
 /**
  * @param ip_addr: ipv4 address in network order
  * @param port:    port in host order. If the port is not specified, use -1. Note that 0 is a valid port.
 */
 int maat_scan_ipv4_port(struct maat *instance, const char *table_name, const char *attribute_name,
-                    uint32_t ip_addr, int port, uuid_t *results, size_t n_result, size_t *n_hit_result,
-                    struct maat_state *state);
+                    uint32_t ip_addr, int port, struct maat_state *state);
 
 int maat_scan_ipv6_port(struct maat *instance, const char *table_name, const char *attribute_name,
-                    uint8_t *ip_addr, int port, uuid_t *results, size_t n_result, size_t *n_hit_result,
-                    struct maat_state *state);
+                    uint8_t *ip_addr, int port, struct maat_state *state);
 int maat_scan_ipv4(struct maat *instance, const char *table_name, const char *attribute_name,
-                    uint32_t ip_addr, uuid_t *results, size_t n_result, size_t *n_hit_result,
-                    struct maat_state *state);
+                    uint32_t ip_addr, struct maat_state *state);
 
 int maat_scan_ipv6(struct maat *instance, const char *table_name, const char *attribute_name,
-                    uint8_t *ip_addr, uuid_t *results, size_t n_result, size_t *n_hit_result,
-                    struct maat_state *state);
+                    uint8_t *ip_addr, struct maat_state *state);
 
 int maat_scan_string(struct maat *instance, const char *table_name, const char *attribute_name,
-                     const char *data, size_t data_len, uuid_t *results, size_t n_result,
-                     size_t *n_hit_result, struct maat_state *state);
+                     const char *data, size_t data_len, struct maat_state *state);
 
 int maat_scan_object(struct maat *instance, const char *table_name, const char *attribute_name,
-                    struct maat_hit_object *objects, size_t n_object, uuid_t *results, size_t n_result,
-                    size_t *n_hit_result, struct maat_state *state);
+                    uuid_t object_uuid_array[], uuid_t item_uuid_array[], size_t array_size, struct maat_state *state);
 
-int maat_scan_not_logic(struct maat *instance, const char *table_name, const char *attribute_name,
-                        uuid_t *results, size_t n_result, size_t *n_hit_result, struct maat_state *state);
+int maat_scan_not_logic(struct maat *instance, const char *table_name, const char *attribute_name, struct maat_state *state);
 
 struct maat_stream;
 struct maat_stream *maat_stream_new(struct maat *instance, const char *table_name, const char *attribute_name, struct maat_state *state);
 
-int maat_stream_scan(struct maat_stream *stream, const char *data, int data_len, 
-                     uuid_t *results, size_t n_result, size_t *n_hit_result,
-                     struct maat_state *state);
+int maat_stream_scan(struct maat_stream *stream, const char *data, int data_len, struct maat_state *state);
 
 void maat_stream_free(struct maat_stream *stream);
 
 /* maat state API */
 struct maat_state *maat_state_new(struct maat *instance, int thread_id);
-/*
-security rule 1 src_ip & src_port
-security rule 2 src_ip & fqdn
-statistics rule 3 src_ip & src_port
-statistics rule 4 src_ip & fqdn
 
-scan(src_ip);
-scan(src_port);
-maat_state_compile("security", rule_array[]);
-scan(src_ip);
-scan(src_port);
-scan(fqdn);
-maat_state_compile("security", rule_array[]);
-maat_state_compile("statistics", rule_array[]);
- */
-size_t maat_state_compile(struct maat_state *state, const char *table_name, uuid_t rule_array[], void *ex_data_array[], size_t n_result);//TODO: new API, return all rules every time, without removing duplicate rules
+
+/**
+ * @brief return all rules, without removing duplicate hit rules
+ * 
+ * @param state:          maat state
+ * @param table_name:     rule table name
+ * @param rule_array:     rule uuid array
+ * @param ex_data_array:  rule ex_data array
+ * @param n_result:       the size of rule_array and ex_data_array
+*/
+size_t maat_state_compile(struct maat_state *state, const char *table_name, uuid_t rule_array[], void *ex_data_array[], size_t n_result);
 
 void maat_state_reset(struct maat_state *state);
 
 void maat_state_free(struct maat_state *state);
 
-int maat_state_set_scan_rule_table(struct maat_state *state, const char *rule_table_name);//TODO: delete
-
 int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *path_array, 
                              size_t array_size);
-
-int maat_state_get_rule_table_names(struct maat_state *state, uuid_t *rule_ids,
-                                    size_t n_rule_ids, char *rule_table_names[]);//TODO: delete
                              
 /**
  * @brief get the total number of scans after maat_state_new
 */
 size_t maat_state_get_scan_count(struct maat_state *state);
 
+size_t maat_state_get_attribute_cnt(struct maat_state *state);
+
 /**
- * @brief direct object means object corresponding to item
- * 
- * NOTE: hit objects may be duplicated
- *       
+ * @brief return all attribute names
+ * NOTE: attribute names are valid until the state is freed or reset
 */
-int maat_state_get_direct_hit_objects(struct maat_state *state,
-                                     struct maat_hit_object *object_array,
-                                     size_t array_size);//TODO:delete
-size_t maat_state_get_direct_hit_object_cnt(struct maat_state *state);
+size_t maat_state_get_attribute_names(struct maat_state *state, const char *attribute_names[], size_t array_size);
+
+/**
+ * @brief return all hit objects
+*/
+size_t maat_state_get_hit_objects(struct maat_state *state,
+                              const char *attribute_name,
+                              uuid_t object_array[],
+                              size_t array_size);
+
+size_t maat_state_get_hit_object_cnt(struct maat_state *state, const char *attribute_name);
+
+/**
+ * @brief return direct hit items and direct hit objects
+ * NOTE: hit items may be duplicated  
+*/
+size_t maat_state_get_hit_items(struct maat_state *state,
+                                const char *attribute_name,
+                                uuid_t item_array[],
+                                uuid_t direct_object_array[],
+                                size_t array_size);
+
+size_t maat_state_get_hit_item_cnt(struct maat_state *state,
+                                   const char *attribute_name);
 
 /**
  * @brief indirect object means superior object
  * 
  * NOTE: hit objects may be duplicated
 */
-
-
-/**
- * @brief get last scan hit objects(including direct/indirect)
-*/
-int maat_state_get_last_hit_objects(struct maat_state *state,
-                                   struct maat_hit_object *object_array,
-                                   size_t array_size);//TODO:delete
-
-size_t maat_state_get_last_hit_object_cnt(struct maat_state *state);//TODO:delete
-
-
-
-size_t maat_state_get_hit_objects(struct maat_state *state,
-                              const char *attribute_name,
-                              uuid_t object_array[],
-                              size_t array_size);//TODO: new API, return all hit objects
-
-size_t maat_state_get_attribute_cnt(struct maat_state *state);//TODO: new API
-size_t maat_state_get_attribute_names(struct maat_state *state, const char *attribute_names[], size_t array_size);//TODO: new API
-
-size_t maat_state_get_hit_object_cnt(struct maat_state *state,
-                                     const char *attribute_name);//TODO: new API
-
-size_t maat_state_get_hit_items(struct maat_state *state,
-                                const char *attribute_name,
-                                uuid_t item_array[],
-                                uuid_t direct_object_array[],
-                                size_t array_size);//TODO: new API, return direct hit items and direct hit objects
-
-size_t maat_state_get_hit_item_cnt(struct maat_state *state,
-                                   const char *attribute_name);//TODO: new API
-
 size_t maat_state_get_indirect_hit_objects(struct maat_state *state,
                                            const char *attribute_name,
                                            uuid_t object_array[],
-                                           size_t array_size);//TODO: new API
+                                           size_t array_size);
 
-size_t maat_state_get_indirect_hit_object_cnt(struct maat_state *state, const char *attribute_name);//TODO: add "const" prefix
+size_t maat_state_get_indirect_hit_object_cnt(struct maat_state *state, const char *attribute_name);
 
 #ifdef __cplusplus
 }

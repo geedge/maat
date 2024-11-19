@@ -3846,25 +3846,6 @@
 			]
 		},
 		{
-			"uuid": "00000000-0000-0000-0000-000000000227",
-			"service": 1,
-			"action": 1,
-			"do_blacklist": 1,
-			"do_log": 1,
-			"action_parameter": "maat_scan_object",
-			"rule_table_name": "RULE_FIREWALL_DEFAULT",
-			"is_valid": "yes",
-			"and_conditions": [
-				{
-					"attribute_name": "KEYWORDS_TABLE",
-					"object_name": "227_url_object",
-					"object_uuids": [
-						"00000000-0000-0000-0000-000000000248"
-					]
-				}
-			]
-		},
-		{
 			"uuid": "00000000-0000-0000-0000-000000000228",
 			"service": 1,
 			"action": 1,

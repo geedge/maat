@@ -72,12 +72,7 @@ int rule_compile_state_update(struct rule_compile_state *rule_compile_state, str
                          const char *attribute_name, int custom_rule_tbl_id, int Nth_scan,
                          struct maat_item *hit_items, size_t n_hit_item);
 
-void rule_compile_state_clear_last_hit_object(struct rule_compile_state *rule_state);
-
-void rule_compile_state_not_logic_update(struct rule_compile_state *rule_compile_state, 
-                                    struct rule_runtime *rule_rt,
-                                    struct maat *maat_inst, const char *attribute_name,
-                                    int Nth_scan);
+void rule_compile_state_not_logic_update(struct maat *maat_inst, struct rule_compile_state *rule_compile_state, const char *attribute_name, int Nth_scan);
 
 size_t rule_compile_state_get_internal_hit_paths(struct rule_compile_state *rule_compile_state,
                                             struct rule_runtime *rule_rt,
@@ -85,27 +80,24 @@ size_t rule_compile_state_get_internal_hit_paths(struct rule_compile_state *rule
                                             struct maat_hit_path *hit_path_array, 
                                             size_t array_size);
 
-size_t rule_compile_state_get_direct_hit_objects(struct rule_compile_state *rule_compile_state,
-                                           struct maat_hit_object *object_array,
-                                           size_t array_size);
+size_t rule_compile_state_get_direct_hit_items(struct maat * maat_inst, struct rule_compile_state *rule_compile_state, const char *attribute_name,
+                                                uuid_t item_array[],  uuid_t direct_object_array[], size_t array_size);
 
-size_t rule_compile_state_get_direct_hit_object_cnt(struct rule_compile_state *rule_compile_state);
+size_t rule_compile_state_get_direct_hit_item_cnt(struct maat * maat_inst, struct rule_compile_state *rule_compile_state, const char *attribute_name);
 
-size_t rule_compile_state_get_indirect_hit_objects(struct rule_compile_state *rule_compile_state,
-                                             struct maat_hit_object *object_array,
-                                             size_t array_size);
+size_t rule_compile_state_get_indirect_hit_objects(struct maat *maat_inst, struct rule_compile_state *rule_compile_state, 
+                                                    const char *attribute_name, uuid_t object_array[], size_t array_size);
 
-size_t rule_compile_state_get_indirect_hit_object_cnt(struct rule_compile_state *rule_compile_state);
+size_t rule_compile_state_get_indirect_hit_object_cnt(struct maat *maat_inst, struct rule_compile_state *rule_compile_state, const char *attribute_name);
 
-size_t rule_compile_state_get_last_hit_objects(struct rule_compile_state *rule_compile_state,
-                                         struct maat_hit_object *object_arary,
-                                         size_t array_size);
+size_t rule_compile_state_get_hit_objects(struct maat *maat_inst, struct rule_compile_state *rule_compile_state, const char *attribute_name,
+                                          uuid_t object_array[], size_t array_size);
 
-size_t rule_compile_state_get_last_hit_object_cnt(struct rule_compile_state *rule_compile_state);
+size_t rule_compile_state_get_hit_object_cnt(struct maat *maat_inst, struct rule_compile_state *rule_compile_state, const char *attribute_name);
 
-int rule_compile_state_get_rule_table_id(struct rule_compile_state *rule_compile_state,
-                                       uuid_t *rule_id);
+size_t rule_compile_state_get_attribute_names(struct rule_compile_state *rule_compile_state, const char *attribute_name_array[], size_t array_size);
 
+size_t rule_compile_state_get_attribute_cnt(struct rule_compile_state *rule_compile_state);
 #ifdef __cplusplus
 }
 #endif

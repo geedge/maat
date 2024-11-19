@@ -477,11 +477,6 @@ long long ip_runtime_ipv6_rule_count(void *ip_runtime)
 int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type, 
                     uint8_t *ip_addr, int port, const char *attribute_name, struct maat_state *state)
 {
-    //clear rule_state->last_hit_object
-    if (state != NULL && state->rule_compile_state != NULL) {
-        rule_compile_state_clear_last_hit_object(state->rule_compile_state);
-    }
-
     if (0 == ip_rt->rule_num) {
         //empty ip table
         return 0;
