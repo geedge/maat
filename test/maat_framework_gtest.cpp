@@ -23,7 +23,7 @@ const char *g_table_info_path = "./table_info.json";
 const char *g_json_filename = "maat_json.json";
 
 size_t g_thread_num = 4;
-
+const char *default_rule_table_name = "RULE_CONJUNCTION";
 
 static int test_add_expr_command(struct maat *maat_inst, const char *expr_table, 
                           const char *attr_name, const char *rule_uuid_str, int timeout,
@@ -117,37 +117,49 @@ void scan_with_old_or_new_cfg(struct maat *maat_inst, int is_old)
 
     memset(results, 0, sizeof(results));
     int ret = maat_scan_string(maat_inst, table_name, attribute_name, hit_old_data,
-                               strlen(hit_old_data), results, ARRAY_SIZE,
-                               &n_hit_result, state);
+                               strlen(hit_old_data), state);
     if (is_old) {
         EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    } else {
+        EXPECT_EQ(ret, MAAT_SCAN_OK);
+    }
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+
+    if (is_old) {
+        EXPECT_EQ(n_hit_result, 1);
         char uuid_str[UUID_STR_LEN] = {0};
         uuid_unparse(results[0], uuid_str);
         EXPECT_TRUE(strcmp(uuid_str, "9c5ee166-3af6-fb23-f8f8-8c7062ed3717") == 0);
     } else {
-        EXPECT_EQ(ret, MAAT_SCAN_OK);
+        EXPECT_EQ(n_hit_result, 0);
     }
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
     ret = maat_scan_string(maat_inst, table_name, attribute_name, hit_new_data,
-                           strlen(hit_new_data), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(hit_new_data), state);
     if (!is_old) {
         EXPECT_EQ(ret, MAAT_SCAN_HIT);
-        char uuid_str[UUID_STR_LEN] = {0};
-        uuid_unparse(results[0], uuid_str);
-        EXPECT_EQ(strcmp(uuid_str, "9b0d44a1-1e9e-7988-6ab2-c619d5906818"), 0);
     } else {
         EXPECT_EQ(ret, MAAT_SCAN_OK);
     }
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+
+    if (!is_old) {
+        EXPECT_EQ(n_hit_result, 1);
+        char uuid_str[UUID_STR_LEN] = {0};
+        uuid_unparse(results[0], uuid_str);
+        EXPECT_EQ(strcmp(uuid_str, "9b0d44a1-1e9e-7988-6ab2-c619d5906818"), 0);
+    } else {
+        EXPECT_EQ(n_hit_result, 0);
+    }
 
     maat_state_free(state);
 }
@@ -233,9 +245,13 @@ TEST_F(FlagScan, basic) {
 
     memset(results, 0, sizeof(results));
 
-    int ret = maat_scan_flag(maat_inst, flag_table_name, attribute_name, scan_data, results,
-                             ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_flag(maat_inst, flag_table_name, attribute_name, scan_data, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, flag_table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -243,10 +259,6 @@ TEST_F(FlagScan, basic) {
 
     uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000192");
-    
-    ret = maat_scan_not_logic(maat_inst, flag_table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     struct maat_hit_path hit_path[HIT_PATH_SIZE];
     int n_read = 0;
@@ -258,9 +270,13 @@ TEST_F(FlagScan, basic) {
     scan_data = 13;
     memset(results, 0, sizeof(results));
     n_hit_result = 0;
-    ret = maat_scan_flag(maat_inst, flag_table_name, attribute_name, scan_data, results, 
-                         ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_flag(maat_inst, flag_table_name, attribute_name, scan_data, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, flag_table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000207");
@@ -268,22 +284,19 @@ TEST_F(FlagScan, basic) {
     uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000192");
 
-    ret = maat_scan_not_logic(maat_inst, flag_table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
     maat_state_reset(state);
 
     scan_data = 6;
     memset(results, 0, sizeof(results));
     n_hit_result = 0;
-    ret = maat_scan_flag(maat_inst, flag_table_name, attribute_name, scan_data, results, 
-                         ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-    EXPECT_EQ(n_hit_result, 0);
+    ret = maat_scan_flag(maat_inst, flag_table_name, attribute_name, scan_data, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, flag_table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, flag_table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
     state = NULL;
@@ -306,14 +319,14 @@ TEST_F(FlagScan, withExprRegion) {
 
     memset(results, 0, sizeof(results));
 
-    int ret = maat_scan_flag(maat_inst, flag_table_name, flag_attribute_name, flag_scan_data, results, 
-                             ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-    EXPECT_EQ(n_hit_result, 0);
+    int ret = maat_scan_flag(maat_inst, flag_table_name, flag_attribute_name, flag_scan_data, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, flag_table_name, flag_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, flag_table_name, flag_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     struct maat_hit_path hit_path[HIT_PATH_SIZE];
     int n_read = 0;
@@ -324,17 +337,17 @@ TEST_F(FlagScan, withExprRegion) {
 
     const char *expr_scan_data = "hello world";
     ret = maat_scan_string(maat_inst, expr_table_name, expr_attribute_name, expr_scan_data, 
-                           strlen(expr_scan_data), results, ARRAY_SIZE, 
-                           &n_hit_result, state);
+                           strlen(expr_scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000193");
-
-    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -356,9 +369,13 @@ TEST_F(FlagScan, hitMultiRule) {
 
     memset(results, 0, sizeof(results));
 
-    int ret = maat_scan_flag(maat_inst, flag_table_name, flag_attribute_name, flag_scan_data, results, 
-                             ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_flag(maat_inst, flag_table_name, flag_attribute_name, flag_scan_data, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, flag_table_name, flag_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 3);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -370,18 +387,15 @@ TEST_F(FlagScan, hitMultiRule) {
     uuid_unparse(results[2], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000192");
 
-    ret = maat_scan_not_logic(maat_inst, flag_table_name, flag_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
     memset(results, 0, sizeof(results));
-    ret = maat_scan_flag(maat_inst, flag_table_name, flag_attribute_name, flag_scan_data, results, 
-                             ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_flag(maat_inst, flag_table_name, flag_attribute_name, flag_scan_data, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, flag_table_name, flag_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, flag_table_name, flag_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 3);//maat return all hit rules every time without removing duplicate hit rules
 
     struct maat_hit_path hit_path[HIT_PATH_SIZE];
     int n_read = 0;
@@ -409,9 +423,13 @@ TEST_F(FlagScan, hitRepeatedRule) {
     //rule_id:192 flag: 0000 0001 mask: 0000 0011
     //scan_data: 0000 1001 or 0000 1101 should hit
     long long flag_scan_data1 = 9; 
-    int ret = maat_scan_flag(maat_inst, flag_table_name, flag_attribute_name, flag_scan_data1, results, 
-                             ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_flag(maat_inst, flag_table_name, flag_attribute_name, flag_scan_data1, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, flag_table_name, flag_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -419,34 +437,35 @@ TEST_F(FlagScan, hitRepeatedRule) {
     uuid_unparse(results[1], uuid_str);
     EXPECT_EQ(strcmp(uuid_str, "00000000-0000-0000-0000-000000000192"), 0);
 
-    ret = maat_scan_not_logic(maat_inst, flag_table_name, flag_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
     //rule_id:192 flag: 0000 0001 mask: 0000 0011
     //rule_id:194 flag: 0001 0101 mask: 0001 1111
     //scan_data: 0001 0101 should hit rule192 and rule194
 	long long flag_scan_data2 = 21;
     memset(results, 0, sizeof(results));
-    ret = maat_scan_flag(maat_inst, flag_table_name, flag_attribute_name, flag_scan_data2, results, 
-                         ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_flag(maat_inst, flag_table_name, flag_attribute_name, flag_scan_data2, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    uuid_unparse(results[0], uuid_str);
-    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000194");
 
-    ret = maat_scan_not_logic(maat_inst, flag_table_name, flag_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, flag_table_name, flag_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 3);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000207");
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000194");
+    uuid_unparse(results[2], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000192");
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_flag(maat_inst, flag_table_name, flag_attribute_name, flag_scan_data2, results, 
-                         ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_flag(maat_inst, flag_table_name, flag_attribute_name, flag_scan_data2, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, flag_table_name, flag_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, flag_table_name, flag_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 3);//maat return all hit rules every time without removing duplicate hit rules
 
     struct maat_hit_path hit_path[HIT_PATH_SIZE];
     int n_read = 0;
@@ -544,14 +563,15 @@ TEST_P(StringScan, ScanDataOnlyOneByte) {
     const char scan_data = 0x20;
 
     memset(results, 0, sizeof(results));
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, &scan_data, sizeof(scan_data),
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, &scan_data, sizeof(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     EXPECT_EQ(n_hit_result, 0);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
     state = NULL;
@@ -570,17 +590,17 @@ TEST_P(StringScan, Full) {
                             "?action=search&query=username,abckkk,1234567";
 
     memset(results, 0, sizeof(results));
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), 
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000125");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -598,17 +618,17 @@ TEST_P(StringScan, Regex) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
-                            results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000148");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -626,16 +646,17 @@ TEST_P(StringScan, RegexUnicode) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
-                            results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000229");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -653,21 +674,21 @@ TEST_P(StringScan, BackslashR_N_Escape) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, payload, strlen(payload),
-                            results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, payload, strlen(payload), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000225");
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
     maat_state_free(state);
     state = NULL;
 }
-
 
 TEST_P(StringScan, BackslashR_N_Escape_IncUpdate) {
     int ret = 0;
@@ -681,16 +702,18 @@ TEST_P(StringScan, BackslashR_N_Escape_IncUpdate) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, payload, strlen(payload),
-                            results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, payload, strlen(payload), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000234");
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
     maat_state_reset(state);
 
     const char *rule_table_name = "RULE_DEFAULT";
@@ -726,18 +749,18 @@ TEST_P(StringScan, BackslashR_N_Escape_IncUpdate) {
 
     sleep(WAIT_FOR_EFFECTIVE_S * 3);
 
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, payload, strlen(payload), 
-                            results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, payload, strlen(payload), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000234");
     uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, rule_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -756,16 +779,17 @@ TEST_P(StringScan, BackslashCtrlCharactor)
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, payload, strlen(payload),
-                            results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, payload, strlen(payload), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000235");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -784,17 +808,17 @@ TEST_P(StringScan, Expr8) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), 
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000182");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     struct maat_hit_path hit_path[HIT_PATH_SIZE];
     int n_read = 0;
@@ -820,29 +844,30 @@ TEST_P(StringScan, HexBinCaseSensitive) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data1, strlen(scan_data1), 
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data1, strlen(scan_data1), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data2, strlen(scan_data2), 
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data2, strlen(scan_data2), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000206");
     uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000191");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
 }
@@ -861,27 +886,28 @@ TEST_P(StringScan, HexbinCombineString)
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data1, strlen(scan_data1), 
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data1, strlen(scan_data1), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data2, strlen(scan_data2), 
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data2, strlen(scan_data2), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000236");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
 }
@@ -916,17 +942,17 @@ TEST_P(StringScan, BugReport20190325) {
 
     memset(results, 0, sizeof(results));
     int ret = maat_scan_string(maat_inst, table_name, attribute_name, (char *)scan_data,
-                               sizeof(scan_data), results, ARRAY_SIZE,
-                               &n_hit_result, state);
+                               sizeof(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000150");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -948,17 +974,20 @@ TEST_P(StringScan, PrefixAndSuffix) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    int ret = maat_scan_integer(maat_inst, cont_sz_table_name, cont_sz_attribute_name, 2015, results,
-                                ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_integer(maat_inst, cont_sz_table_name, cont_sz_attribute_name, 2015, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
     
-    ret = maat_scan_not_logic(maat_inst, cont_sz_table_name, cont_sz_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, cont_sz_table_name, cont_sz_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_string(maat_inst, mail_addr_table_name, mail_addr_attribute_name, hit_twice,
-                           strlen(hit_twice), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(hit_twice), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, mail_addr_table_name, mail_addr_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -966,41 +995,37 @@ TEST_P(StringScan, PrefixAndSuffix) {
     uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000152");
 
-    ret = maat_scan_not_logic(maat_inst, mail_addr_table_name, mail_addr_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
     maat_state_reset(state);
     ret = maat_scan_string(maat_inst, mail_addr_table_name, mail_addr_attribute_name, hit_suffix,
-                           strlen(hit_suffix), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(hit_suffix), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, mail_addr_table_name, mail_addr_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000151");
 
-    ret = maat_scan_not_logic(maat_inst, mail_addr_table_name, mail_addr_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    ret = maat_scan_integer(maat_inst, cont_sz_table_name, cont_sz_attribute_name, 2015, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_integer(maat_inst, cont_sz_table_name, cont_sz_attribute_name, 2015, results,
-                                ARRAY_SIZE, &n_hit_result, state);
-
-    ret = maat_scan_not_logic(maat_inst, cont_sz_table_name, cont_sz_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, cont_sz_table_name, cont_sz_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_string(maat_inst, mail_addr_table_name, mail_addr_attribute_name, hit_prefix,
-                           strlen(hit_prefix), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(hit_prefix), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    uuid_unparse(results[0], uuid_str);
-    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000152");
 
-    ret = maat_scan_not_logic(maat_inst, mail_addr_table_name, mail_addr_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, mail_addr_table_name, mail_addr_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 2);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000151");
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000152");
 
     maat_state_free(state);
     state = NULL;
@@ -1018,17 +1043,17 @@ TEST_P(StringScan, MaatUnescape) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), 
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000132");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -1059,21 +1084,22 @@ TEST_P(StringScan, OffsetChunk64) {
     int pass_flag = 0;
     while (0 == feof(fp)) {
         read_size = fread(scan_data, 1, sizeof(scan_data), fp);
-        ret = maat_stream_scan(sp, scan_data, read_size, results,
-                               ARRAY_SIZE, &n_hit_result, state);
+        ret = maat_stream_scan(sp, scan_data, read_size, state);
         if (ret > 0) {
             pass_flag = 1;
             break;
         }
 
-        ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results,
-                                  ARRAY_SIZE, &n_hit_result, state);
+        ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
         if (ret > 0) {
             pass_flag = 1;
             break; 
         }
     }
     EXPECT_EQ(pass_flag, 1);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000136");
@@ -1108,21 +1134,22 @@ TEST_P(StringScan, OffsetChunk1460) {
     int pass_flag = 0;
     while (0 == feof(fp)) {
         read_size = fread(scan_data, 1, sizeof(scan_data), fp);
-        ret = maat_stream_scan(sp, scan_data, read_size, results,
-                               ARRAY_SIZE, &n_hit_result, state);
+        ret = maat_stream_scan(sp, scan_data, read_size, state);
         if (ret > 0) {
             pass_flag = 1;
             break;
         }
 
-        ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+        ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
         if (ret > 0) {
             pass_flag = 1;
             break; 
         }
     }
     EXPECT_EQ(pass_flag, 1);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000136");
@@ -1153,15 +1180,13 @@ TEST_P(StringScan, StreamScanUTF8) {
     int pass_flag = 0;
     while (0 == feof(fp)) {
 		size_t read_size = fread(scan_data, 1, sizeof(scan_data), fp);
-		int ret = maat_stream_scan(sp, scan_data, read_size, results,
-                                   ARRAY_SIZE, &n_hit_result, state);
+		int ret = maat_stream_scan(sp, scan_data, read_size, state);
 		if (ret == MAAT_SCAN_HIT) {
 			pass_flag = 1;
 			break;
 		}
 
-        ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                                  &n_hit_result, state);
+        ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
         if (ret == MAAT_SCAN_HIT) {
 			pass_flag = 1;
 			break;
@@ -1169,6 +1194,9 @@ TEST_P(StringScan, StreamScanUTF8) {
 	}
 
     EXPECT_EQ(pass_flag, 1);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000157");
@@ -1200,17 +1228,17 @@ TEST_P(StringScan, InvisibleCharactor) {
     }
 
     memset(results, 0, sizeof(results));
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, (char*)binary_data, binary_data_length, 
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, (char*)binary_data, binary_data_length, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000238");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -1233,26 +1261,24 @@ TEST_P(StringScan, StreamInput) {
 	struct maat_stream *sp = maat_stream_new(maat_inst, table_name, attribute_name, state);
 	ASSERT_TRUE(sp != NULL);
 
-	int ret = maat_stream_scan(sp, scan_data1, strlen(scan_data1), results,
-                               ARRAY_SIZE, &n_hit_result, state);
+	int ret = maat_stream_scan(sp, scan_data1, strlen(scan_data1), state);
 	EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-	ret = maat_stream_scan(sp, scan_data2, strlen(scan_data2), results,
-                           ARRAY_SIZE, &n_hit_result, state);
+	ret = maat_stream_scan(sp, scan_data2, strlen(scan_data2), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 	maat_stream_free(sp);
 
-	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+	n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000125");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
 	maat_state_free(state);
     state = NULL;
@@ -1276,28 +1302,28 @@ TEST_P(StringScan, StreamHitDirectObject) {
 	struct maat_stream *sp = maat_stream_new(maat_inst, table_name_url, attribute_name_url, state);
 	ASSERT_TRUE(sp != NULL);
 
-	ret = maat_stream_scan(sp, scan_data1, strlen(scan_data1), results,
-                           ARRAY_SIZE, &n_hit_result, state);
-
+	ret = maat_stream_scan(sp, scan_data1, strlen(scan_data1), state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name_url, attribute_name_url, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000133");
 
-    struct maat_hit_object object_array[ARRAY_SIZE];
-    ret = maat_state_get_direct_hit_objects(state, object_array, ARRAY_SIZE);
+    uuid_t object_uuid_array[ARRAY_SIZE];
+    uuid_t item_uuid_array[ARRAY_SIZE];
+    ret = maat_state_get_hit_items(state, attribute_name_url, item_uuid_array, object_uuid_array, ARRAY_SIZE);
     EXPECT_EQ(ret, 1);
-    uuid_unparse(object_array[0].object_uuid, uuid_str);
+    uuid_unparse(object_uuid_array[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000112");
 
-    ret = maat_scan_not_logic(maat_inst, table_name_url, attribute_name_url, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_stream_scan(sp, scan_data2, strlen(scan_data2), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
-
-    ret = maat_stream_scan(sp, scan_data2, strlen(scan_data2), results,
-                           ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-    ret = maat_state_get_direct_hit_objects(state, object_array, ARRAY_SIZE);
+    ret = maat_state_get_hit_item_cnt(state, attribute_name_url);
     EXPECT_EQ(ret, 0);
     maat_stream_free(sp);
 
@@ -1310,32 +1336,32 @@ TEST_P(StringScan, StreamHitDirectObject) {
     sp = maat_stream_new(maat_inst, table_name_sig, attribute_name_sig, state);
     ASSERT_TRUE(sp != NULL);
 
-    ret = maat_stream_scan(sp, scan_data3, strlen(scan_data3), results,
-                           ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_stream_scan(sp, scan_data3, strlen(scan_data3), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_stream_scan(sp, scan_data4, strlen(scan_data4), results,
-                           ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_stream_scan(sp, scan_data4, strlen(scan_data4), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name_sig, attribute_name_sig, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000128");
 
-    ret = maat_state_get_direct_hit_objects(state, object_array, ARRAY_SIZE);
+    ret = maat_state_get_hit_items(state, attribute_name_sig, item_uuid_array, object_uuid_array, ARRAY_SIZE);
     EXPECT_EQ(ret, 1);
-    uuid_unparse(object_array[0].object_uuid, uuid_str);
+    uuid_unparse(object_uuid_array[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000107");
 
-    ret = maat_scan_not_logic(maat_inst, table_name_sig, attribute_name_sig, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_stream_scan(sp, scan_data4, strlen(scan_data4), results,
-                           ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);//rule has been hit before
+    ret = maat_stream_scan(sp, scan_data4, strlen(scan_data4), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_state_get_direct_hit_objects(state, object_array, ARRAY_SIZE);
+    ret = maat_state_get_hit_items(state, attribute_name_sig, item_uuid_array, object_uuid_array, ARRAY_SIZE);
     EXPECT_EQ(ret, 1);
-    uuid_unparse(object_array[0].object_uuid, uuid_str);
+    uuid_unparse(object_uuid_array[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000107");
 
     maat_stream_free(sp);
@@ -1360,18 +1386,16 @@ TEST_P(StringScan, StreamLiteralPrefix)
 	struct maat_stream *sp = maat_stream_new(maat_inst, table_name_url, attribute_name_url, state);
 	ASSERT_TRUE(sp != NULL);
 
-	ret = maat_stream_scan(sp, scan_data, strlen(scan_data), results,
-                           ARRAY_SIZE, &n_hit_result, state);
-
+	ret = maat_stream_scan(sp, scan_data, strlen(scan_data), state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name_url, attribute_name_url, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000239");
-
-    ret = maat_scan_not_logic(maat_inst, table_name_url, attribute_name_url, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
 
     maat_stream_free(sp);
 	maat_state_free(state);
@@ -1395,18 +1419,16 @@ TEST_P(StringScan, StreamLiteralSuffix)
 	struct maat_stream *sp = maat_stream_new(maat_inst, table_name_url, attribute_name_url, state);
 	ASSERT_TRUE(sp != NULL);
 
-	ret = maat_stream_scan(sp, scan_data, strlen(scan_data), results,
-                           ARRAY_SIZE, &n_hit_result, state);
-
+	ret = maat_stream_scan(sp, scan_data, strlen(scan_data), state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name_url, attribute_name_url, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000241");
-
-    ret = maat_scan_not_logic(maat_inst, table_name_url, attribute_name_url, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
 
     maat_stream_free(sp);
 	maat_state_free(state);
@@ -1430,18 +1452,16 @@ TEST_P(StringScan, StreamRegexPrefix)
 	struct maat_stream *sp = maat_stream_new(maat_inst, table_name_url, attribute_name_url, state);
 	ASSERT_TRUE(sp != NULL);
 
-	ret = maat_stream_scan(sp, scan_data, strlen(scan_data), results,
-                           ARRAY_SIZE, &n_hit_result, state);
-
+	ret = maat_stream_scan(sp, scan_data, strlen(scan_data), state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name_url, attribute_name_url, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000240");
-
-    ret = maat_scan_not_logic(maat_inst, table_name_url, attribute_name_url, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
 
     maat_stream_free(sp);
 	maat_state_free(state);
@@ -1465,18 +1485,16 @@ TEST_P(StringScan, StreamRegexSuffix)
 	struct maat_stream *sp = maat_stream_new(maat_inst, table_name_url, attribute_name_url, state);
 	ASSERT_TRUE(sp != NULL);
 
-	ret = maat_stream_scan(sp, scan_data, strlen(scan_data), results,
-                           ARRAY_SIZE, &n_hit_result, state);
-
+	ret = maat_stream_scan(sp, scan_data, strlen(scan_data), state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name_url, attribute_name_url, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000242");
-
-    ret = maat_scan_not_logic(maat_inst, table_name_url, attribute_name_url, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
 
     maat_stream_free(sp);
 	maat_state_free(state);
@@ -1496,17 +1514,16 @@ TEST_P(StringScan, LiteralPrefix)
     const char *scan_data = "test-literal-prefix abcde";
 
     memset(results, 0, sizeof(results));
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), 
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000239");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -1525,17 +1542,16 @@ TEST_P(StringScan, LiteralSuffix)
     const char *scan_data = "abcd test-literal-suffix";
 
     memset(results, 0, sizeof(results));
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), 
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000241");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -1554,17 +1570,16 @@ TEST_P(StringScan, RegexPrefix)
     const char *scan_data = "test-regex-prefix abcde";
 
     memset(results, 0, sizeof(results));
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), 
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000240");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -1583,17 +1598,16 @@ TEST_P(StringScan, RegexSuffix)
     const char *scan_data = "abcd test-regex-suffix";
 
     memset(results, 0, sizeof(results));
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), 
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000242");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -1611,14 +1625,14 @@ TEST_P(StringScan, dynamic_config) {
 
     memset(results, 0, sizeof(results));
 
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, data, strlen(data),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-    EXPECT_EQ(n_hit_result, 0);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, data, strlen(data), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
@@ -1654,17 +1668,16 @@ TEST_P(StringScan, dynamic_config) {
 
     sleep(WAIT_FOR_EFFECTIVE_S * 3);
 
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, data, strlen(data), results, 
-                           ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, data, strlen(data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
@@ -1680,14 +1693,13 @@ TEST_P(StringScan, dynamic_config) {
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, data, strlen(data), results, 
-                           ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-    EXPECT_EQ(n_hit_result, 0);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, data, strlen(data), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
     state = NULL;
@@ -1776,25 +1788,20 @@ TEST_P(StreamScan, dynamic_config) {
 	struct maat_stream *sp = maat_stream_new(maat_inst, table_name, attribute_name, state);
 	ASSERT_TRUE(sp != NULL);
 
-	ret = maat_stream_scan(sp, scan_data1, strlen(scan_data1), results,
-                           ARRAY_SIZE, &n_hit_result, state);
+	ret = maat_stream_scan(sp, scan_data1, strlen(scan_data1), state);
 	EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+	ret = maat_stream_scan(sp, scan_data2, strlen(scan_data2), state);
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-	ret = maat_stream_scan(sp, scan_data2, strlen(scan_data2), results,
-                           ARRAY_SIZE, &n_hit_result, state);
-	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
@@ -1807,9 +1814,10 @@ TEST_P(StreamScan, dynamic_config) {
     EXPECT_EQ(ret, 1);
 
     // Inc config has not yet taken effect, stream scan can hit rule
-    ret = maat_stream_scan(sp, scan_data2, strlen(scan_data2), results,
-                           ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_stream_scan(sp, scan_data2, strlen(scan_data2), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
@@ -1819,13 +1827,14 @@ TEST_P(StreamScan, dynamic_config) {
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     // Inc config has taken effect, stream reference old expr_runtime, should not hit rule
-    ret = maat_stream_scan(sp, scan_data2, strlen(scan_data2), results,
-                           ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_stream_scan(sp, scan_data2, strlen(scan_data2), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_stream_free(sp);
     maat_state_free(state);
@@ -1900,14 +1909,13 @@ TEST_F(IPScan, IPv4Unspecified) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, sip1, results,
-                         ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, sip1, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
-    
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -1929,14 +1937,13 @@ TEST_F(IPScan, IPv4Broadcast) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, sip1, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, sip1, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
-    
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -1958,17 +1965,16 @@ TEST_F(IPScan, MatchSingleIPv4) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, sip, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000169");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -1990,17 +1996,16 @@ TEST_F(IPScan, IPv6Unspecified) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_ipv6(maat_inst, table_name, attribute_name, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv6(maat_inst, table_name, attribute_name, sip, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000210");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);  
 }
@@ -2021,14 +2026,13 @@ TEST_F(IPScan, IPv6Broadcast) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_ipv6(maat_inst, table_name, attribute_name, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv6(maat_inst, table_name, attribute_name, sip, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
-    
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);  
 }
@@ -2049,17 +2053,16 @@ TEST_F(IPScan, MatchSingleIPv6) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_ipv6(maat_inst, table_name, attribute_name, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv6(maat_inst, table_name, attribute_name, sip, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000210");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -2081,9 +2084,12 @@ TEST_F(IPScan, MatchIPv4Range) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, sip, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2091,10 +2097,6 @@ TEST_F(IPScan, MatchIPv4Range) {
 
     uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000154");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -2115,14 +2117,14 @@ TEST_F(IPScan, MatchIPv4Port) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
     
     memset(results, 0, sizeof(results));
-    ret = maat_scan_ipv4_port(maat_inst, table_name, attribute_name, sip, 443, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4_port(maat_inst, table_name, attribute_name, sip, 443, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     EXPECT_EQ(n_hit_result, 0);
 
-    ret = maat_scan_ipv4_port(maat_inst, table_name, attribute_name, sip, 80, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4_port(maat_inst, table_name, attribute_name, sip, 80, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2147,9 +2149,12 @@ TEST_F(IPScan, MatchIPv6Range) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_ipv6(maat_inst, table_name, attribute_name, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv6(maat_inst, table_name, attribute_name, sip, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2157,10 +2162,6 @@ TEST_F(IPScan, MatchIPv6Range) {
 
     uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000155");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -2182,9 +2183,10 @@ TEST_F(IPScan, MatchIPv6Port) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_ipv6_port(maat_inst, table_name, attribute_name, sip, port, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv6_port(maat_inst, table_name, attribute_name, sip, port, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2195,9 +2197,10 @@ TEST_F(IPScan, MatchIPv6Port) {
     
     maat_state_reset(state);
     //If the port is not present, should not match rules with port range. In this case, only rule 210 "::/0" should match.
-    ret = maat_scan_ipv6(maat_inst, table_name, attribute_name, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv6(maat_inst, table_name, attribute_name, sip, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000210");
@@ -2222,13 +2225,14 @@ TEST_F(IPScan, BugReport20210515) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_ipv6(maat_inst, table_name, attribute_name, ip_addr, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv6(maat_inst, table_name, attribute_name, ip_addr, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
     state = NULL;
@@ -2248,14 +2252,13 @@ TEST_F(IPScan, RuleUpdates) {
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, sip, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
-    EXPECT_EQ(n_hit_result, 0);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
@@ -2288,17 +2291,16 @@ TEST_F(IPScan, RuleUpdates) {
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, sip, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
@@ -2314,13 +2316,14 @@ TEST_F(IPScan, RuleUpdates) {
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, sip, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
     state = NULL;
@@ -2382,25 +2385,22 @@ TEST_F(IntervalScan, IntegerRange) {
 
     unsigned int scan_data1 = 2015;
 
-	int ret = maat_scan_integer(maat_inst, table_name, attribute_name, scan_data1, results,
-                                ARRAY_SIZE, &n_hit_result, state);
-	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+	int ret = maat_scan_integer(maat_inst, table_name, attribute_name, scan_data1, state);
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
 	maat_state_reset(state);
 
     unsigned int scan_data2 = 300;
-    ret = maat_scan_integer(maat_inst, table_name, attribute_name, scan_data2, results,
-                            ARRAY_SIZE, &n_hit_result, state);
-	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-    EXPECT_EQ(n_hit_result, 0);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_integer(maat_inst, table_name, attribute_name, scan_data2, state);
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
 	maat_state_free(state);
     state = NULL;
@@ -2417,17 +2417,16 @@ TEST_F(IntervalScan, SingleInteger) {
 
     unsigned int scan_data1 = 3000;
 
-	int ret = maat_scan_integer(maat_inst, table_name, attribute_name, scan_data1, results,
-                                ARRAY_SIZE, &n_hit_result, state);
+	int ret = maat_scan_integer(maat_inst, table_name, attribute_name, scan_data1, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000218");
-    
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
 	maat_state_free(state);
     state = NULL;
@@ -2487,12 +2486,15 @@ TEST_F(ObjectScan, PhysicalTable) {
     struct maat *maat_inst = ObjectScan::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    struct maat_hit_object hit_object;
-    uuid_parse("00000000-0000-0000-0000-000000000247", hit_object.object_uuid);
+    uuid_t object_uuid;
+    uuid_t item_uuid;
+    uuid_parse("00000000-0000-0000-0000-000000000247", object_uuid);
+    uuid_clear(item_uuid);
 
-    int ret = maat_scan_object(maat_inst, table_name, attribute_name, &hit_object, 1, results,
-                              ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    int ret = maat_scan_object(maat_inst, table_name, attribute_name, &object_uuid, &item_uuid, 1, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2512,12 +2514,15 @@ TEST_F(ObjectScan, Attribute) {
     struct maat *maat_inst = ObjectScan::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    struct maat_hit_object hit_object;
-    uuid_parse("00000000-0000-0000-0000-000000000259", hit_object.object_uuid);
+    uuid_t object_uuid;
+    uuid_t item_uuid;
+    uuid_parse("00000000-0000-0000-0000-000000000259", object_uuid);
+    uuid_clear(item_uuid);
 
-    int ret = maat_scan_object(maat_inst, table_name, attribute_name, &hit_object, 1, results,
-                              ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    int ret = maat_scan_object(maat_inst, table_name, attribute_name, &object_uuid, &item_uuid, 1, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2587,14 +2592,13 @@ TEST_F(NOTLogic, OneRegion) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
 	int ret = maat_scan_string(maat_inst, table_name, attribute_name, string_should_hit,
-                               strlen(string_should_hit), results, ARRAY_SIZE,
-                               &n_hit_result, state);
-						
-	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                               strlen(string_should_hit), state);
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
 	
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2603,13 +2607,14 @@ TEST_F(NOTLogic, OneRegion) {
     maat_state_reset(state);
 	
 	ret = maat_scan_string(maat_inst, table_name, attribute_name, string_should_not_hit,
-                           strlen(string_should_not_hit), results, ARRAY_SIZE,
-                           &n_hit_result, state);
-	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                           strlen(string_should_not_hit), state);
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
     
 	maat_state_free(state);
     state = NULL;
@@ -2632,40 +2637,38 @@ TEST_F(NOTLogic, ScanNotAtLast) {
 
     // scan string_should_hit(HTTP_URL_FILTER) & string_should_not_hit(HTTP_RESPONSE_KEYWORDS) => not hit rule
     int ret = maat_scan_string(maat_inst, hit_table_name, hit_attribute_name, string_should_hit,
-                               strlen(string_should_hit), results, ARRAY_SIZE,
-                               &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                               strlen(string_should_hit), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
     ret = maat_scan_string(maat_inst, not_hit_table_name, not_hit_attribute_name, string_should_not_hit,
-                           strlen(string_should_not_hit), results, ARRAY_SIZE,
-                           &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                           strlen(string_should_not_hit), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
     ret = maat_scan_string(maat_inst, not_hit_table_name, not_hit_attribute_name, string_contain_nothing,
-                           strlen(string_contain_nothing), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(string_contain_nothing), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
     //scan string_should_hit(HTTP_URL_FILTER) & nothing(HTTP_RESPONSE_KEYWORDS) => hit rule144
     ret = maat_scan_string(maat_inst, hit_table_name, hit_attribute_name, string_should_hit,
-                               strlen(string_should_hit), results, ARRAY_SIZE,
-                               &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                               strlen(string_should_hit), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
     ret = maat_scan_string(maat_inst, not_hit_table_name, not_hit_attribute_name, string_contain_nothing,
-                           strlen(string_contain_nothing), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(string_contain_nothing), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2689,22 +2692,20 @@ TEST_F(NOTLogic, ScanIrrelavantAtLast) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int ret = maat_scan_string(maat_inst, hit_table_name, hit_attribute_name, string_should_hit,
-                               strlen(string_should_hit), results, ARRAY_SIZE,
-                               &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                               strlen(string_should_hit), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_string(maat_inst, not_hit_table_name, not_hit_attribute_name, string_irrelevant,
-                           strlen(string_irrelevant), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(string_irrelevant), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2730,37 +2731,36 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyExpr) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int ret = maat_scan_string(maat_inst, not_hit_table_name, not_hit_attribute_name, string_should_not_hit,
-                               strlen(string_should_not_hit), results, ARRAY_SIZE,
-                               &n_hit_result, state);
+                               strlen(string_should_not_hit), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     uint32_t sip;
     inet_pton(AF_INET, "10.0.8.186", &sip);
 
-    ret = maat_scan_ipv4(maat_inst, hit_table_name, hit_attribute_name, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, hit_table_name, hit_attribute_name, sip, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000186");
 
-    ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
     ret = maat_scan_string(maat_inst, empty_table_name, empty_attribute_name, string_match_no_region, 
-                           strlen(string_match_no_region), results, ARRAY_SIZE, 
-                           &n_hit_result, state);
+                           strlen(string_match_no_region), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, empty_table_name, empty_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, empty_table_name, empty_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
 
     maat_state_free(state);
     state = NULL;
@@ -2781,39 +2781,38 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyInteger) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int ret = maat_scan_string(maat_inst, not_hit_table_name, not_hit_attribute_name, string_should_not_hit, 
-                               strlen(string_should_not_hit), results, ARRAY_SIZE, 
-                               &n_hit_result, state);
+                               strlen(string_should_not_hit), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     uint32_t sip;
     inet_pton(AF_INET, "10.0.8.187", &sip);
 
-    ret = maat_scan_ipv4(maat_inst, hit_table_name, hit_attribute_name, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, hit_table_name, hit_attribute_name, sip, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000187");
 
-    ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
     int empty_table_id = maat_get_table_id(maat_inst, empty_table_name);
     ASSERT_GT(empty_table_id, 0);
 
-    ret = maat_scan_integer(maat_inst, empty_table_name, empty_attribute_name, 2015,
-                            results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_integer(maat_inst, empty_table_name, empty_attribute_name, 2015, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, empty_table_name, empty_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, empty_table_name, empty_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
 
     maat_state_free(state);
     state = NULL;
@@ -2833,24 +2832,22 @@ TEST_F(NOTLogic, ScanNotIP) {
 
     // scan string_should_hit(HTTP_URL) & hit ip(ATTRIBUTE_IP_CONFIG) => not hit rule
     int ret = maat_scan_string(maat_inst, hit_table_name, hit_attribute_name, string_should_hit, 
-                               strlen(string_should_hit), results, ARRAY_SIZE, 
-                               &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                               strlen(string_should_hit), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     uint32_t sip;
     inet_pton(AF_INET, "10.0.6.205", &sip);
 
-    ret = maat_scan_ipv4(maat_inst, not_hit_table_name, not_hit_attribute_name, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, not_hit_table_name, not_hit_attribute_name, sip, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2860,18 +2857,18 @@ TEST_F(NOTLogic, ScanNotIP) {
 
     // scan string_should_hit(HTTP_URL) & not hit ip(ATTRIBUTE_IP_CONFIG) => hit rule145
     ret = maat_scan_string(maat_inst, hit_table_name, hit_attribute_name, string_should_hit, 
-                               strlen(string_should_hit), results, ARRAY_SIZE, 
-                               &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                               strlen(string_should_hit), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
     inet_pton(AF_INET, "10.0.6.201", &sip);
-    ret = maat_scan_ipv4(maat_inst, not_hit_table_name, not_hit_attribute_name, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, not_hit_table_name, not_hit_attribute_name, sip, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK); 
+    ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
     state = NULL;
@@ -2896,72 +2893,67 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
 
     //scan string_should_half_hit(HTTP_URL_FILTER) & hit ip(ATTRIBUTE_IP_CONFIG) => not hit rule
     int ret = maat_scan_string(maat_inst, url_table_name, url_attribute_name, string_should_half_hit, 
-                               strlen(string_should_half_hit), results, ARRAY_SIZE, 
-                               &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                               strlen(string_should_half_hit), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, url_table_name, url_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, url_table_name, url_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     uint32_t sip;
     inet_pton(AF_INET, "10.0.6.201", &sip);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, sip, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
     // scan string_should_half_hit(HTTP_RESPONSE_KEYWORDS) & not hit ip(ATTRIBUTE_IP_CONFIG) => not hit rule
 
     ret = maat_scan_string(maat_inst, http_table_name, http_attribute_name, string_should_not_hit, 
-                           strlen(string_should_not_hit), results, ARRAY_SIZE, 
-                           &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT); 
+                           strlen(string_should_not_hit), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT); 
     
-    ret = maat_scan_not_logic(maat_inst, http_table_name, http_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, http_table_name, http_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     inet_pton(AF_INET, "10.1.0.0", &sip);
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, sip, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
     // scan scan string_should_half_hit(HTTP_URL_FILTER) & not hit ip(ATTRIBUTE_IP_CONFIG) => hit rule146
     ret = maat_scan_string(maat_inst, url_table_name, url_attribute_name, string_should_half_hit, 
-                               strlen(string_should_half_hit), results, ARRAY_SIZE, 
-                               &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                               strlen(string_should_half_hit), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
     ret = maat_scan_string(maat_inst, http_table_name, http_attribute_name, string_nothing, 
-                           strlen(string_nothing), results, ARRAY_SIZE, 
-                           &n_hit_result, state);
+                           strlen(string_nothing), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK); 
 
-    ret = maat_scan_not_logic(maat_inst, http_table_name, http_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, http_table_name, http_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     
     inet_pton(AF_INET, "10.1.0.0", &sip);
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, sip, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2985,32 +2977,31 @@ TEST_F(NOTLogic, NotPhysicalTable) {
 
     // scan hit string1(KEYWORDS_TABLE) & hit string2(HTTP_RESPONSE_KEYWORDS) => not hit rule
     int ret = maat_scan_string(maat_inst, table_name, table_name, string1, 
-                               strlen(string1), results, ARRAY_SIZE, 
-                               &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                               strlen(string1), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, table_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, table_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, string2, strlen(string2),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, string2, strlen(string2), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
     //scan not hit string1(KEYWORDS_TABLE) & hit string2(HTTP_RESPONSE_KEYWORDS) => hit rule224
-    ret = maat_scan_string(maat_inst, table_name, table_name, string3, strlen(string3),
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, table_name, string3, strlen(string3), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, table_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, table_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, string2, strlen(string2),
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, string2, strlen(string2), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT); 
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3038,76 +3029,62 @@ TEST_F(NOTLogic, EightNotCondition) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int ret = maat_scan_string(maat_inst, table_name, attribute_name1, string_nothing, 
-                               strlen(string_nothing), results, ARRAY_SIZE, 
-                               &n_hit_result, state);
+                               strlen(string_nothing), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name1, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name1, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_string(maat_inst, table_name, attribute_name2, string_nothing, 
-                               strlen(string_nothing), results, ARRAY_SIZE, 
-                               &n_hit_result, state);
+                               strlen(string_nothing), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name2, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name2, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_string(maat_inst, table_name, attribute_name3, string_nothing, 
-                               strlen(string_nothing), results, ARRAY_SIZE, 
-                               &n_hit_result, state);
+                               strlen(string_nothing), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name3, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name3, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_string(maat_inst, table_name, attribute_name4, string_nothing, 
-                               strlen(string_nothing), results, ARRAY_SIZE, 
-                               &n_hit_result, state);
+                               strlen(string_nothing), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name4, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name4, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_string(maat_inst, table_name, attribute_name5, string_nothing, 
-                               strlen(string_nothing), results, ARRAY_SIZE, 
-                               &n_hit_result, state);
+                               strlen(string_nothing), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name5, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name5, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_string(maat_inst, table_name, attribute_name6, string_nothing, 
-                               strlen(string_nothing), results, ARRAY_SIZE, 
-                               &n_hit_result, state);
+                               strlen(string_nothing), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name6, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name6, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_string(maat_inst, table_name, attribute_name7, string_nothing, 
-                               strlen(string_nothing), results, ARRAY_SIZE, 
-                               &n_hit_result, state);
+                               strlen(string_nothing), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name7, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name7, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_string(maat_inst, table_name, attribute_name8, string_nothing, 
-                               strlen(string_nothing), results, ARRAY_SIZE, 
-                               &n_hit_result, state);
+                               strlen(string_nothing), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK); 
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name8, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name8, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3133,31 +3110,27 @@ TEST_F(NOTLogic, NotConditionAndExcludeObject1) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int ret = maat_scan_string(maat_inst, url_table_name, url_attribute_name, string_should_not_hit, 
-                               strlen(string_should_not_hit), results,
-                               ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                               strlen(string_should_not_hit), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, url_table_name, url_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, url_table_name, url_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_string(maat_inst, url_table_name, url_attribute_name, string_should_half_hit, 
-                               strlen(string_should_half_hit), results,
-                               ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                               strlen(string_should_half_hit), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, url_table_name, url_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, url_table_name, url_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_string(maat_inst, http_table_name, http_attribute_name, string_nothing, 
-                           strlen(string_nothing), results, ARRAY_SIZE, 
-                           &n_hit_result, state);
+                           strlen(string_nothing), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, http_table_name, http_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, http_table_name, http_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3182,40 +3155,37 @@ TEST_F(NOTLogic, NotConditionAndExcludeObject2) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int ret = maat_scan_string(maat_inst, http_table_name, http_attribute_name, string_keywords,
-                               strlen(string_keywords), results, ARRAY_SIZE,
-                               &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                               strlen(string_keywords), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, http_table_name, http_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, http_table_name, http_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_string(maat_inst, url_table_name, url_attribute_name, string1, strlen(string1),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, url_table_name, url_attribute_name, string1, strlen(string1), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, url_table_name, url_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, url_table_name, url_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
     ret = maat_scan_string(maat_inst, http_table_name, http_attribute_name, string_keywords,
-                               strlen(string_keywords), results, ARRAY_SIZE,
-                               &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                               strlen(string_keywords), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, http_table_name, http_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, http_table_name, http_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_string(maat_inst, url_table_name, url_attribute_name, string2, strlen(string2),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    ret = maat_scan_not_logic(maat_inst, url_table_name, url_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, url_table_name, url_attribute_name, string2, strlen(string2), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, url_table_name, url_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3238,24 +3208,25 @@ TEST_F(NOTLogic, SingleNotCondition) {
 
     //string_should_hit(HTTP_NOT_LOGIC_1) => not hit rule
     int ret = maat_scan_string(maat_inst, table_name, attribute_name, string_should_hit,
-                               strlen(string_should_hit), results, ARRAY_SIZE,
-                               &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                               strlen(string_should_hit), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
     //string nothing(HTTP_NOT_LOGIC_1) => hit rule222
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, string_nothing, strlen(string_nothing),
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, string_nothing, strlen(string_nothing), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3280,58 +3251,58 @@ TEST_F(NOTLogic, MultiNotConditions) {
 
     // rule223 = !string1 & !string2 & !string3
     //Case1: scan string1 & !string2 & !string3
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, string1, strlen(string1),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, string1, strlen(string1), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, string_nothing, strlen(string_nothing),
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, string_nothing, strlen(string_nothing), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
     //Case2: scan !string1 & string2 & !string3
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, string_nothing, strlen(string_nothing),
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, string_nothing, strlen(string_nothing), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, string2, strlen(string2),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, string2, strlen(string2), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
     //Case3: scan !string1 & !string2 & string3
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, string_nothing, strlen(string_nothing),
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, string_nothing, strlen(string_nothing), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, string3, strlen(string3),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, string3, strlen(string3), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
     
     //Case4: scan !string1 & !string2 & !string3
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, string_nothing, strlen(string_nothing),
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, string_nothing, strlen(string_nothing), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3359,67 +3330,66 @@ TEST_F(NOTLogic, MultiObjectsInOneNotCondition) {
     //--------------------------------------
 	//			Source ASN1 & Dest ASN => not hit rule
 	//--------------------------------------
-    int ret = maat_scan_string(maat_inst, table_name, src_asn_attribute_name, src_asn1, strlen(src_asn1),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    int ret = maat_scan_string(maat_inst, table_name, src_asn_attribute_name, src_asn1, strlen(src_asn1), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, src_asn_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, src_asn_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);                          
 
-    ret = maat_scan_string(maat_inst, table_name, dst_asn_attribute_name, dst_asn, strlen(dst_asn),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, table_name, dst_asn_attribute_name, dst_asn, strlen(dst_asn), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
     //--------------------------------------
 	//			Source ASN2 & Dest ASN => not hit rule
 	//--------------------------------------
-    ret = maat_scan_string(maat_inst, table_name, src_asn_attribute_name, src_asn2, strlen(src_asn2),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, table_name, src_asn_attribute_name, src_asn2, strlen(src_asn2), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, src_asn_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, src_asn_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_string(maat_inst, table_name, dst_asn_attribute_name, dst_asn, strlen(dst_asn),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, table_name, dst_asn_attribute_name, dst_asn, strlen(dst_asn), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
     //--------------------------------------
 	//			Source ASN3 & Dest ASN => not hit rule
 	//--------------------------------------
-    ret = maat_scan_string(maat_inst, table_name, src_asn_attribute_name, src_asn3, strlen(src_asn3),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, table_name, src_asn_attribute_name, src_asn3, strlen(src_asn3), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, src_asn_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, src_asn_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_string(maat_inst, table_name, dst_asn_attribute_name, dst_asn, strlen(dst_asn),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, table_name, dst_asn_attribute_name, dst_asn, strlen(dst_asn), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
     // Source nothing & Dest ASN => hit rule177
     ret = maat_scan_string(maat_inst, table_name, src_asn_attribute_name, src_asn_nothing,
-                           strlen(src_asn_nothing),results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(src_asn_nothing), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, src_asn_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, src_asn_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_string(maat_inst, table_name, dst_asn_attribute_name, dst_asn, strlen(dst_asn),
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, dst_asn_attribute_name, dst_asn, strlen(dst_asn), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3449,34 +3419,33 @@ TEST_F(NOTLogic, MultiLiteralsInOneNotCondition) {
     //-------------------------------------------
 	//			Source ASN1 & IP Geo
 	//-------------------------------------------
-    int ret = maat_scan_string(maat_inst, src_asn_table_name, src_asn_attribute_name, src_asn1, strlen(src_asn1),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    int ret = maat_scan_string(maat_inst, src_asn_table_name, src_asn_attribute_name, src_asn1, strlen(src_asn1), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_string(maat_inst, ip_geo_table_name, ip_geo_attribute_name, my_county, strlen(my_county),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, ip_geo_table_name, ip_geo_attribute_name, my_county, strlen(my_county), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, src_asn_table_name, src_asn_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, src_asn_table_name, src_asn_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
     //-------------------------------------------
 	//			Source nothing & IP Geo
 	//-------------------------------------------
-    ret = maat_scan_string(maat_inst, src_asn_table_name, src_asn_attribute_name, src_nothing, strlen(src_nothing),
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, src_asn_table_name, src_asn_attribute_name, src_nothing, strlen(src_nothing), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_string(maat_inst, ip_geo_table_name, ip_geo_attribute_name, my_county, strlen(my_county),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    ret = maat_scan_not_logic(maat_inst, src_asn_table_name, src_asn_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, ip_geo_table_name, ip_geo_attribute_name, my_county, strlen(my_county), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, src_asn_table_name, src_asn_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3487,17 +3456,17 @@ TEST_F(NOTLogic, MultiLiteralsInOneNotCondition) {
     //-------------------------------------------
 	//			Source ASN2 & IP Geo
 	//-------------------------------------------
-    ret = maat_scan_string(maat_inst, src_asn_table_name, src_asn_attribute_name, src_asn2, strlen(src_asn2),
-                            results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, src_asn_table_name, src_asn_attribute_name, src_asn2, strlen(src_asn2), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_string(maat_inst, ip_geo_table_name, ip_geo_attribute_name, my_county, strlen(my_county),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, ip_geo_table_name, ip_geo_attribute_name, my_county, strlen(my_county), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, src_asn_table_name, src_asn_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, src_asn_table_name, src_asn_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
@@ -3506,17 +3475,17 @@ TEST_F(NOTLogic, MultiLiteralsInOneNotCondition) {
 	//--------------------------------------
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.40.88", &ip_addr);
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, ARRAY_SIZE,
-                         &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_string(maat_inst, ip_geo_table_name, ip_geo_attribute_name, my_county, strlen(my_county),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, ip_geo_table_name, ip_geo_attribute_name, my_county, strlen(my_county), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+    
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
@@ -3525,17 +3494,16 @@ TEST_F(NOTLogic, MultiLiteralsInOneNotCondition) {
 	//--------------------------------------
     inet_pton(AF_INET, "192.168.40.89", &ip_addr);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_string(maat_inst, ip_geo_table_name, ip_geo_attribute_name, my_county, strlen(my_county),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, ip_geo_table_name, ip_geo_attribute_name, my_county, strlen(my_county), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000181");
@@ -3566,84 +3534,79 @@ TEST_F(NOTLogic, SameAttributeInMultiCondition) {
     //-------------------------------------------
 	//			Dest ASN1 & Dest ASN3 & IP Config
 	//-------------------------------------------
-    int ret = maat_scan_string(maat_inst, dst_asn_table_name, dst_asn_attribute_name, src_asn1, strlen(src_asn1),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    int ret = maat_scan_string(maat_inst, dst_asn_table_name, dst_asn_attribute_name, src_asn1, strlen(src_asn1), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_string(maat_inst, dst_asn_table_name, dst_asn_attribute_name, src_asn3, strlen(src_asn3),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, dst_asn_table_name, dst_asn_attribute_name, src_asn3, strlen(src_asn3), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, ARRAY_SIZE,
-                         &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, dst_asn_table_name, dst_asn_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, dst_asn_table_name, dst_asn_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
     //-------------------------------------------
 	//			Dest ASN2 & Dest ASN3 & IP Config
 	//-------------------------------------------
-    ret = maat_scan_string(maat_inst, dst_asn_table_name, dst_asn_attribute_name, src_asn2, strlen(src_asn2),
-                            results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, dst_asn_table_name, dst_asn_attribute_name, src_asn2, strlen(src_asn2), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_string(maat_inst, dst_asn_table_name, dst_asn_attribute_name, src_asn3, strlen(src_asn3),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, dst_asn_table_name, dst_asn_attribute_name, src_asn3, strlen(src_asn3), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, dst_asn_table_name, dst_asn_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, dst_asn_table_name, dst_asn_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, ARRAY_SIZE,
-                         &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
     //-------------------------------------------
 	//			Dest IP Geo & Dest ASN3 & IP Config
 	//-------------------------------------------
-    ret = maat_scan_string(maat_inst, ip_geo_table_name, ip_geo_attribute_name, my_county, strlen(my_county),
-                            results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, ip_geo_table_name, ip_geo_attribute_name, my_county, strlen(my_county), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_geo_table_name, ip_geo_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, ip_geo_table_name, ip_geo_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_string(maat_inst, dst_asn_table_name, dst_asn_attribute_name, src_asn3, strlen(src_asn3),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, dst_asn_table_name, dst_asn_attribute_name, src_asn3, strlen(src_asn3), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, dst_asn_table_name, dst_asn_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, dst_asn_table_name, dst_asn_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, ARRAY_SIZE,  
-                         &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
     //-------------------------------------------
 	//			Dest ASN3 & IP Geo
 	//-------------------------------------------
-    ret = maat_scan_string(maat_inst, dst_asn_table_name, dst_asn_attribute_name, src_asn3, strlen(src_asn3),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, dst_asn_table_name, dst_asn_attribute_name, src_asn3, strlen(src_asn3), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, dst_asn_table_name, dst_asn_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, dst_asn_table_name, dst_asn_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);                          
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3654,18 +3617,18 @@ TEST_F(NOTLogic, SameAttributeInMultiCondition) {
     //--------------------------------------
 	//			IP Config & IP Geo
 	//--------------------------------------
-    ret = maat_scan_string(maat_inst, dst_asn_table_name, dst_asn_attribute_name, src_asn3, strlen(src_asn3),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, dst_asn_table_name, dst_asn_attribute_name, src_asn3, strlen(src_asn3), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
     inet_pton(AF_INET, "192.168.40.89", &ip_addr);
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, dst_asn_table_name, dst_asn_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, dst_asn_table_name, dst_asn_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
     state = NULL;
@@ -3731,26 +3694,24 @@ TEST_F(ExcludeLogic, ScanExcludeAtFirst) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int ret = maat_scan_string(maat_inst, not_hit_table_name, not_hit_attribute_name, string_should_not_hit,
-                               strlen(string_should_not_hit), results, ARRAY_SIZE,
-                               &n_hit_result, state);
+                               strlen(string_should_not_hit), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_string(maat_inst, hit_table_name, hit_attribute_name, string_should_hit,
-                           strlen(string_should_hit), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(string_should_hit), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000199");
-
-    ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -3769,29 +3730,29 @@ TEST_F(ExcludeLogic, ScanExcludeAtLast) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int ret = maat_scan_string(maat_inst, table_name, attribute_name, string_should_not_hit,
-                               strlen(string_should_not_hit), results,
-                               ARRAY_SIZE, &n_hit_result, state);
-	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                               strlen(string_should_not_hit), state);
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
 	ret = maat_scan_string(maat_inst, table_name, attribute_name, string_should_hit,
-                           strlen(string_should_hit), results,
-                           ARRAY_SIZE, &n_hit_result, state);
-						
+                           strlen(string_should_hit), state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK); 
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
 	EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
-    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000200");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);                          
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000200");                         
 
 	maat_state_free(state);
     state = NULL;
@@ -3811,26 +3772,28 @@ TEST_F(ExcludeLogic, ScanIrrelavantAtLast) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int ret = maat_scan_string(maat_inst, hit_table_name, hit_attribute_name, string_should_hit,
-                               strlen(string_should_hit), results, ARRAY_SIZE,
-                               &n_hit_result, state);
+                               strlen(string_should_hit), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000200");
 
-    ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
     ret = maat_scan_string(maat_inst, not_hit_table_name, not_hit_attribute_name, string_irrelevant,
-                           strlen(string_irrelevant), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(string_irrelevant), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     
-    ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000200");
 
     maat_state_free(state);
     state = NULL;
@@ -3849,9 +3812,12 @@ TEST_F(ExcludeLogic, ScanAttribute) {
     uint32_t should_not_hit_ip;
     inet_pton(AF_INET, "100.64.1.1", &should_hit_ip);
     
-    int ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, should_hit_ip, results,
-                             ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, should_hit_ip, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3859,43 +3825,40 @@ TEST_F(ExcludeLogic, ScanAttribute) {
 
     maat_state_reset(state);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    inet_pton(AF_INET, "100.64.1.5", &should_hit_ip);
+    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, should_hit_ip, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    inet_pton(AF_INET, "100.64.1.5", &should_hit_ip);
-    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, should_hit_ip, results,
-                         ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000202");
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
     maat_state_reset(state);
 
     inet_pton(AF_INET, "100.64.1.6", &should_not_hit_ip);
-    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, should_not_hit_ip, results,
-                         ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, should_not_hit_ip, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
     inet_pton(AF_INET, "100.64.1.11", &should_not_hit_ip);
-    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, should_not_hit_ip, results,
-                        ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, table_name, attribute_name, should_not_hit_ip, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
     
     maat_state_free(state);
 }
@@ -3916,49 +3879,49 @@ TEST_F(ExcludeLogic, ScanWithMultiCondition) {
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.50.43", &ip_addr);
 
-    int ret = maat_scan_ipv4(maat_inst, ip_table_name, src_ip_attribute_name, ip_addr, results,
-                            ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    int ret = maat_scan_ipv4(maat_inst, ip_table_name, src_ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, src_ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, src_ip_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     inet_pton(AF_INET, "47.92.108.93", &ip_addr);
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, dst_ip_attribute_name, ip_addr, results, ARRAY_SIZE,
-                         &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, dst_ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, dst_ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, dst_ip_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     const char *expr_attribute_name = "HTTP_RESPONSE_KEYWORDS";
     const char *expr_table_name = "KEYWORDS_TABLE";
 
     const char *should_not_hit_expr = "www.jianshu.com";
     ret = maat_scan_string(maat_inst, expr_table_name, expr_attribute_name, should_not_hit_expr,
-                           strlen(should_not_hit_expr), results, ARRAY_SIZE,
-                           &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                           strlen(should_not_hit_expr), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     const char *should_hit_expr = "mail.jianshu.com";
     ret = maat_scan_string(maat_inst, expr_table_name, expr_attribute_name, should_hit_expr,
-                           strlen(should_hit_expr), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(should_hit_expr), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000203");
-
-    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -3977,60 +3940,64 @@ TEST_F(ExcludeLogic, ExcludeInDifferentLevel) {
     uint32_t ip_addr;
     inet_pton(AF_INET, "100.64.2.1", &ip_addr);
 
-    int ret = maat_scan_ipv4(maat_inst, ip_table_name, src_ip_attribute_name, ip_addr, results,
-                             ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    int ret = maat_scan_ipv4(maat_inst, ip_table_name, src_ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, src_ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, src_ip_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     inet_pton(AF_INET, "100.64.2.6", &ip_addr);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, dst_ip_attribute_name, ip_addr, results,
-                         ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, dst_ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, dst_ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, dst_ip_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     const char *expr_attribute_name = "HTTP_RESPONSE_KEYWORDS";
     const char *expr_table_name = "KEYWORDS_TABLE";
 
     const char *should_not_hit_expr1 = "www.baidu.com";
     ret = maat_scan_string(maat_inst, expr_table_name, expr_attribute_name, should_not_hit_expr1,
-                           strlen(should_not_hit_expr1), results, ARRAY_SIZE, 
-                           &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                           strlen(should_not_hit_expr1), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     const char *should_not_hit_expr2 = "mail.baidu.com";
     ret = maat_scan_string(maat_inst, expr_table_name, expr_attribute_name, should_not_hit_expr2,
-                           strlen(should_not_hit_expr2), results, ARRAY_SIZE, 
-                           &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                           strlen(should_not_hit_expr2), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     const char *should_hit_expr = "hit.baidu.com";
     ret = maat_scan_string(maat_inst, expr_table_name, expr_attribute_name, should_hit_expr,
-                           strlen(should_hit_expr), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(should_hit_expr), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000204");
-
-    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
 }
@@ -4986,9 +4953,10 @@ TEST_F(Attribute, basic) {
     char scan_data[128] = "string1, string2, string3, string4, string5,"
                           " string6, string7, string8";
     
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
-                                results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(state);
     state = NULL;
@@ -5186,9 +5154,12 @@ TEST_F(RuleTable, Conjunction1) {
     struct maat *maat_inst = RuleTable::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -5196,10 +5167,6 @@ TEST_F(RuleTable, Conjunction1) {
 
     uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000141");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     struct maat_hit_path hit_path[HIT_PATH_SIZE];
     int n_read = maat_state_get_hit_paths(state, hit_path, HIT_PATH_SIZE);
@@ -5220,9 +5187,12 @@ TEST_F(RuleTable, Conjunction2) {
     struct maat *maat_inst = RuleTable::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -5231,21 +5201,19 @@ TEST_F(RuleTable, Conjunction2) {
     uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000141");
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     struct maat_hit_path hit_path[HIT_PATH_SIZE];
     int n_read = maat_state_get_hit_paths(state, hit_path, HIT_PATH_SIZE);
     EXPECT_EQ(n_read, 2);
 
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 2);
 
     memset(hit_path, 0, sizeof(hit_path));
     n_read = maat_state_get_hit_paths(state, hit_path, HIT_PATH_SIZE);
@@ -5365,22 +5333,24 @@ TEST_F(Policy, RuleRuleTags) {
 
 
 	int ret = maat_scan_string(maat_inst, table_name, attribute_name, should_not_hit, 
-                               strlen(should_not_hit), results, ARRAY_SIZE,
-						        &n_hit_result, state);
-	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                               strlen(should_not_hit), state);
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
 	
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
 	ret = maat_scan_string(maat_inst, table_name, attribute_name, should_hit, 
-                           strlen(should_hit), results, ARRAY_SIZE,
-						   &n_hit_result, state);
+                           strlen(should_hit), state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000139");
 
 	maat_state_free(state);
     state = NULL;
@@ -5407,26 +5377,21 @@ TEST_F(Policy, RuleEXData) {
                                                     rule_ex_param_dup,
                                                     0, &ex_data_counter);
     ASSERT_TRUE(ret == 0);
-    EXPECT_EQ(ex_data_counter, 2);
+    EXPECT_EQ(ex_data_counter, 1);
 
-    ret = maat_state_set_scan_rule_table(state, conj_rule_table_name);
-    EXPECT_EQ(ret, 0);
-
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, url, strlen(url),
-                            results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, url, strlen(url), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, conj_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000198");
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
     void *ex_data = maat_plugin_table_get_ex_data(maat_inst, plugin_table_name, 
                                                  uuid_str, strlen(uuid_str));
-    ASSERT_TRUE(ex_data!=NULL);
     struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
 	EXPECT_EQ(param->id, 7799);
 
@@ -5450,28 +5415,28 @@ TEST_F(Policy, SubObject) {
     const char *attribute_name = "MAIL_ADDR";
     const char *table_name = "MAIL_ADDR";
 	
-	int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), 
-						       results, ARRAY_SIZE, &n_hit_result, state);
-	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+	int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
 	
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     const char *ip_table_name = "IP_CONFIG";
     const char *ip_attribute_name = "IP_CONFIG";
 	
-	ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, ARRAY_SIZE,
-                         &n_hit_result, state);	
-	
+	ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);	
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000153");
-	
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
 	maat_state_free(state);
 }
@@ -5486,9 +5451,13 @@ TEST_F(Policy, EvaluationOrder) {
     const char *table_name = "HTTP_URL";
     const char *attribute_name = "HTTP_URL";
 
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, url, strlen(url),
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, url, strlen(url), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 3);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -5561,10 +5530,6 @@ TEST_F(Policy, EvaluationOrder) {
     uuid_unparse(hit_path[5].rule_uuid, uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000167");
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.23.23", &ip_addr);
 
@@ -5572,16 +5537,15 @@ TEST_F(Policy, EvaluationOrder) {
     const char *ip_plus_attribute_name = "IP_PLUS_CONFIG";
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_ipv4(maat_inst, ip_plus_table_name, ip_plus_attribute_name, ip_addr, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_plus_table_name, ip_plus_attribute_name, ip_addr, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    uuid_unparse(results[0], uuid_str);
-    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000165");
-
-    ret = maat_scan_not_logic(maat_inst, ip_plus_table_name, ip_plus_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, ip_plus_table_name, ip_plus_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 4);
+    uuid_unparse(results[3], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000165");
 
     maat_state_free(state);
 }
@@ -5598,20 +5562,22 @@ TEST_F(Policy, NotConditionHitPath) {
     struct maat *maat_inst = Policy::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int ret = maat_scan_string(maat_inst, url_table_name, url_attribute_name, url, strlen(url),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    int ret = maat_scan_string(maat_inst, url_table_name, url_attribute_name, url, strlen(url), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.101.101", &ip_addr);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
-                         ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -5726,9 +5692,12 @@ TEST_F(TableInfo, Conjunction) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int ret = maat_scan_string(maat_inst, conj_table_name, attribute_name, scan_data,
-                               strlen(scan_data), results, ARRAY_SIZE,
-                               &n_hit_result, state);
+                               strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, conj_table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -5736,10 +5705,6 @@ TEST_F(TableInfo, Conjunction) {
 
     uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000133");
-
-    ret = maat_scan_not_logic(maat_inst, conj_table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -5807,8 +5772,6 @@ TEST_F(FileTest, StreamFiles) {
     struct stat file_info;
 	size_t file_size = 0;
     char file_path[PATH_MAX] = {0};
-    uuid_t results[ARRAY_SIZE];
-    size_t n_hit_result = 0;
     int hit_cnt = 0;
 
     for (int i = 0; i < n; i++) {
@@ -5831,8 +5794,7 @@ TEST_F(FileTest, StreamFiles) {
 		}
 
 		int read_len = fread(buff, 1, file_size, fp);
-		ret = maat_stream_scan(stream, buff, read_len, results, ARRAY_SIZE, 
-                                &n_hit_result, state);
+		ret = maat_stream_scan(stream, buff, read_len, state);
 		read_len = fread(buff, 1, sizeof(buff), fp);
 		if (ret > 0) {
 			hit_cnt++;
@@ -5913,38 +5875,37 @@ TEST_F(ObjectHierarchy, AttributeOfOnePhysical)
     struct maat *maat_inst = ObjectHierarchy::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int ret = maat_scan_string(maat_inst, url_table_name, url_attribute_name, http_url, strlen(http_url),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    int ret = maat_scan_string(maat_inst, url_table_name, url_attribute_name, http_url, strlen(http_url), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, url_table_name, url_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, url_table_name, url_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_string(maat_inst, keywords_table_name, keywords_attribute_name, http_content, strlen(http_content),
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, keywords_table_name, keywords_attribute_name, http_content, strlen(http_content), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000160");
-
-    ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
     const char *should_not_hit = "2018-10-05 is a keywords of table "
                                  "KEYWORDS_TABLE. Should not hit.";
     ret = maat_scan_string(maat_inst, keywords_table_name, keywords_attribute_name, should_not_hit,
-                           strlen(should_not_hit), results, ARRAY_SIZE,
-                           &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                           strlen(should_not_hit), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
     state = NULL;
@@ -5964,26 +5925,24 @@ TEST_F(ObjectHierarchy, OneObjectInTwoAttribute) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     ret = maat_scan_string(maat_inst, table_name, req_attribute_name, http_resp_hdr_cookie,
-                           strlen(http_resp_hdr_cookie), results, ARRAY_SIZE,
-                           &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                           strlen(http_resp_hdr_cookie), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, req_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, req_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_string(maat_inst, table_name, res_attribute_name, http_resp_hdr_cookie,
-                           strlen(http_resp_hdr_cookie), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(http_resp_hdr_cookie), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, res_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000163");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, res_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -6006,73 +5965,66 @@ TEST_F(ObjectHierarchy, MultiObjectsInOneCondition) {
     //--------------------------------------
 	//			Source ASN1 & Dest ASN
 	//--------------------------------------
-    int ret = maat_scan_string(maat_inst, table_name, src_asn_attribute_name, src_asn1, strlen(src_asn1),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    int ret = maat_scan_string(maat_inst, table_name, src_asn_attribute_name, src_asn1, strlen(src_asn1), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, src_asn_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, src_asn_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_string(maat_inst, table_name, dst_asn_sttribute_name, dst_asn, strlen(dst_asn),
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, dst_asn_sttribute_name, dst_asn, strlen(dst_asn), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, dst_asn_sttribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000178");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, dst_asn_sttribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
     //--------------------------------------
 	//			Source ASN2 & Dest ASN
 	//--------------------------------------
-    ret = maat_scan_string(maat_inst, table_name, src_asn_attribute_name, src_asn2, strlen(src_asn2),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, table_name, src_asn_attribute_name, src_asn2, strlen(src_asn2), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, src_asn_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, src_asn_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_string(maat_inst, table_name, dst_asn_sttribute_name, dst_asn, strlen(dst_asn),
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, dst_asn_sttribute_name, dst_asn, strlen(dst_asn), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, dst_asn_sttribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000178");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, dst_asn_sttribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
     //--------------------------------------
 	//			Source ASN3 & Dest ASN
 	//--------------------------------------
-    ret = maat_scan_string(maat_inst, table_name, src_asn_attribute_name, src_asn3, strlen(src_asn3),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, table_name, src_asn_attribute_name, src_asn3, strlen(src_asn3), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, src_asn_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, src_asn_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_string(maat_inst, table_name, dst_asn_sttribute_name, dst_asn, strlen(dst_asn),
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, dst_asn_sttribute_name, dst_asn, strlen(dst_asn), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, dst_asn_sttribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000178");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, dst_asn_sttribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -6098,16 +6050,16 @@ TEST_F(ObjectHierarchy, MultiLiteralsInOneCondition) {
 	//			Source ASN1 & IP
 	//--------------------------------------
 
-    int ret = maat_scan_string(maat_inst, src_asn_table_name, src_asn_attribute_name, src_asn1, strlen(src_asn1),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    int ret = maat_scan_string(maat_inst, src_asn_table_name, src_asn_attribute_name, src_asn1, strlen(src_asn1), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.40.88", &ip_addr);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -6118,13 +6070,13 @@ TEST_F(ObjectHierarchy, MultiLiteralsInOneCondition) {
     //--------------------------------------
 	//			IP Geo & IP
 	//--------------------------------------
-    ret = maat_scan_string(maat_inst, ip_geo_table_name, ip_geo_attribute_name, my_county, strlen(my_county),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, ip_geo_table_name, ip_geo_attribute_name, my_county, strlen(my_county), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000180");
@@ -6134,17 +6086,16 @@ TEST_F(ObjectHierarchy, MultiLiteralsInOneCondition) {
     //--------------------------------------
 	//			(Source ASN2 | IP Geo) & IP
 	//--------------------------------------
-    ret = maat_scan_string(maat_inst, src_asn_table_name, src_asn_attribute_name, src_asn2, strlen(src_asn2),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    ret = maat_scan_string(maat_inst, ip_geo_table_name, ip_geo_attribute_name, my_county, strlen(my_county),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, src_asn_table_name, src_asn_attribute_name, src_asn2, strlen(src_asn2), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_string(maat_inst, ip_geo_table_name, ip_geo_attribute_name, my_county, strlen(my_county), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000180");
@@ -6240,17 +6191,17 @@ TEST_F(MaatCmd, SetIP) {
     int table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GE(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, sip, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -6287,19 +6238,19 @@ TEST_F(MaatCmd, SetExpr) {
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     memset(results, 0, sizeof(results));
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
-                                results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule_uuid_str2);
     uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, rule_uuid_str1);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
@@ -6311,13 +6262,14 @@ TEST_F(MaatCmd, SetExpr) {
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
-                            results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
@@ -6328,13 +6280,14 @@ TEST_F(MaatCmd, SetExpr) {
     struct maat_cmd_and_condition and_condition;
     test_add_expr_command(maat_inst, table_name, attribute_name, rule_uuid_str, timeout, keywords, &and_condition);
     sleep(timeout + 1);
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
-                            results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
     state = NULL;
@@ -6384,17 +6337,17 @@ TEST_F(MaatCmd, SetExpr8) {
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data8, strlen(scan_data8),
-                            results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data8, strlen(scan_data8), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
@@ -6408,16 +6361,16 @@ TEST_F(MaatCmd, SetExpr8) {
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     memset(&results, 0, sizeof(results));
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data7, strlen(scan_data7),
-                            results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data7, strlen(scan_data7), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -6452,12 +6405,15 @@ TEST_F(MaatCmd, ObjectScan) {
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    struct maat_hit_object hit_object;
-    uuid_parse(object_uuid_str, hit_object.object_uuid);
-    strncpy(hit_object.attribute_name, attribute_name, sizeof(hit_object.attribute_name));
-    ret = maat_scan_object(maat_inst, table_name, attribute_name, &hit_object, 1, results, ARRAY_SIZE,
-                          &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    uuid_t object_uuid;
+    uuid_t item_uuid;
+    uuid_parse(object_uuid_str, object_uuid);
+    uuid_clear(item_uuid);
+    
+    ret = maat_scan_object(maat_inst, table_name, attribute_name, &object_uuid, &item_uuid, 1, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -6515,17 +6471,17 @@ TEST_F(MaatCmd, SameFilterRefByOneRule) {
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
-                            results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -6550,30 +6506,31 @@ TEST_F(MaatCmd, RuleIDRecycle) {
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data,
-                               strlen(scan_data), results, ARRAY_SIZE,
-                               &n_hit_result, state);
+                               strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
     rule_table_set_line(maat_inst, "RULE_DEFAULT", MAAT_OP_DEL, rule_uuid_str, &and_condition, 1, NULL, 0);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
@@ -6581,16 +6538,16 @@ TEST_F(MaatCmd, RuleIDRecycle) {
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -6624,19 +6581,18 @@ TEST_F(MaatCmd, ReturnRuleIDWithDescendingOrder) {
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     memset(results, 0, sizeof(results));
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data),
-                                results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, repeat_times);
     for (i = 0; i < repeat_times; i++) {
         char uuid_str[UUID_STR_LEN] = {0};
         uuid_unparse(results[i], uuid_str);
         EXPECT_STREQ(uuid_str, rule_uuid_str_array[repeat_times - i - 1]);
     }
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
 }
@@ -6707,19 +6663,19 @@ TEST_F(MaatCmd, SubObject) {
 
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data1, strlen(scan_data1),
-                            results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data1, strlen(scan_data1), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule2_uuid_str);
     uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
@@ -6732,16 +6688,16 @@ TEST_F(MaatCmd, SubObject) {
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data1, strlen(scan_data1),
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data1, strlen(scan_data1), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
@@ -6759,16 +6715,16 @@ TEST_F(MaatCmd, SubObject) {
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data1, strlen(scan_data1),
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data1, strlen(scan_data1), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule2_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
@@ -6790,13 +6746,14 @@ TEST_F(MaatCmd, SubObject) {
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item2_uuid_str,
                               object3_uuid_str, keyword2, EXPR_TYPE_AND, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
     sleep(2);
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data2, strlen(scan_data2),
-                            results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data2, strlen(scan_data2), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
 
@@ -6815,16 +6772,16 @@ TEST_F(MaatCmd, SubObject) {
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data1, strlen(scan_data1),
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data1, strlen(scan_data1), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule2_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -6893,17 +6850,17 @@ TEST_F(MaatCmd, RefObject) {
 
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data1, strlen(scan_data1),
-                            results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data1, strlen(scan_data1), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -6972,26 +6929,24 @@ TEST_F(MaatCmd, Attribute) {
     size_t n_hit_result = 0;
 
     ret = maat_scan_string(maat_inst, table_name, attribute_req_name, http_req_hdr_ua,
-                           strlen(http_req_hdr_ua), results, ARRAY_SIZE,
-                           &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                           strlen(http_req_hdr_ua), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_req_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_req_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_string(maat_inst, table_name, attribute_resp_name, http_resp_hdr_cookie,
-                           strlen(http_resp_hdr_cookie), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(http_resp_hdr_cookie), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_resp_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_resp_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
@@ -7010,16 +6965,16 @@ TEST_F(MaatCmd, Attribute) {
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     ret = maat_scan_string(maat_inst, table_name, attribute_resp_name, http_resp_hdr_cookie,
-                           strlen(http_resp_hdr_cookie), results,
-                           ARRAY_SIZE, &n_hit_result, state);
+                           strlen(http_resp_hdr_cookie), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_resp_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_resp_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -7812,44 +7767,40 @@ TEST_F(MaatCmd, ObjectInMassRules) {
 
     uuid_t results[4];
     size_t n_hit_result = 0;
-    ret = maat_scan_string(maat_inst, url_table_name, url_attribute_anme, http_url2, strlen(http_url2),
-                           results, 4, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, url_table_name, url_attribute_anme, http_url2, strlen(http_url2), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, url_table_name, url_attribute_anme, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, url_table_name, url_attribute_anme, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_integer(maat_inst, appid_table_name, appid_attribute_name, 100, results, 4,
-                            &n_hit_result, state);
+    ret = maat_scan_integer(maat_inst, appid_table_name, appid_attribute_name, 100, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, appid_table_name, appid_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, 4);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, target_rule_uuid_str);
 
-    ret = maat_scan_not_logic(maat_inst, appid_table_name, appid_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
     maat_state_reset(state);
 
-    ret = maat_scan_string(maat_inst, url_table_name, url_attribute_anme, http_url1, strlen(http_url1),
-                           results, 4, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    ret = maat_scan_not_logic(maat_inst, url_table_name, url_attribute_anme, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
-    ret = maat_scan_integer(maat_inst, appid_table_name, appid_attribute_name, 100, results, 4,
-                            &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, url_table_name, url_attribute_anme, http_url1, strlen(http_url1), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 4);
 
-    ret = maat_scan_not_logic(maat_inst, appid_table_name, appid_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, url_table_name, url_attribute_anme, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_integer(maat_inst, appid_table_name, appid_attribute_name, 100, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, appid_table_name, appid_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, 4);
+    EXPECT_EQ(n_hit_result, 4);
 
     maat_state_free(state);
     state = NULL;
@@ -7996,56 +7947,46 @@ TEST_F(MaatCmd, HitObject) {
 
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
-    ret = maat_scan_string(maat_inst, http_sig_table_name, http_req_attr_name, http_url, strlen(http_url),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, http_sig_table_name, http_req_attr_name, http_url, strlen(http_url), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
     size_t scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 1);
 
-    struct maat_hit_object hit_objects[128];
-    memset(hit_objects, 0, sizeof(hit_objects));
+    uuid_t item_uuids[128];
+    uuid_t object_uuids[128];
 
-    size_t n_hit_object = maat_state_get_direct_hit_object_cnt(state);
-    maat_state_get_direct_hit_objects(state, hit_objects, n_hit_object);
-    EXPECT_EQ(n_hit_object, 1);
+    size_t n_hit_cnt = maat_state_get_hit_items(state, http_req_attr_name, item_uuids, object_uuids, 128);
+
+    EXPECT_EQ(n_hit_cnt, 1);
     char uuid_str[UUID_STR_LEN] = {0};
-    uuid_unparse(hit_objects[0].item_uuid, uuid_str);
+    uuid_unparse(item_uuids[0], uuid_str);
     EXPECT_STREQ(uuid_str, item1_uuid_str);
-    uuid_unparse(hit_objects[0].object_uuid, uuid_str);
+    uuid_unparse(object_uuids[0], uuid_str);
     EXPECT_STREQ(uuid_str, object1_uuid_str);
-    EXPECT_STREQ(hit_objects[0].attribute_name, http_req_attr_name);
 
-    memset(hit_objects, 0, sizeof(hit_objects));
-    n_hit_object = maat_state_get_indirect_hit_object_cnt(state);
-    maat_state_get_indirect_hit_objects(state, hit_objects, n_hit_object);
-    EXPECT_EQ(n_hit_object, 1);
-    EXPECT_TRUE(uuid_is_null(hit_objects[0].item_uuid));
-    uuid_unparse(hit_objects[0].object_uuid, uuid_str);
+
+    n_hit_cnt = maat_state_get_indirect_hit_objects(state, http_req_attr_name, object_uuids, 128);
+
+    EXPECT_EQ(n_hit_cnt, 1);
+    uuid_unparse(object_uuids[0], uuid_str);
     EXPECT_STREQ(uuid_str, object11_uuid_str);
-    EXPECT_STREQ(hit_objects[0].attribute_name, http_req_attr_name);
 
-    size_t n_last_hit_object = maat_state_get_last_hit_object_cnt(state);
-    struct maat_hit_object last_hit_objects[128];
-    maat_state_get_last_hit_objects(state, last_hit_objects, 128);
-    EXPECT_EQ(n_last_hit_object, 2);
+    n_hit_cnt = maat_state_get_hit_objects(state, http_req_attr_name, object_uuids, 128);
 
-    uuid_unparse(last_hit_objects[0].item_uuid, uuid_str);
-    EXPECT_STREQ(uuid_str, item1_uuid_str);
-    uuid_unparse(last_hit_objects[0].object_uuid, uuid_str);
+    EXPECT_EQ(n_hit_cnt, 2);
+    uuid_unparse(object_uuids[0], uuid_str);
     EXPECT_STREQ(uuid_str, object1_uuid_str);
-    EXPECT_STREQ(last_hit_objects[0].attribute_name, http_req_attr_name);
 
-    EXPECT_TRUE(uuid_is_null(last_hit_objects[1].item_uuid));
-    uuid_unparse(last_hit_objects[1].object_uuid, uuid_str);
+    uuid_unparse(object_uuids[1], uuid_str);
     EXPECT_STREQ(uuid_str, object11_uuid_str);
-    EXPECT_STREQ(last_hit_objects[1].attribute_name, http_req_attr_name);
 
 
     ret = maat_scan_string(maat_inst, http_sig_table_name, http_resp_attr_name, http_resp_hdr_cookie,
-                           strlen(http_resp_hdr_cookie), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(http_resp_hdr_cookie), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
@@ -8053,109 +7994,78 @@ TEST_F(MaatCmd, HitObject) {
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 2);
 
-    memset(hit_objects, 0, sizeof(hit_objects));
-    n_hit_object = maat_state_get_direct_hit_object_cnt(state);
-    maat_state_get_direct_hit_objects(state, hit_objects, n_hit_object);
-    EXPECT_EQ(n_hit_object, 1);
-
-    uuid_unparse(hit_objects[0].item_uuid, uuid_str);
+    n_hit_cnt = maat_state_get_hit_items(state, http_resp_attr_name, item_uuids, object_uuids, 128);
+    EXPECT_EQ(n_hit_cnt, 1);
+    uuid_unparse(item_uuids[0], uuid_str);
     EXPECT_STREQ(uuid_str, item2_uuid_str);
-    uuid_unparse(hit_objects[0].object_uuid, uuid_str);
+    uuid_unparse(object_uuids[0], uuid_str);
     EXPECT_STREQ(uuid_str, object2_uuid_str);
-    EXPECT_STREQ(hit_objects[0].attribute_name, http_resp_attr_name);
 
-    memset(hit_objects, 0, sizeof(hit_objects));
-    n_hit_object = maat_state_get_indirect_hit_object_cnt(state);
-    maat_state_get_indirect_hit_objects(state, hit_objects, n_hit_object);
-    EXPECT_EQ(n_hit_object, 1);
-    EXPECT_TRUE(uuid_is_null(hit_objects[0].item_uuid));
-    uuid_unparse(hit_objects[0].object_uuid, uuid_str);
+    n_hit_cnt = maat_state_get_indirect_hit_objects(state, http_resp_attr_name, object_uuids, 128);
+    EXPECT_EQ(n_hit_cnt, 1);
+    uuid_unparse(object_uuids[0], uuid_str);
     EXPECT_STREQ(uuid_str, object21_uuid_str);
-    EXPECT_STREQ(hit_objects[0].attribute_name, http_resp_attr_name);
     
-    n_last_hit_object = maat_state_get_last_hit_object_cnt(state);
-    maat_state_get_last_hit_objects(state, last_hit_objects, 128);
-    EXPECT_EQ(n_last_hit_object, 2);
+    n_hit_cnt = maat_state_get_hit_objects(state, http_resp_attr_name, object_uuids, 128);
+    EXPECT_EQ(n_hit_cnt, 2);
 
-    uuid_unparse(last_hit_objects[0].item_uuid, uuid_str);
-    EXPECT_STREQ(uuid_str, item2_uuid_str);
-    uuid_unparse(last_hit_objects[0].object_uuid, uuid_str);
-    EXPECT_STREQ(uuid_str, object2_uuid_str);
-    EXPECT_STREQ(last_hit_objects[0].attribute_name, http_resp_attr_name);
-
-    EXPECT_TRUE(uuid_is_null(last_hit_objects[1].item_uuid));
-    uuid_unparse(last_hit_objects[1].object_uuid, uuid_str);
+    uuid_unparse(object_uuids[0], uuid_str);
     EXPECT_STREQ(uuid_str, object21_uuid_str);
-    EXPECT_STREQ(last_hit_objects[1].attribute_name, http_resp_attr_name);
+
+    uuid_unparse(object_uuids[1], uuid_str);
+    EXPECT_STREQ(uuid_str, object2_uuid_str);
 
     const char* keywords1="In graph theory, hit object item forth";
     const char *keywords2="To test one object hit object item fifth";
 
     struct maat_stream *stream = maat_stream_new(maat_inst, keywords_table_name, keywords_attr_name, state);
-    ret = maat_stream_scan(stream, keywords1, strlen(keywords1), results, ARRAY_SIZE,
-                          &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_stream_scan(stream, keywords1, strlen(keywords1), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 3);
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "220.181.38.150", &ip_addr);
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, ARRAY_SIZE,
-                         &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 4);
 
-    memset(hit_objects, 0, sizeof(hit_objects));
-    n_hit_object = maat_state_get_direct_hit_object_cnt(state);
-    maat_state_get_direct_hit_objects(state, hit_objects, n_hit_object);
-    EXPECT_EQ(n_hit_object, 2);
-
-    uuid_unparse(hit_objects[0].item_uuid, uuid_str);
+    n_hit_cnt = maat_state_get_hit_items(state, keywords_attr_name, item_uuids, object_uuids, 128);
+    EXPECT_EQ(n_hit_cnt, 1);
+    uuid_unparse(item_uuids[0], uuid_str);
     EXPECT_STREQ(uuid_str, item4_uuid_str);
-    uuid_unparse(hit_objects[0].object_uuid, uuid_str);
+    uuid_unparse(object_uuids[0], uuid_str);
     EXPECT_STREQ(uuid_str, object4_uuid_str);
-    EXPECT_STREQ(hit_objects[0].attribute_name, keywords_attr_name);
  
-    uuid_unparse(hit_objects[1].item_uuid, uuid_str);
+    n_hit_cnt = maat_state_get_hit_items(state, ip_attribute_name, item_uuids, object_uuids, 128);
+    EXPECT_EQ(n_hit_cnt, 1);
+    uuid_unparse(item_uuids[0], uuid_str);
     EXPECT_STREQ(uuid_str, item3_uuid_str);
-    uuid_unparse(hit_objects[1].object_uuid, uuid_str);
+    uuid_unparse(object_uuids[0], uuid_str);
     EXPECT_STREQ(uuid_str, object3_uuid_str);
-    EXPECT_STREQ(hit_objects[1].attribute_name, ip_attribute_name);
 
-    ret = maat_stream_scan(stream, keywords2, strlen(keywords2), results,
-                            ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_stream_scan(stream, keywords2, strlen(keywords2), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 5);
 
-    memset(hit_objects, 0, sizeof(hit_objects));
-    n_hit_object = maat_state_get_direct_hit_object_cnt(state);
-    maat_state_get_direct_hit_objects(state, hit_objects, n_hit_object);
-    EXPECT_EQ(n_hit_object, 1);
-
-    uuid_unparse(hit_objects[0].item_uuid, uuid_str);
+    n_hit_cnt = maat_state_get_hit_items(state, keywords_attr_name, item_uuids, object_uuids, 128);
+    EXPECT_EQ(n_hit_cnt, 1);
+    uuid_unparse(item_uuids[0], uuid_str);
     EXPECT_STREQ(uuid_str, item5_uuid_str);
-    uuid_unparse(hit_objects[0].object_uuid, uuid_str);
+    uuid_unparse(object_uuids[0], uuid_str);
     EXPECT_STREQ(uuid_str, object1_uuid_str);
-    EXPECT_STREQ(hit_objects[0].attribute_name, keywords_attr_name);
 
-    n_last_hit_object = maat_state_get_last_hit_object_cnt(state);
-    maat_state_get_last_hit_objects(state, last_hit_objects, 128);
-    EXPECT_EQ(n_last_hit_object, 2);
-
-    uuid_unparse(last_hit_objects[0].item_uuid, uuid_str);
-    EXPECT_STREQ(uuid_str, item5_uuid_str);
-    uuid_unparse(last_hit_objects[0].object_uuid, uuid_str);
-    EXPECT_STREQ(uuid_str, object1_uuid_str);
-    EXPECT_STREQ(last_hit_objects[0].attribute_name, keywords_attr_name);
-
-    EXPECT_TRUE(uuid_is_null(last_hit_objects[1].item_uuid));
-    uuid_unparse(last_hit_objects[1].object_uuid, uuid_str);
-    EXPECT_STREQ(uuid_str, object11_uuid_str);
-    EXPECT_STREQ(last_hit_objects[1].attribute_name, keywords_attr_name);
+    const char *attr_names[10];
+    size_t attr_cnt = maat_state_get_attribute_names(state, attr_names, 10);
+    EXPECT_EQ(attr_cnt, 4);
+    EXPECT_STREQ(attr_names[0], http_req_attr_name);
+    EXPECT_STREQ(attr_names[1], http_resp_attr_name);
+    EXPECT_STREQ(attr_names[2], keywords_attr_name);
+    EXPECT_STREQ(attr_names[3], ip_attribute_name);
 
     maat_stream_free(stream);
     maat_state_free(state);
@@ -8289,13 +8199,14 @@ TEST_F(MaatCmd, HitPathBasic) {
     Nth_scan++;
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
-    ret = maat_scan_string(maat_inst, http_sig_table_name, http_req_attr_name, http_url, strlen(http_url),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, http_sig_table_name, http_req_attr_name, http_url, strlen(http_url), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_req_attr_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_req_attr_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     size_t scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 1);
@@ -8329,16 +8240,16 @@ TEST_F(MaatCmd, HitPathBasic) {
 
     Nth_scan++;
     ret = maat_scan_string(maat_inst, http_sig_table_name, http_resp_attr_name, http_resp_hdr_cookie,
-                           strlen(http_resp_hdr_cookie), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(http_resp_hdr_cookie), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_resp_attr_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_resp_attr_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 2);
@@ -8401,13 +8312,14 @@ that the edges be all directed in the same direction.";
 
     struct maat_stream *stream = maat_stream_new(maat_inst, keywords_table_name, keywords_attr_name, state);
     Nth_scan++;
-    ret = maat_stream_scan(stream, keywords1, strlen(keywords1), results,
-                           ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_stream_scan(stream, keywords1, strlen(keywords1), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attr_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attr_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);//still rule1
 
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 3);
@@ -8430,13 +8342,14 @@ that the edges be all directed in the same direction.";
     uint32_t ip_addr;
     inet_pton(AF_INET, "220.181.38.148", &ip_addr);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
-                         ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);//still rule1
 
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 4);
@@ -8456,13 +8369,14 @@ that the edges be all directed in the same direction.";
 	EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
 
     Nth_scan++;   
-    ret = maat_stream_scan(stream, keywords2, strlen(keywords2), results,
-                           ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_stream_scan(stream, keywords2, strlen(keywords2), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attr_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attr_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);//still rule1
 
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 5);
@@ -8667,9 +8581,11 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
     ret = maat_scan_string(maat_inst, keywords_table_name, keywords_attr_name, http_url_computer,
-                           strlen(http_url_computer), results, ARRAY_SIZE,
-                           &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+                           strlen(http_url_computer), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     struct maat_hit_path hit_path[128];
     memset(hit_path, 0, sizeof(hit_path));
@@ -8689,9 +8605,10 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
 
     ret = maat_scan_string(maat_inst, keywords_table_name, keywords_attr_name, http_url_social,
-                           strlen(http_url_social), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(http_url_social), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
@@ -8741,10 +8658,11 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     uint32_t ip_addr;
     inet_pton(AF_INET, "220.181.38.168", &ip_addr);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
-                         ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 2);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule2_uuid_str);
 
@@ -8821,10 +8739,11 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 
     const char *keywords1 = "In theory, basic and advanced is common";
     ret = maat_scan_string(maat_inst, keywords_table_name, keywords_attr_name, keywords1,
-                           strlen(keywords1), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(keywords1), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 3);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule3_uuid_str);
 
@@ -9057,13 +8976,14 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     Nth_scan++;
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
-    ret = maat_scan_string(maat_inst, http_sig_table_name, http_req_attr_name, http_url, strlen(http_url),
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, http_sig_table_name, http_req_attr_name, http_url, strlen(http_url), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_req_attr_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_req_attr_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     size_t scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 1);
@@ -9098,16 +9018,16 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
 
     Nth_scan++;
     ret = maat_scan_string(maat_inst, http_sig_table_name, http_resp_attr_name, http_resp_hdr_cookie,
-                           strlen(http_resp_hdr_cookie), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(http_resp_hdr_cookie), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_resp_attr_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_resp_attr_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 2);
@@ -9171,13 +9091,14 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
 
     struct maat_stream *stream = maat_stream_new(maat_inst, keywords_table_name, keywords_attr_name, state);
     Nth_scan++;
-    ret = maat_stream_scan(stream, keywords1, strlen(keywords1), results,
-                           ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_stream_scan(stream, keywords1, strlen(keywords1), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attr_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attr_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
 
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 3);
@@ -9200,13 +9121,14 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     Nth_scan++;
     uint32_t ip_addr;
     inet_pton(AF_INET, "220.181.38.158", &ip_addr);
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
-                         ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
 
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 4);
@@ -9227,13 +9149,14 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     EXPECT_TRUE(uuid_is_null(hit_path[path_idx].rule_uuid) == 1);
 
     Nth_scan++;   
-    ret = maat_stream_scan(stream, keywords2, strlen(keywords2), results,
-                           ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_stream_scan(stream, keywords2, strlen(keywords2), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attr_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attr_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 1);
 
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 5);
@@ -9319,19 +9242,19 @@ TEST_F(MaatCmd, SameSuperObjectRefByMultiRule) {
     struct maat_hit_path hit_path[128];
 
     ret = maat_scan_string(maat_inst, http_sig_table_name, http_resp_attr_name, http_res_key_str,
-                           strlen(http_res_key_str), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                           strlen(http_res_key_str), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_resp_attr_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule3_uuid_str);
     uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, rule2_uuid_str);
-    
-    ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_resp_attr_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     memset(hit_path, 0, sizeof(hit_path));
     int n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
@@ -9433,21 +9356,20 @@ TEST_F(MaatCmd, ObjectEdit) {
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
-                         ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     int scan_app_id = 42;
-    ret = maat_scan_integer(maat_inst, app_id_table_name, app_id_attribute_name, scan_app_id, results,
-                            ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_integer(maat_inst, app_id_table_name, app_id_attribute_name, scan_app_id, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, app_id_table_name, app_id_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, app_id_table_name, app_id_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
@@ -9467,22 +9389,21 @@ TEST_F(MaatCmd, ObjectEdit) {
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
-                         ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-
-    ret = maat_scan_integer(maat_inst, app_id_table_name, app_id_attribute_name, scan_app_id, results,
-                            ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+
+    ret = maat_scan_integer(maat_inst, app_id_table_name, app_id_attribute_name, scan_app_id, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, app_id_table_name, app_id_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, app_id_table_name, app_id_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     struct maat_hit_path hit_path[128];
     memset(hit_path, 0, sizeof(hit_path));
@@ -9501,21 +9422,20 @@ TEST_F(MaatCmd, ObjectEdit) {
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
-                         ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_integer(maat_inst, app_id_table_name, app_id_attribute_name, scan_app_id, results,
-                            ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_integer(maat_inst, app_id_table_name, app_id_attribute_name, scan_app_id, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, app_id_table_name, app_id_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, app_id_table_name, app_id_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+    
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
     state = NULL;
@@ -9565,17 +9485,17 @@ TEST_F(MaatCmd, RuleDelete_TSG6548) {
     int table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
-                         ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
                                  rule1_uuid_str, and_conditions, 1, NULL, 0);
@@ -9586,16 +9506,17 @@ TEST_F(MaatCmd, RuleDelete_TSG6548) {
     time_t update_time = time(NULL);
 	time_t now = update_time;
 	while (now - update_time < 3) {
-		ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results,
-                             ARRAY_SIZE, &n_hit_result, state);
+		ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
 		if (ret == MAAT_SCAN_HIT) {
-			hit_cnt++;
-            uuid_unparse(results[0], uuid_str);
-            EXPECT_STREQ(uuid_str, rule1_uuid_str);
+            n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+            if (n_hit_result > 0) {
+                hit_cnt++;
+                uuid_unparse(results[0], uuid_str);
+                EXPECT_STREQ(uuid_str, rule1_uuid_str);
+            } else {
+                miss_cnt++;
+            }
 		} 
-        if (ret == MAAT_SCAN_HALF_HIT) {
-			miss_cnt++;
-		}
 		now = time(NULL);
 	}
 
@@ -9646,18 +9567,17 @@ TEST_F(MaatCmd, UpdateDeadLockDetection) {
     uuid_t results[ARRAY_SIZE];
     size_t n_hit_result = 0;
 
-    ret = maat_scan_string(maat_inst, table_http_url, attribute_http_url, scan_data1, strlen(scan_data1),
-                          results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_http_url, attribute_http_url, scan_data1, strlen(scan_data1), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_http_url, attribute_http_url, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, table_http_url, attribute_http_url, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
 
     //object2 -> rule2
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
@@ -9689,14 +9609,15 @@ TEST_F(MaatCmd, UpdateDeadLockDetection) {
 	sleep(10);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_string(maat_inst, table_http_url, attribute_http_url, scan_data2, strlen(scan_data2),
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_http_url, attribute_http_url, scan_data2, strlen(scan_data2), state);
     //After full update, condition ids are re-orgnized, therefore mid are not compatible to the new scanner (hierarchy).
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT); 
+    EXPECT_EQ(ret, MAAT_SCAN_HIT); 
 
-    ret = maat_scan_not_logic(maat_inst, table_http_url, attribute_http_url, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, table_http_url, attribute_http_url, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
     state = NULL;
@@ -9735,12 +9656,10 @@ TEST_F(MaatCmd, StreamScanWhenExprTableIncUpdate) {
     size_t n_hit_result = 0;
 
     struct maat_stream *stream = maat_stream_new(maat_inst, scan_table_name, scan_attribute_name, state);
-    ret = maat_stream_scan(stream, scan_data, strlen(scan_data), results,
-                           ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_stream_scan(stream, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, scan_table_name, scan_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, scan_table_name, scan_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     //item1 -> object1 -> rule1
@@ -9757,28 +9676,26 @@ TEST_F(MaatCmd, StreamScanWhenExprTableIncUpdate) {
     /* maat_stream store expr_runtime version when maat_stream_new().
        Add new expr_item has changed expr_runtime version which has been sensed by maat_stream_scan.
     */
-    ret = maat_stream_scan(stream, scan_data, strlen(scan_data), results,
-                           ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_stream_scan(stream, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     
-    ret = maat_scan_not_logic(maat_inst, scan_table_name, scan_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, scan_table_name, scan_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_stream_free(stream);
 
     stream = maat_stream_new(maat_inst, scan_table_name, scan_attribute_name, state);
-    ret = maat_stream_scan(stream, scan_data, strlen(scan_data), results,
-                           ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_stream_scan(stream, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, scan_table_name, scan_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, scan_table_name, scan_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_stream_free(stream);
 	maat_state_free(state);
@@ -9826,17 +9743,17 @@ TEST_F(MaatCmd, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
     size_t n_hit_result = 0;
 
     struct maat_stream *stream = maat_stream_new(maat_inst, scan_table_name, scan_attribute_name, state);
-    ret = maat_stream_scan(stream, scan_data, strlen(scan_data), results,
-                           ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_stream_scan(stream, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, scan_table_name, scan_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, scan_table_name, scan_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     //DON'T DO THIS!!!
 	//Roll back version, trigger full update.	
@@ -9847,12 +9764,10 @@ TEST_F(MaatCmd, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
 	//Wating for scanner garbage collect expiration.
 	sleep(10);
 
-	ret = maat_stream_scan(stream, scan_data, strlen(scan_data), results,
-                           ARRAY_SIZE, &n_hit_result, state);
+	ret = maat_stream_scan(stream, scan_data, strlen(scan_data), state);
 	EXPECT_EQ(ret, MAAT_SCAN_OK); //Scan was interupted after full update.
 
-    ret = maat_scan_not_logic(maat_inst, scan_table_name, scan_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, scan_table_name, scan_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
 	maat_stream_free(stream);
@@ -9927,13 +9842,14 @@ TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
     int table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, 
-                         ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     //add rule2 for rule runtime inc update
     long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
@@ -9948,31 +9864,19 @@ TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
     const char *scan_data = "Here is a stream-keywords-003, this should hit.";
 
     struct maat_stream *stream = maat_stream_new(maat_inst, expr_table_name, expr_attribute_name, state);
-    ret = maat_stream_scan(stream, scan_data, strlen(scan_data), results,
-                           ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_stream_scan(stream, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
+
+    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
-    EXPECT_STREQ(uuid_str, rule1_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
-    /* 
-        becase rule1_id has been returned, maat_scan_xx will not return duplicate rule_id again
-    */
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, 
-                         ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule2_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
 	maat_stream_free(stream);
 	maat_state_free(state);
@@ -10044,13 +9948,14 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
     ret = inet_pton(AF_INET, ip_str, &ip_addr);
     EXPECT_EQ(ret, 1);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, 
-                         ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     //DON'T DO THIS!!!
 	//Roll back version, trigger full update.	
@@ -10062,25 +9967,24 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
     const char *scan_data = "Here is a stream-keywords-004, this should hit.";
 
     struct maat_stream *stream = maat_stream_new(maat_inst, expr_table_name, expr_attribute_name, state);
-    ret = maat_stream_scan(stream, scan_data, strlen(scan_data), results,
-                           ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_stream_scan(stream, scan_data, strlen(scan_data), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     /* maat_state keep the rule_rt version when maat_state_new().
        After full updating, new rule_rt version is different from that of maat_state,
        so MAAT_SCAN_HIT will never happen.
     */
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, 
-                         ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
 	maat_stream_free(stream);
 	maat_state_free(state);
@@ -10152,13 +10056,14 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
     ret = inet_pton(AF_INET, ip_str, &ip_addr);
     EXPECT_EQ(ret, 1);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, ARRAY_SIZE,
-                         &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     //add rule2 for rule runtime inc update
     long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
@@ -10172,31 +10077,19 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
 
     const char *scan_data = "Here is a IP and stringinc, this should hit.";
 
-    ret = maat_scan_string(maat_inst, expr_table_name, expr_attribute_name, scan_data, strlen(scan_data),
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, expr_table_name, expr_attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
+
+    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
-    EXPECT_STREQ(uuid_str, rule1_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
-    /* 
-        becase rule1_id has been returned, maat_scan_xx will not return duplicate rule_id again
-    */
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, 
-                         ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule2_uuid_str);
-
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
 	maat_state_free(state);
     state = NULL;
@@ -10267,13 +10160,14 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
     ret = inet_pton(AF_INET, ip_str, &ip_addr);
     EXPECT_EQ(ret, 1);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, 
-                         ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr,state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     //DON'T DO THIS!!!
 	//Roll back version, trigger full update.	
@@ -10284,25 +10178,27 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
 
     const char *scan_data = "scan IP and string, this should hit.";
 
-    ret = maat_scan_string(maat_inst, expr_table_name, expr_attribute_name, scan_data, strlen(scan_data),
-                            results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_string(maat_inst, expr_table_name, expr_attribute_name, scan_data, strlen(scan_data), state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
     /* maat_state keep the rule_rt version when maat_state_new().
        After full updating, new rule_rt version is different from that of maat_state,
        so MAAT_SCAN_HIT will never happen.
     */
-    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, results, 
-                         ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
+    ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 0);
 
 	maat_state_free(state);
     state = NULL;
@@ -10456,17 +10352,17 @@ TEST_F(MaatRollback, FullConfigRollback) {
     const char *scan_data = "http://www.cyberessays.com/search_results.php?"
                             "action=search&query=username,abckkk,1234567";
 
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), 
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000125");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
@@ -10489,16 +10385,16 @@ TEST_F(MaatRollback, FullConfigRollback) {
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), 
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000125");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -10517,17 +10413,17 @@ TEST_F(MaatRollback, FullConfigRollbackWhenScanUnfinished) {
     const char *scan_data = "http://www.cyberessays.com/search_results.php?"
                             "action=search&query=username,abckkk,1234567";
 
-    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), 
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000125");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
@@ -10550,16 +10446,16 @@ TEST_F(MaatRollback, FullConfigRollbackWhenScanUnfinished) {
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), 
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, table_name, attribute_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000125");
-
-    ret = maat_scan_not_logic(maat_inst, table_name, attribute_name, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;

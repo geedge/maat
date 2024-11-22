@@ -31,7 +31,7 @@ struct object_group_rule {
     struct object_item del_items[MAX_ITEM_NUM];
 };
 
-UT_icd ut_ex_object_id_icd = {sizeof(long long), NULL, NULL, NULL};
+static UT_icd ut_ex_object_id_icd = {sizeof(long long), NULL, NULL, NULL};
 
 static int
 parse_config_file(const char *filename, struct object_group_rule *rules)

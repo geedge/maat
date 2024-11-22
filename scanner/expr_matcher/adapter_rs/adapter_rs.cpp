@@ -313,7 +313,6 @@ void rs_lit_engine_free(void *rs_lit_engine)
     FREE(rs_lit_inst);
 }
 
-UT_icd ut_rs_pattern_id_icd = {sizeof(unsigned long long), NULL, NULL, NULL};
 void *rs_lit_engine_new(struct expr_rule *rules, size_t n_rule,
                          struct pattern_attribute *pat_attr,
                          void *rs_lit_db, size_t n_thread,

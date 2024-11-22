@@ -54,7 +54,7 @@ void cache_row_copy(void *dst, const void *src)
     ex_data_row_dst->op = ex_data_row_src->op;
 }
 
-UT_icd ut_cache_row_icd = {sizeof(struct ex_data_row), NULL, cache_row_copy, cache_row_free};
+static UT_icd ut_cache_row_icd = {sizeof(struct ex_data_row), NULL, cache_row_copy, cache_row_free};
 
 struct ex_data_runtime *
 ex_data_runtime_new(int table_id, int gc_timeout_s, struct log_handle *logger)

@@ -71,9 +71,11 @@ struct table_condition {
 struct attribute_hit_object_collection {
     char attribute_name[MAX_ATTR_NAME_LEN];
     UT_array *direct_items;
-    UT_array *indirect_object_uuids;//TODO: ??????? change it to graph?
+    UT_array *indirect_object_uuids;//TODO: change it to graph?
     UT_array *all_object_uuids;
-    int need_not_condition;
+    UT_array *negate_object_uuids;
+    int need_negate_condition;
+    int need_scan_not_object;
     int Nth_scan;
     UT_hash_handle hh;
 };
@@ -142,11 +144,11 @@ struct rule_compile_state {
     struct attribute_hit_object_collection *attr_hit_objects_hashtbl;
 };
 
-UT_icd ut_condition_id_icd = {sizeof(long long), NULL, NULL, NULL};
-UT_icd ut_condition_literal_icd = {sizeof(struct condition_literal), NULL, NULL, NULL};
-UT_icd ut_object_uuid_icd = {sizeof(uuid_t), NULL, NULL, NULL};
-UT_icd ut_maat_item_icd = {sizeof(struct maat_item), NULL, NULL, NULL};
-UT_icd ut_hit_path_icd = {sizeof(struct internal_hit_path), NULL, NULL, NULL};
+static UT_icd ut_condition_id_icd = {sizeof(long long), NULL, NULL, NULL};
+static UT_icd ut_condition_literal_icd = {sizeof(struct condition_literal), NULL, NULL, NULL};
+static UT_icd ut_object_uuid_icd = {sizeof(uuid_t), NULL, NULL, NULL};
+static UT_icd ut_maat_item_icd = {sizeof(struct maat_item), NULL, NULL, NULL};
+static UT_icd ut_hit_path_icd = {sizeof(struct internal_hit_path), NULL, NULL, NULL};
 
 static void rule_item_free(struct rule_item *item)
 {
@@ -818,7 +820,21 @@ void rule_compile_state_reset(struct rule_compile_state *rule_compile_state)
 
     struct attribute_hit_object_collection *attr_hit_obj = NULL, *tmp_hit_attr_obj = NULL;
     HASH_ITER(hh, rule_compile_state->attr_hit_objects_hashtbl, attr_hit_obj, tmp_hit_attr_obj) {
-        //TODO: clear
+        if (attr_hit_obj->direct_items != NULL) {
+            utarray_clear(attr_hit_obj->direct_items);
+        }
+
+        if (attr_hit_obj->indirect_object_uuids != NULL) {
+            utarray_clear(attr_hit_obj->indirect_object_uuids);
+        }
+
+        if (attr_hit_obj->all_object_uuids != NULL) {
+            utarray_clear(attr_hit_obj->all_object_uuids);
+        }
+
+        attr_hit_obj->need_negate_condition = 0;
+        attr_hit_obj->need_scan_not_object = 0;
+        attr_hit_obj->Nth_scan = 0;
     }
 }
 
@@ -851,7 +867,30 @@ void rule_compile_state_free(struct rule_compile_state *rule_compile_state,
         rule_compile_state->exclude_not_conditions = NULL;
     }
 
-    //TODO: free attr_hit_objects_hashtbl
+    struct attribute_hit_object_collection *attr_hit_obj = NULL, *tmp_hit_attr_obj = NULL;
+    HASH_ITER(hh, rule_compile_state->attr_hit_objects_hashtbl, attr_hit_obj, tmp_hit_attr_obj) {
+        if (attr_hit_obj->direct_items != NULL) {
+            free_bytes += utarray_size(attr_hit_obj->direct_items) * sizeof(struct maat_item);
+            utarray_free(attr_hit_obj->direct_items);
+            attr_hit_obj->direct_items = NULL;
+        }
+
+        if (attr_hit_obj->indirect_object_uuids != NULL) {
+            free_bytes += utarray_size(attr_hit_obj->indirect_object_uuids) * sizeof(uuid_t);
+            utarray_free(attr_hit_obj->indirect_object_uuids);
+            attr_hit_obj->indirect_object_uuids = NULL;
+        }
+
+        if (attr_hit_obj->all_object_uuids != NULL) {
+            free_bytes += utarray_size(attr_hit_obj->all_object_uuids) * sizeof(uuid_t);
+            utarray_free(attr_hit_obj->all_object_uuids);
+            attr_hit_obj->all_object_uuids = NULL;
+        }
+
+        HASH_DEL(rule_compile_state->attr_hit_objects_hashtbl, attr_hit_obj);
+        free_bytes += sizeof(struct attribute_hit_object_collection);
+        FREE(attr_hit_obj);
+    }
 
 	FREE(rule_compile_state);
 
@@ -1463,6 +1502,7 @@ int rule_runtime_match(struct rule_runtime *rule_rt, uuid_t *rule_uuids,
 {
     struct rule_compile_state *rule_compile_state = state->rule_compile_state;
     struct rule_item *rule_items[rule_ids_size];
+    int clear_scan_not_obj_flag = 0;
 
     utarray_clear(rule_compile_state->all_hit_conditions);
     utarray_clear(rule_compile_state->exclude_not_conditions);
@@ -1484,7 +1524,7 @@ int rule_runtime_match(struct rule_runtime *rule_rt, uuid_t *rule_uuids,
                 rule_compile_state_add_hit_conditions(rule_compile_state, condition_id_kv->condition_ids);
             }
         
-            if (attr_hit_obj_coll->need_not_condition) {
+            if (attr_hit_obj_coll->need_negate_condition) {
                 key.negate_option = 1;
                 HASH_FIND(hh, rule_rt->not_condition_id_kv_hash, &key, sizeof(key), condition_id_kv);
                 if (condition_id_kv != NULL) {
@@ -1492,33 +1532,41 @@ int rule_runtime_match(struct rule_runtime *rule_rt, uuid_t *rule_uuids,
                 }
             }
         }
+
+        if (attr_hit_obj_coll->need_scan_not_object) {
+            clear_scan_not_obj_flag = 1;
+        }
     }
 
     //not conditions
     struct condition_id_kv *condition_id_kv = NULL, *tmp_condition_id_kv = NULL;
     HASH_ITER(hh, rule_rt->not_condition_id_kv_hash, condition_id_kv, tmp_condition_id_kv) {
         HASH_FIND_STR(rule_compile_state->attr_hit_objects_hashtbl, condition_id_kv->key.attribute_name, attr_hit_obj_coll);
-        if (attr_hit_obj_coll == NULL || attr_hit_obj_coll->need_not_condition == 0) {
+        if (attr_hit_obj_coll == NULL || attr_hit_obj_coll->need_negate_condition == 0) {
             continue;
         }
 
-        uuid_t *object_uuid = bsearch(&(condition_id_kv->key.object_uuid),
-                                      utarray_eltptr(attr_hit_obj_coll->all_object_uuids, 0),
-                                      utarray_len(attr_hit_obj_coll->all_object_uuids),
-                                      sizeof(uuid_t), compare_object_uuid);
-        if (object_uuid != NULL) {
+        if (utarray_find(attr_hit_obj_coll->all_object_uuids, &(condition_id_kv->key.object_uuid), compare_object_uuid) != NULL) {
             continue;
         }
 
         rule_compile_state_add_hit_not_conditions(rule_compile_state, condition_id_kv->condition_ids);
 
-        if (state->maat_inst->opts.hit_path_on) {
+        if (state->maat_inst->opts.hit_path_on && attr_hit_obj_coll->need_scan_not_object) {
             uuid_t null_uuid;
             uuid_clear(null_uuid);
             rule_compile_state_add_internal_hit_path(rule_compile_state, null_uuid,
                                                 condition_id_kv->key.object_uuid,
                                                 condition_id_kv->key.attribute_name, 1,
                                                 attr_hit_obj_coll->Nth_scan);
+        }
+    }
+
+    if (clear_scan_not_obj_flag) {
+        HASH_ITER(hh, rule_compile_state->attr_hit_objects_hashtbl, attr_hit_obj_coll, tmp) {
+            if (attr_hit_obj_coll->need_scan_not_object) {
+                attr_hit_obj_coll->need_scan_not_object = 0;
+            }
         }
     }
 
@@ -1646,8 +1694,9 @@ void rule_compile_state_not_logic_update(struct maat *maat_inst, struct rule_com
     struct attribute_hit_object_collection *attr_hit_obj_coll = rule_compile_state_get_attr_hit_obj_coll(maat_inst, rule_compile_state, attribute_name);
     assert(attr_hit_obj_coll != NULL);
 
-    attr_hit_obj_coll->need_not_condition = 1;
-    rule_compile_state->Nth_scan = Nth_scan;
+    attr_hit_obj_coll->need_negate_condition = 1;
+    attr_hit_obj_coll->need_scan_not_object = 1;
+    attr_hit_obj_coll->Nth_scan = Nth_scan;
 
     return;
 }
@@ -1712,8 +1761,6 @@ size_t rule_compile_state_get_hit_objects(struct maat *maat_inst, struct rule_co
     for (i = 0; i < utarray_len(attr_hit_obj_coll->all_object_uuids) && i < array_size; i++) {
         uuid_copy(object_array[i], *(uuid_t *)utarray_eltptr(attr_hit_obj_coll->all_object_uuids, i));
     }
-
-    utarray_clear(attr_hit_obj_coll->all_object_uuids);
 
     return i;
 }

@@ -65,7 +65,7 @@ struct db_operations {
     int (*build_db)(void **lit_db, void *compile_data, struct log_handle *logger);
 };
 
-UT_icd ut_pattern_id_icd = {sizeof(unsigned long long), NULL, NULL, NULL};
+static UT_icd ut_pattern_id_icd = {sizeof(unsigned long long), NULL, NULL, NULL};
 
 struct db_operations db_ops[EXPR_ENGINE_TYPE_AUTO] = {
     {

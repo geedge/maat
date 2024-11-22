@@ -35,7 +35,7 @@ struct ipport_matcher {
     struct ip_matcher *ip_matcher;
 };
 
-UT_icd ut_port_range_icd = {sizeof(struct port_range), NULL, NULL, NULL};
+static UT_icd ut_port_range_icd = {sizeof(struct port_range), NULL, NULL, NULL};
 static inline int compare_port_range_for_sort(const void *a, const void *b)
 {
     struct port_range range_a = *(const struct port_range *)a;

@@ -341,7 +341,6 @@ static int matched_event_cb(unsigned int id, unsigned long long from,
     return 0;
 }
 
-UT_icd ut_hs_pattern_id_icd = {sizeof(unsigned long long), NULL, NULL, NULL};
 void *hs_lit_stream_open(void *hs_lit_engine, int thread_id)
 {
     if (NULL == hs_lit_engine || thread_id < 0) {

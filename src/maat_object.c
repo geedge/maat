@@ -69,7 +69,7 @@ struct object_group_runtime {
     struct log_handle *logger;
 };
 
-UT_icd ut_object_uuid_icd = {sizeof(uuid_t), NULL, NULL, NULL};
+static UT_icd ut_object_uuid_icd = {sizeof(uuid_t), NULL, NULL, NULL};
 
 static inline int compare_object_uuid(const void *a, const void *b)
 {

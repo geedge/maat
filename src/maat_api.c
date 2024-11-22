@@ -1170,7 +1170,7 @@ string_scan(struct table_manager *tbl_mgr, int thread_id,
     return object_hit_cnt;
 }
 
-size_t maat_state_compile(struct maat_state *state, const char *table_name, uuid_t rule_array[], void *ex_data_array[], size_t n_result)
+size_t maat_state_compile(struct maat_state *state, const char *table_name, uuid_t rule_array[], size_t n_result)
 {
     int table_id = maat_get_table_id(state->maat_inst, table_name);
     if (table_id < 0) {
@@ -1183,15 +1183,9 @@ size_t maat_state_compile(struct maat_state *state, const char *table_name, uuid
     }
 
     int rule_num = rule_runtime_match((struct rule_runtime *)rule_rt, rule_array, n_result, state);
-    if (rule_num <= 0) {
-        return 0;
+    if (rule_num > 0) {
+        alignment_int64_array_add(state->maat_inst->stat->hit_rule_cnt, state->thread_id, rule_num);
     }
-
-    for (int i = 0; i < rule_num; i++) {
-        ex_data_array[i] = maat_plugin_table_get_ex_data(state->maat_inst, table_name, (char*)&rule_array[i], sizeof(uuid_t));
-    }
-
-    alignment_int64_array_add(state->maat_inst->stat->hit_rule_cnt, state->thread_id, rule_num);
 
     return rule_num;
 }
