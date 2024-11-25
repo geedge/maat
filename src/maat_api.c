@@ -1182,12 +1182,31 @@ size_t maat_state_compile(struct maat_state *state, const char *table_name, uuid
         return 0;
     }
 
-    int rule_num = rule_runtime_match((struct rule_runtime *)rule_rt, rule_array, n_result, state);
+    int rule_num = rule_runtime_match(table_id, (struct rule_runtime *)rule_rt, rule_array, n_result, state);
     if (rule_num > 0) {
         alignment_int64_array_add(state->maat_inst->stat->hit_rule_cnt, state->thread_id, rule_num);
     }
 
     return rule_num;
+}
+
+int maat_state_need_compile(struct maat_state *state, const char *table_name)
+{
+    if (state == NULL || state->maat_inst == NULL) {
+        return 0;
+    }
+
+    int table_id = maat_get_table_id(state->maat_inst, table_name);
+    if (table_id < 0) {
+        return 0;
+    }
+
+    void *rule_rt = table_manager_get_runtime(state->maat_inst->tbl_mgr, table_id);
+    if (NULL == rule_rt) {
+        return 0;
+    }
+
+    return rule_runtime_need_compile(table_id, (struct rule_runtime *)rule_rt, state->rule_compile_state);
 }
 
 int maat_scan_flag(struct maat *maat_inst, const char *table_name, const char *attribute_name,

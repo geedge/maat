@@ -80,6 +80,14 @@ struct attribute_hit_object_collection {
     UT_hash_handle hh;
 };
 
+struct rule_compile_runtime_state {
+    int table_id;//key
+    time_t rule_rt_version;
+    int hit_object_changed;
+    int need_scan_not_logic;
+    UT_hash_handle hh;
+};
+
 /* rule_runtime and object2rule_runtime share rule_hash_map */
 struct rule_runtime {
 	struct bool_matcher *bm;
@@ -136,12 +144,12 @@ struct internal_hit_path {
 
 struct rule_compile_state {
 	int Nth_scan;
-    time_t rule_rt_version;
 
 	UT_array *internal_hit_paths;
 	UT_array *all_hit_conditions;
     UT_array *exclude_not_conditions;
     struct attribute_hit_object_collection *attr_hit_objects_hashtbl;
+    struct rule_compile_runtime_state *rule_runtime_state_hash;
 };
 
 static UT_icd ut_condition_id_icd = {sizeof(long long), NULL, NULL, NULL};
@@ -761,13 +769,8 @@ maat_rule_bool_matcher_match(struct rule_runtime *rule_rt,
                                          (thread_id * MAX_HIT_RULE_NUM);
     assert(thread_id >= 0);
 
-    if (0 == rule_compile_state->rule_rt_version) {
-        rule_compile_state->rule_rt_version = rule_rt->version;
-    }
-
     if (NULL == rule_rt->bm ||
-        0 == utarray_len(rule_compile_state->all_hit_conditions) ||
-        rule_compile_state->rule_rt_version != rule_rt->version) {
+        0 == utarray_len(rule_compile_state->all_hit_conditions)) {
         return 0;
     }
 	
@@ -812,7 +815,6 @@ void rule_compile_state_reset(struct rule_compile_state *rule_compile_state)
     }
 
     rule_compile_state->Nth_scan = 0;
-    rule_compile_state->rule_rt_version = 0;
 
     utarray_clear(rule_compile_state->internal_hit_paths);
     utarray_clear(rule_compile_state->all_hit_conditions);
@@ -835,6 +837,13 @@ void rule_compile_state_reset(struct rule_compile_state *rule_compile_state)
         attr_hit_obj->need_negate_condition = 0;
         attr_hit_obj->need_scan_not_object = 0;
         attr_hit_obj->Nth_scan = 0;
+    }
+
+    struct rule_compile_runtime_state *rule_runtime_state = NULL, *tmp_rule_runtime_state = NULL;
+    HASH_ITER(hh, rule_compile_state->rule_runtime_state_hash, rule_runtime_state, tmp_rule_runtime_state) {
+        rule_runtime_state->rule_rt_version = 0;
+        rule_runtime_state->hit_object_changed = 0;
+        rule_runtime_state->need_scan_not_logic = 0;
     }
 }
 
@@ -890,6 +899,13 @@ void rule_compile_state_free(struct rule_compile_state *rule_compile_state,
         HASH_DEL(rule_compile_state->attr_hit_objects_hashtbl, attr_hit_obj);
         free_bytes += sizeof(struct attribute_hit_object_collection);
         FREE(attr_hit_obj);
+    }
+
+    struct rule_compile_runtime_state *rule_runtime_state = NULL, *tmp_rule_runtime_state = NULL;
+    HASH_ITER(hh, rule_compile_state->rule_runtime_state_hash, rule_runtime_state, tmp_rule_runtime_state) {
+        HASH_DEL(rule_compile_state->rule_runtime_state_hash, rule_runtime_state);
+        free_bytes += sizeof(struct rule_compile_runtime_state);
+        FREE(rule_runtime_state);
     }
 
 	FREE(rule_compile_state);
@@ -1069,10 +1085,6 @@ size_t rule_runtime_get_hit_paths(struct rule_runtime *rule_rt, int thread_id,
     struct bool_expr_match *expr_match = rule_rt->expr_match_buff + 
                                          (thread_id * MAX_HIT_RULE_NUM);
     assert(thread_id >= 0);
-
-    if (rule_compile_state->rule_rt_version != rule_rt->version) {
-        return 0;
-    }
 
     int bool_match_ret =
         bool_matcher_match(rule_rt->bm, 
@@ -1497,7 +1509,7 @@ static int compare_rule_item(const void *a, const void *b)
 	return rule_sort_para_compare(&sa, &sb);
 }
 
-int rule_runtime_match(struct rule_runtime *rule_rt, uuid_t *rule_uuids,
+int rule_runtime_match(int table_id, struct rule_runtime *rule_rt, uuid_t *rule_uuids,
                           size_t rule_ids_size, struct maat_state *state)
 {
     struct rule_compile_state *rule_compile_state = state->rule_compile_state;
@@ -1506,6 +1518,21 @@ int rule_runtime_match(struct rule_runtime *rule_rt, uuid_t *rule_uuids,
 
     utarray_clear(rule_compile_state->all_hit_conditions);
     utarray_clear(rule_compile_state->exclude_not_conditions);
+
+    struct rule_compile_runtime_state *rule_compile_rt_state = NULL;
+    HASH_FIND_INT(rule_compile_state->rule_runtime_state_hash, &table_id, rule_compile_rt_state);
+    if (rule_compile_rt_state == NULL) {
+        rule_compile_rt_state = ALLOC(struct rule_compile_runtime_state, 1);
+        rule_compile_rt_state->table_id = table_id;
+        HASH_ADD_INT(rule_compile_state->rule_runtime_state_hash, table_id, rule_compile_rt_state);
+    }
+
+    rule_compile_rt_state->hit_object_changed = 0;
+    rule_compile_rt_state->need_scan_not_logic = 0;
+
+    if (rule_compile_rt_state->rule_rt_version != rule_rt->version) {
+        rule_compile_rt_state->rule_rt_version = rule_rt->version;
+    }
     
     struct attribute_hit_object_collection *attr_hit_obj_coll = NULL, *tmp = NULL;
     HASH_ITER(hh, rule_compile_state->attr_hit_objects_hashtbl, attr_hit_obj_coll, tmp) {
@@ -1588,6 +1615,26 @@ int rule_runtime_match(struct rule_runtime *rule_rt, uuid_t *rule_uuids,
     return MIN(bool_match_ret, rule_ids_size);
 }
 
+int rule_runtime_need_compile(int table_id, struct rule_runtime *rule_rt, struct rule_compile_state *rule_compile_state)
+{
+    struct rule_compile_runtime_state *rule_compile_rt_state = NULL;
+    
+    HASH_FIND_INT(rule_compile_state->rule_runtime_state_hash, &table_id, rule_compile_rt_state);
+    if (rule_compile_rt_state == NULL || rule_compile_rt_state->rule_rt_version == 0) {//haven't compiled yet, need compile
+        return 1;
+    }
+
+    if (rule_compile_rt_state->rule_rt_version != rule_rt->version) {
+        return 0;
+    }
+
+    if (rule_compile_rt_state->hit_object_changed || rule_compile_rt_state->need_scan_not_logic) {
+        return 1;
+    }
+
+    return 0;
+}
+
 static struct attribute_hit_object_collection * rule_compile_state_get_attr_hit_obj_coll(struct maat *maat_inst, struct rule_compile_state *rule_compile_state,
                                                                                           const char *attribute_name)
 {
@@ -1608,7 +1655,7 @@ static struct attribute_hit_object_collection * rule_compile_state_get_attr_hit_
     return attr_hit_obj_coll;
 }
 
-static void rule_compile_state_add_hit_objects(struct rule_compile_state *rule_compile_state, 
+static int rule_compile_state_add_hit_objects(struct rule_compile_state *rule_compile_state, 
                                             struct attribute_hit_object_collection * attr_hit_obj_coll,
                                             uuid_t object_uuids[], size_t n_object_uuids)
 {
@@ -1635,7 +1682,7 @@ static void rule_compile_state_add_hit_objects(struct rule_compile_state *rule_c
         utarray_sort(attr_hit_obj_coll->all_object_uuids, compare_object_uuid);
     }
 
-    return;
+    return object_uuid_idx_array_len;
 }
 
 int rule_compile_state_update(struct rule_compile_state *rule_compile_state, struct maat *maat_inst,
@@ -1680,7 +1727,12 @@ int rule_compile_state_update(struct rule_compile_state *rule_compile_state, str
         uuid_copy(hit_object_uuids[hit_cnt++], super_object_uuids[j]);
     }
 
-    rule_compile_state_add_hit_objects(rule_compile_state, attr_hit_obj_coll, hit_object_uuids, hit_cnt);
+    if (rule_compile_state_add_hit_objects(rule_compile_state, attr_hit_obj_coll, hit_object_uuids, hit_cnt) > 0) {
+        struct rule_compile_runtime_state *rule_compile_rt_state = NULL, *tmp = NULL;
+        HASH_ITER(hh, rule_compile_state->rule_runtime_state_hash, rule_compile_rt_state, tmp) {
+            rule_compile_rt_state->hit_object_changed = 1;
+        }
+    }
 
     return hit_cnt;
 }
@@ -1697,6 +1749,11 @@ void rule_compile_state_not_logic_update(struct maat *maat_inst, struct rule_com
     attr_hit_obj_coll->need_negate_condition = 1;
     attr_hit_obj_coll->need_scan_not_object = 1;
     attr_hit_obj_coll->Nth_scan = Nth_scan;
+
+    struct rule_compile_runtime_state *rule_compile_rt_state = NULL, *tmp = NULL;
+    HASH_ITER(hh, rule_compile_state->rule_runtime_state_hash, rule_compile_rt_state, tmp) {
+        rule_compile_rt_state->need_scan_not_logic = 1;
+    }
 
     return;
 }

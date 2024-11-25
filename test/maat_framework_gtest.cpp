@@ -9610,14 +9610,18 @@ TEST_F(MaatCmd, UpdateDeadLockDetection) {
 
     memset(results, 0, sizeof(results));
     ret = maat_scan_string(maat_inst, table_http_url, attribute_http_url, scan_data2, strlen(scan_data2), state);
-    //After full update, condition ids are re-orgnized, therefore mid are not compatible to the new scanner (hierarchy).
+    
     EXPECT_EQ(ret, MAAT_SCAN_HIT); 
 
     ret = maat_scan_not_logic(maat_inst, table_http_url, attribute_http_url, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
-    EXPECT_EQ(n_hit_result, 0);
+    EXPECT_EQ(n_hit_result, 2);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule2_uuid_str);
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
     maat_state_free(state);
     state = NULL;
@@ -9973,10 +9977,6 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
     ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_attribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    /* maat_state keep the rule_rt version when maat_state_new().
-       After full updating, new rule_rt version is different from that of maat_state,
-       so MAAT_SCAN_HIT will never happen.
-    */
     ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
@@ -9984,7 +9984,10 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
-    EXPECT_EQ(n_hit_result, 0);
+    EXPECT_EQ(n_hit_result, 1);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
 	maat_stream_free(stream);
 	maat_state_free(state);
@@ -10185,12 +10188,11 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
-    EXPECT_EQ(n_hit_result, 0);
+    EXPECT_EQ(n_hit_result, 1);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
-    /* maat_state keep the rule_rt version when maat_state_new().
-       After full updating, new rule_rt version is different from that of maat_state,
-       so MAAT_SCAN_HIT will never happen.
-    */
     ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_attribute_name, ip_addr, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
@@ -10198,7 +10200,9 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
-    EXPECT_EQ(n_hit_result, 0);
+    EXPECT_EQ(n_hit_result, 1);
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
 	maat_state_free(state);
     state = NULL;

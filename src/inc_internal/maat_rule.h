@@ -51,8 +51,10 @@ long long rule_runtime_rule_count(void *rule_runtime);
 
 long long rule_runtime_update_err_count(void *rule_runtime);
 
-int rule_runtime_match(struct rule_runtime *rule_rt, uuid_t *rule_uuids,
+int rule_runtime_match(int table_id, struct rule_runtime *rule_rt, uuid_t *rule_uuids,
                           size_t rule_ids_size, struct maat_state *state);
+
+int rule_runtime_need_compile(int table_id, struct rule_runtime *rule_rt, struct rule_compile_state *rule_compile_state);
 
 size_t rule_runtime_get_hit_paths(struct rule_runtime *rule_rt, int thread_id,
 									 struct rule_compile_state *rule_compile_state, 

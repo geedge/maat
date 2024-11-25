@@ -297,6 +297,7 @@ struct maat_state *maat_state_new(struct maat *instance, int thread_id);
  * @param n_result:       the size of rule_array and ex_data_array
 */
 size_t maat_state_compile(struct maat_state *state, const char *table_name, uuid_t rule_array[], size_t n_result);
+int maat_state_need_compile(struct maat_state *state, const char *table_name);
 
 void maat_state_reset(struct maat_state *state);
 
