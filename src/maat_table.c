@@ -42,7 +42,7 @@ struct maat_table {
     void *updating_runtime;
 };
 
-struct maat_attribute {
+struct maat_field {
     int table_id;
     int attr_id;
     char attr_name[MAX_NAME_STR_LEN + 1];

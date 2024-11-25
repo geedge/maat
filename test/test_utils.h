@@ -8,7 +8,7 @@
 struct maat_cmd_or_condition {
     const char *object_uuids_str[8];
     int object_num;
-    const char *attribute_name;
+    const char *field_name;
 };
 
 struct maat_cmd_and_condition {

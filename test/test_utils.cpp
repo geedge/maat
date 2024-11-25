@@ -155,7 +155,7 @@ int rule_table_set_line(struct maat *maat_inst, const char *table_name,
                 cJSON_AddItemToArray(object_uuids_array, cJSON_CreateString(and_conditions[i].or_conditions[j].object_uuids_str[k]));
             }
             cJSON_AddItemToObject(or_condition, "object_uuids", object_uuids_array);
-            cJSON_AddStringToObject(or_condition, "attribute_name", and_conditions[i].or_conditions[j].attribute_name);
+            cJSON_AddStringToObject(or_condition, "field_name", and_conditions[i].or_conditions[j].field_name);
 
             cJSON_AddItemToArray(or_conditions_array, or_condition);
         }

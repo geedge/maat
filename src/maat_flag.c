@@ -401,7 +401,7 @@ long long flag_runtime_rule_count(void *flag_runtime)
 }
 
 int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id, 
-                      long long flag, const char *attribute_name, struct maat_state *state)
+                      long long flag, const char *field_name, struct maat_state *state)
 {
     //clear rule_state->last_hit_object
     if (state != NULL && state->rule_compile_state != NULL) {
@@ -458,7 +458,7 @@ next:
                                   state->thread_id, 1);
     }
 
-    return rule_compile_state_update(state, state->maat_inst, attribute_name,
+    return rule_compile_state_update(state, state->maat_inst, field_name,
                                 state->rule_table_id, state->Nth_scan,
                                 hit_maat_items, real_hit_item_cnt);
 }

@@ -13,7 +13,7 @@
             "and_conditions": [
                 {
                     "object_name": "Untitled",
-                    "attribute_name": "HTTP_URL",
+                    "field_name": "HTTP_URL",
                     "objects": [
                         {
                             "items": [

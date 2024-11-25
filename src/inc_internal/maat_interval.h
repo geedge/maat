@@ -49,7 +49,7 @@ long long interval_runtime_rule_count(void *interval_runtime);
  * @retval the num of hit object_id
 */
 int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id, 
-                          long long integer, const char *attribute_name, struct maat_state *state);
+                          long long integer, const char *field_name, struct maat_state *state);
                                        
 void interval_runtime_perf_stat(struct interval_runtime *interval_rt,
                                 struct timespec *start, struct timespec *end,
