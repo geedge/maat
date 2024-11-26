@@ -136,7 +136,7 @@ void generate_rule_sample(const char *table_name, int sample_count)
     fclose(fp);
 }
 
-void generate_object2rule_sample(const char *table_name, const char *attribute_name,
+void generate_object2rule_sample(const char *table_name, const char *field_name,
                                    int sample_count)
 {
     FILE *fp = fopen(table_name, "w+");
@@ -148,7 +148,7 @@ void generate_object2rule_sample(const char *table_name, const char *attribute_n
     fprintf(fp, "%d\n", sample_count);
 
     for (int i = 0; i < sample_count; i++) {
-        fprintf(fp, "%d\t%d\t0\t%s\t1\t1\n", i+1, 100+i, attribute_name);
+        fprintf(fp, "%d\t%d\t0\t%s\t1\t1\n", i+1, 100+i, field_name);
     }
 
     fclose(fp);

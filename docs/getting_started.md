@@ -61,7 +61,7 @@ Table schema is stored in a json file(such as table_info.json), which is loaded 
             "object_id":1,
             "rule_id":2,
             "negate_option":4,
-            "attribute_name":5,
+            "field_name":5,
             "condition_index":6
         }
     },

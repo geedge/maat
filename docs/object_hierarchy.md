@@ -4,7 +4,7 @@ A object can reference other objects, and can also be referenced by other object
 
 ## Include
 
-Include is equivalent to the inclusion semantics in set theory. For example, when object_A is included by object_B, if a traffic attribute satisfies object_A, object_B is satisfied. 
+Include is equivalent to the inclusion semantics in set theory. For example, when object_A is included by object_B, if a traffic field satisfies object_A, object_B is satisfied. 
 
 ## Exclude
 
@@ -51,7 +51,7 @@ Restrictions:
 
 - A object should include at least one subordinate object. (Exclude only is not allowed)
 
-- Traffic attribute using stream scan cannot allow use object(object) with exclude, i.e., keywords object on HTTP Response Body, Email attachment.
+- Traffic field using stream scan cannot allow use object(object) with exclude, i.e., keywords object on HTTP Response Body, Email attachment.
 
 Now, let's see a graph of hierarchy example, where the dotted line means exclude. The matched subordinate objects and activated superiors are listed in the following table.
 

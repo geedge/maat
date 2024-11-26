@@ -68,7 +68,7 @@
         "table_id":11,
         "table_name":"KEYWORDS_TABLE",
         "table_type":"expr",
-        "schema_tag": "{\"http_response_keywords\": \"attribute\"}"
+        "schema_tag": "{\"http_response_keywords\": \"field\"}"
     },
     {
         "table_id":12,
@@ -155,7 +155,7 @@
         "table_id":24,
         "table_name":"IP_PLUS_CONFIG",
         "table_type":"ip",
-        "schema_tag": "{\"attribute_ip_plus_table\": \"attribute\"}"
+        "schema_tag": "{\"field_ip_plus_table\": \"field\"}"
     },
     {
         "table_id":29,

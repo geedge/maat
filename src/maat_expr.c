@@ -813,7 +813,7 @@ long long expr_runtime_get_version(void *expr_runtime)
 
 int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
                       const char *data, size_t data_len,
-                      const char *attribute_name, struct maat_state *state)
+                      const char *field_name, struct maat_state *state)
 {
     if (0 == expr_rt->rule_num) {
         //empty expr table
@@ -872,7 +872,7 @@ next:
                                   state->thread_id, 1);
     }
 
-    return rule_compile_state_update(state->rule_compile_state, state->maat_inst, attribute_name,
+    return rule_compile_state_update(state->rule_compile_state, state->maat_inst, field_name,
                                 state->rule_table_id, state->Nth_scan,
                                 hit_maat_items, real_hit_item_num);
 }
@@ -898,7 +898,7 @@ expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id)
 
 int expr_runtime_stream_scan(struct expr_runtime_stream *expr_rt_stream,
                              const char *data, size_t data_len,
-                             const char *attribute_name, struct maat_state *state)
+                             const char *field_name, struct maat_state *state)
 {
     struct expr_runtime *expr_rt = expr_rt_stream->ref_expr_rt;
 
@@ -960,7 +960,7 @@ next:
                                   state->thread_id, 1);
     }
 
-    return rule_compile_state_update(state->rule_compile_state, state->maat_inst, attribute_name,
+    return rule_compile_state_update(state->rule_compile_state, state->maat_inst, field_name,
                                 state->rule_table_id, state->Nth_scan,
                                 hit_maat_items, real_hit_item_cnt);
 }

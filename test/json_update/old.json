@@ -12,7 +12,7 @@
             "is_valid": "yes",
             "and_conditions": [
                 {
-                    "attribute_name": "HTTP_URL",
+                    "field_name": "HTTP_URL",
                     "objects": [
                         {
                             "items": [

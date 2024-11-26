@@ -348,10 +348,10 @@ void convert_maat_json_rule(cJSON **json_root, unsigned char *json_buff)
 	/*
 	"rules": [																		"items":[
     {																					{
-      "uuid": "201",																		"table_name": "ATTR_APP_ID",
+      "uuid": "201",																		"table_name": "FIELD_APP_ID",
       "conditions": [																		"table_content": {
         {																						"uuid": "1",	
-          "attribute_name": "ATTR_APP_ID",														"object_uuid": "1",
+          "field_name": "FIELD_APP_ID",														"object_uuid": "1",
           "objects": [																			"interval": "4001"
             {
 			 "items":[											-------------->     		}
@@ -363,7 +363,7 @@ void convert_maat_json_rule(cJSON **json_root, unsigned char *json_buff)
           ]																				"uuid": "201",
         }																				"conditions": [
       ],																					{
-      "misc": "blah, blah"																		"attribute_name": "ATTR_APP_ID",
+      "misc": "blah, blah"																		"field_name": "FIELD_APP_ID",
     }																							"object_uuids": ["1"]
   ]																							}		
 																						]

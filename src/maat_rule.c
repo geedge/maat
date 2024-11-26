@@ -50,7 +50,7 @@ struct rule_item {
 
 struct condition_query_key {
 	uuid_t object_uuid;
-    char attribute_name[MAX_ATTR_NAME_LEN];
+    char field_name[MAX_FIELD_NAME_LEN];
     int negate_option;
 };
 
@@ -61,15 +61,15 @@ struct condition_id_kv {
 };
 
 struct table_condition {
-    char attribute_name[MAX_ATTR_NAME_LEN];
+    char field_name[MAX_FIELD_NAME_LEN];
     int actual_condition_num;
     UT_array *condition_ids;
     UT_array *object_ids;
     UT_hash_handle hh;
 };
 
-struct attribute_hit_object_collection {
-    char attribute_name[MAX_ATTR_NAME_LEN];
+struct field_hit_object_collection {
+    char field_name[MAX_FIELD_NAME_LEN];
     UT_array *direct_items;
     UT_array *indirect_object_uuids;//TODO: change it to graph?
     UT_array *all_object_uuids;
@@ -97,7 +97,7 @@ struct rule_runtime {
     struct condition_id_kv *not_condition_id_kv_hash; //store NOT_condition_ids(negate_option == 1)
     struct bool_expr_match *expr_match_buff;
     struct maat_garbage_bin *ref_garbage_bin;
-    struct table_condition *tbl_not_condition_hash; //each attribute's negate condition number <= MAX_NOT_CONDITION_NUM
+    struct table_condition *tbl_not_condition_hash; //each field's negate condition number <= MAX_NOT_CONDITION_NUM
     struct log_handle *logger;
     time_t version;
 
@@ -108,7 +108,7 @@ struct rule_runtime {
 struct condition_literal {
     uuid_t object_uuids[MAX_OBJECT_CNT];
     int object_cnt;
-    char attribute_name[MAX_ATTR_NAME_LEN];
+    char field_name[MAX_FIELD_NAME_LEN];
 };
 
 struct rule_condition {
@@ -139,7 +139,7 @@ struct internal_hit_path {
 	uuid_t object_uuid;
 	int Nth_scan;
     int negate_option; // 1 means negate condition
-    char attribute_name[MAX_ATTR_NAME_LEN];
+    char field_name[MAX_FIELD_NAME_LEN];
 };
 
 struct rule_compile_state {
@@ -148,7 +148,7 @@ struct rule_compile_state {
 	UT_array *internal_hit_paths;
 	UT_array *all_hit_conditions;
     UT_array *exclude_not_conditions;
-    struct attribute_hit_object_collection *attr_hit_objects_hashtbl;
+    struct field_hit_object_collection *attr_hit_objects_hashtbl;
     struct rule_compile_runtime_state *rule_runtime_state_hash;
 };
 
@@ -195,11 +195,11 @@ static void maat_rule_free(struct maat_rule *rule)
 }
 
 static int validate_table_not_condition(struct rule_runtime *rule_rt,
-                                     struct table_manager *tbl_mgr, const char *attribute_name,
+                                     struct table_manager *tbl_mgr, const char *field_name,
                                      enum maat_operation op, struct log_handle *logger)
 {
     struct table_condition *not_condition = NULL;
-    HASH_FIND_STR(rule_rt->tbl_not_condition_hash, attribute_name, not_condition);
+    HASH_FIND_STR(rule_rt->tbl_not_condition_hash, field_name, not_condition);
 
     if (MAAT_OP_DEL == op) {
         //delete
@@ -212,14 +212,14 @@ static int validate_table_not_condition(struct rule_runtime *rule_rt,
         //add
         if (NULL == not_condition) {
             not_condition = ALLOC(struct table_condition, 1);
-            snprintf(not_condition->attribute_name, sizeof(not_condition->attribute_name), "%s", attribute_name);
+            snprintf(not_condition->field_name, sizeof(not_condition->field_name), "%s", field_name);
             not_condition->actual_condition_num++;
-            HASH_ADD_STR(rule_rt->tbl_not_condition_hash, attribute_name, not_condition);
+            HASH_ADD_STR(rule_rt->tbl_not_condition_hash, field_name, not_condition);
         } else {
             if (not_condition->actual_condition_num >= MAX_NOT_CONDITION_NUM) {
                 log_fatal(logger, MODULE_RULE,
-                          "[%s:%d]attribute:<%s> negate condition num exceed maximum:%d",
-                          __FUNCTION__, __LINE__, attribute_name, MAX_NOT_CONDITION_NUM);
+                          "[%s:%d]field:<%s> negate condition num exceed maximum:%d",
+                          __FUNCTION__, __LINE__, field_name, MAX_NOT_CONDITION_NUM);
                 return -1;
             }
             not_condition->actual_condition_num++;
@@ -297,24 +297,24 @@ static struct maat_rule *maat_rule_new(struct rule_runtime *rule_rt, struct rule
             struct condition_literal tmp_literal;
             memset(&tmp_literal, 0, sizeof(tmp_literal));
 
-            tmp_obj = cJSON_GetObjectItem(literal_obj, "attribute_name");
+            tmp_obj = cJSON_GetObjectItem(literal_obj, "field_name");
             if (tmp_obj == NULL || tmp_obj->type != cJSON_String) {
                 log_fatal(rule_rt->logger, MODULE_RULE,
-                            "[%s:%d] table: <%s> has no attribute_name or not string format",
+                            "[%s:%d] table: <%s> has no field_name or not string format",
                             __FUNCTION__, __LINE__, table_name);
                 goto error;
             }
 
-            if (strlen(tmp_obj->valuestring) >= sizeof(tmp_literal.attribute_name)) {
+            if (strlen(tmp_obj->valuestring) >= sizeof(tmp_literal.field_name)) {
                 log_fatal(logger, MODULE_RULE,
-                        "[%s:%d] table: <%s> attribute_name:%s length exceed maximum:%d",
-                        __FUNCTION__, __LINE__, table_name, tmp_obj->valuestring, sizeof(tmp_literal.attribute_name));
+                        "[%s:%d] table: <%s> field_name:%s length exceed maximum:%d",
+                        __FUNCTION__, __LINE__, table_name, tmp_obj->valuestring, sizeof(tmp_literal.field_name));
                 goto error;
             }
-            snprintf(tmp_literal.attribute_name, sizeof(tmp_literal.attribute_name), "%s", tmp_obj->valuestring);  
+            snprintf(tmp_literal.field_name, sizeof(tmp_literal.field_name), "%s", tmp_obj->valuestring);  
 
             if (condition->negate_option == CONDITION_NEGATE_OPTION_SET) {
-                int ret = validate_table_not_condition(rule_rt, schema->ref_tbl_mgr, tmp_literal.attribute_name, MAAT_OP_ADD, logger);
+                int ret = validate_table_not_condition(rule_rt, schema->ref_tbl_mgr, tmp_literal.field_name, MAAT_OP_ADD, logger);
                 if (ret < 0) {
                     log_fatal(logger, MODULE_RULE,
                             "[%s:%d] table: <%s> validate negate_option failed, line: %s",
@@ -728,7 +728,7 @@ build_condition_id_kv_hash(struct rule_runtime *rule_rt, int negate_option)
 
                     memset(&key, 0, sizeof(key));
 
-                    memcpy(key.attribute_name, tmp_literal->attribute_name, sizeof(key.attribute_name));
+                    memcpy(key.field_name, tmp_literal->field_name, sizeof(key.field_name));
                     key.negate_option = condition->negate_option;
                     uuid_copy(key.object_uuid, tmp_literal->object_uuids[k]);
                     
@@ -820,7 +820,7 @@ void rule_compile_state_reset(struct rule_compile_state *rule_compile_state)
     utarray_clear(rule_compile_state->all_hit_conditions);
     utarray_clear(rule_compile_state->exclude_not_conditions);
 
-    struct attribute_hit_object_collection *attr_hit_obj = NULL, *tmp_hit_attr_obj = NULL;
+    struct field_hit_object_collection *attr_hit_obj = NULL, *tmp_hit_attr_obj = NULL;
     HASH_ITER(hh, rule_compile_state->attr_hit_objects_hashtbl, attr_hit_obj, tmp_hit_attr_obj) {
         if (attr_hit_obj->direct_items != NULL) {
             utarray_clear(attr_hit_obj->direct_items);
@@ -876,7 +876,7 @@ void rule_compile_state_free(struct rule_compile_state *rule_compile_state,
         rule_compile_state->exclude_not_conditions = NULL;
     }
 
-    struct attribute_hit_object_collection *attr_hit_obj = NULL, *tmp_hit_attr_obj = NULL;
+    struct field_hit_object_collection *attr_hit_obj = NULL, *tmp_hit_attr_obj = NULL;
     HASH_ITER(hh, rule_compile_state->attr_hit_objects_hashtbl, attr_hit_obj, tmp_hit_attr_obj) {
         if (attr_hit_obj->direct_items != NULL) {
             free_bytes += utarray_size(attr_hit_obj->direct_items) * sizeof(struct maat_item);
@@ -897,7 +897,7 @@ void rule_compile_state_free(struct rule_compile_state *rule_compile_state,
         }
 
         HASH_DEL(rule_compile_state->attr_hit_objects_hashtbl, attr_hit_obj);
-        free_bytes += sizeof(struct attribute_hit_object_collection);
+        free_bytes += sizeof(struct field_hit_object_collection);
         FREE(attr_hit_obj);
     }
 
@@ -918,7 +918,7 @@ void rule_compile_state_free(struct rule_compile_state *rule_compile_state,
 static void
 rule_compile_state_add_internal_hit_path(struct rule_compile_state *rule_compile_state,
                                     uuid_t item_uuid, uuid_t object_uuid,
-                                    const char *attribute_name, int negate_option, int Nth_scan)
+                                    const char *field_name, int negate_option, int Nth_scan)
 {
     if (NULL == rule_compile_state) {
         return;
@@ -928,7 +928,7 @@ rule_compile_state_add_internal_hit_path(struct rule_compile_state *rule_compile
     uuid_copy(new_path.item_uuid, item_uuid);
 	new_path.Nth_scan = Nth_scan;
     uuid_copy(new_path.object_uuid, object_uuid);
-    snprintf(new_path.attribute_name, sizeof(new_path.attribute_name), "%s", attribute_name);
+    snprintf(new_path.field_name, sizeof(new_path.field_name), "%s", field_name);
     new_path.negate_option = negate_option;
 
 	utarray_push_back(rule_compile_state->internal_hit_paths, &new_path);
@@ -947,7 +947,7 @@ static int maat_rule_has_condition_query_key(struct maat_rule *rule,
         for (size_t j = 0; j < utarray_len(condition->literals); j++) {
             tmp_literal = (struct condition_literal *)utarray_eltptr(condition->literals, j);
 
-            if (strcmp(tmp_literal->attribute_name, key->attribute_name) != 0) {
+            if (strcmp(tmp_literal->field_name, key->field_name) != 0) {
                 continue;
             }
 
@@ -969,7 +969,7 @@ static int maat_rule_has_condition_query_key(struct maat_rule *rule,
 
 static size_t
 maat_rule_get_hit_condition_index(struct maat_rule *rule, 
-                                  const char *attribute_name, uuid_t *hit_object_uuid,
+                                  const char *field_name, uuid_t *hit_object_uuid,
                                   int *condition_idx_array, size_t array_size)
 {
     size_t hit_condition_cnt = 0;
@@ -985,7 +985,7 @@ maat_rule_get_hit_condition_index(struct maat_rule *rule,
         for (size_t j = 0; j < utarray_len(tmp_condition->literals); j++) {
             tmp_literal = (struct condition_literal *)utarray_eltptr(tmp_condition->literals, j);
         
-            if (strcmp(tmp_literal->attribute_name, attribute_name) != 0) {
+            if (strcmp(tmp_literal->field_name, field_name) != 0) {
                 continue;
             }
 
@@ -1017,7 +1017,7 @@ maat_rule_is_hit_path_existed(const struct maat_hit_path *hit_paths,
 
 static void populate_hit_path_with_rule(struct maat_hit_path *hit_path_array,
                                     size_t array_idx, size_t n_hit_path,
-                                    size_t *n_new_hit_path, const char *attribute_name,
+                                    size_t *n_new_hit_path, const char *field_name,
                                     struct maat_rule *rule)
 {
     size_t i = 0;
@@ -1035,7 +1035,7 @@ static void populate_hit_path_with_rule(struct maat_hit_path *hit_path_array,
         uuid_copy(hit_path_array[idx].rule_uuid, rule->rule_uuid);
         // find out which condition in rule hit
         n_condition_index =
-            maat_rule_get_hit_condition_index(rule, attribute_name,
+            maat_rule_get_hit_condition_index(rule, field_name,
                                               &hit_path_array[idx].top_object_uuid,
                                               condition_index_array,
                                               MAX_ITEMS_PER_BOOL_EXPR);
@@ -1056,7 +1056,7 @@ static void populate_hit_path_with_rule(struct maat_hit_path *hit_path_array,
             hit_path_array[n_hit_path + new_hit_path_cnt] = tmp_path;
             new_hit_path_cnt++;
             n_condition_index =
-                maat_rule_get_hit_condition_index(rule, attribute_name, &tmp_path.top_object_uuid,
+                maat_rule_get_hit_condition_index(rule, field_name, &tmp_path.top_object_uuid,
                                                   condition_index_array, MAX_ITEMS_PER_BOOL_EXPR);
             hit_path_array[n_hit_path + new_hit_path_cnt - 1].condition_index = condition_index_array[0];
             if (n_condition_index > 1) {
@@ -1106,11 +1106,11 @@ size_t rule_runtime_get_hit_paths(struct rule_runtime *rule_rt, int thread_id,
                 uuid_copy(key.object_uuid, hit_path_array[j].top_object_uuid);
             }
             
-            memcpy(key.attribute_name, hit_path_array[j].attribute_name, sizeof(key.attribute_name));
+            memcpy(key.field_name, hit_path_array[j].field_name, sizeof(key.field_name));
             key.negate_option = hit_path_array[j].negate_option;
 			if (maat_rule_has_condition_query_key(rule, &key)) {
                 populate_hit_path_with_rule(hit_path_array, j, n_hit_path,
-                                               &n_new_hit_path, key.attribute_name, rule);
+                                               &n_new_hit_path, key.field_name, rule);
 			}
 		}
 	}
@@ -1121,7 +1121,7 @@ size_t rule_runtime_get_hit_paths(struct rule_runtime *rule_rt, int thread_id,
 static void
 rule_compile_state_add_direct_hit_objects(struct rule_compile_state *rule_compile_state,
                                     struct maat_item *hit_items,
-                                    size_t n_hit_items, struct attribute_hit_object_collection * attr_hit_obj_coll)
+                                    size_t n_hit_items, struct field_hit_object_collection * attr_hit_obj_coll)
 {
     if (NULL == rule_compile_state || NULL == hit_items) {
         return;
@@ -1135,7 +1135,7 @@ rule_compile_state_add_direct_hit_objects(struct rule_compile_state *rule_compil
 static void
 rule_compile_state_add_indirect_hit_objects(struct rule_compile_state *rule_compile_state,
                                       uuid_t *object_uuids, size_t n_object_uuids, 
-                                      struct attribute_hit_object_collection * attr_hit_obj_coll)
+                                      struct field_hit_object_collection * attr_hit_obj_coll)
 {
     if (NULL == rule_compile_state || NULL == object_uuids) {
         return;
@@ -1315,7 +1315,7 @@ static void rule_runtime_del_rule(struct rule_runtime *rule_rt,
             if (condition->in_use && condition->negate_option == CONDITION_NEGATE_OPTION_SET) {
                 for (size_t j = 0; j < utarray_len(condition->literals); j++) {
                     struct condition_literal *literal = (struct condition_literal *)utarray_eltptr(condition->literals, j);
-                    validate_table_not_condition(rule_rt, schema->ref_tbl_mgr, literal->attribute_name, MAAT_OP_DEL, logger);
+                    validate_table_not_condition(rule_rt, schema->ref_tbl_mgr, literal->field_name, MAAT_OP_DEL, logger);
                 }
             }
         }
@@ -1534,11 +1534,11 @@ int rule_runtime_match(int table_id, struct rule_runtime *rule_rt, uuid_t *rule_
         rule_compile_rt_state->rule_rt_version = rule_rt->version;
     }
     
-    struct attribute_hit_object_collection *attr_hit_obj_coll = NULL, *tmp = NULL;
+    struct field_hit_object_collection *attr_hit_obj_coll = NULL, *tmp = NULL;
     HASH_ITER(hh, rule_compile_state->attr_hit_objects_hashtbl, attr_hit_obj_coll, tmp) {
         struct condition_query_key key;
         memset(&key, 0, sizeof(key));
-        snprintf(key.attribute_name, sizeof(key.attribute_name), "%s", attr_hit_obj_coll->attribute_name);
+        snprintf(key.field_name, sizeof(key.field_name), "%s", attr_hit_obj_coll->field_name);
 
         for (int i = 0; i < utarray_len(attr_hit_obj_coll->all_object_uuids); i++) {
             uuid_t *object_uuid = utarray_eltptr(attr_hit_obj_coll->all_object_uuids, i);
@@ -1568,7 +1568,7 @@ int rule_runtime_match(int table_id, struct rule_runtime *rule_rt, uuid_t *rule_
     //not conditions
     struct condition_id_kv *condition_id_kv = NULL, *tmp_condition_id_kv = NULL;
     HASH_ITER(hh, rule_rt->not_condition_id_kv_hash, condition_id_kv, tmp_condition_id_kv) {
-        HASH_FIND_STR(rule_compile_state->attr_hit_objects_hashtbl, condition_id_kv->key.attribute_name, attr_hit_obj_coll);
+        HASH_FIND_STR(rule_compile_state->attr_hit_objects_hashtbl, condition_id_kv->key.field_name, attr_hit_obj_coll);
         if (attr_hit_obj_coll == NULL || attr_hit_obj_coll->need_negate_condition == 0) {
             continue;
         }
@@ -1584,7 +1584,7 @@ int rule_runtime_match(int table_id, struct rule_runtime *rule_rt, uuid_t *rule_
             uuid_clear(null_uuid);
             rule_compile_state_add_internal_hit_path(rule_compile_state, null_uuid,
                                                 condition_id_kv->key.object_uuid,
-                                                condition_id_kv->key.attribute_name, 1,
+                                                condition_id_kv->key.field_name, 1,
                                                 attr_hit_obj_coll->Nth_scan);
         }
     }
@@ -1635,28 +1635,28 @@ int rule_runtime_need_compile(int table_id, struct rule_runtime *rule_rt, struct
     return 0;
 }
 
-static struct attribute_hit_object_collection * rule_compile_state_get_attr_hit_obj_coll(struct maat *maat_inst, struct rule_compile_state *rule_compile_state,
-                                                                                          const char *attribute_name)
+static struct field_hit_object_collection * rule_compile_state_get_attr_hit_obj_coll(struct maat *maat_inst, struct rule_compile_state *rule_compile_state,
+                                                                                          const char *field_name)
 {
-    struct attribute_hit_object_collection *attr_hit_obj_coll = NULL;
-    HASH_FIND_STR(rule_compile_state->attr_hit_objects_hashtbl, attribute_name, attr_hit_obj_coll);
+    struct field_hit_object_collection *attr_hit_obj_coll = NULL;
+    HASH_FIND_STR(rule_compile_state->attr_hit_objects_hashtbl, field_name, attr_hit_obj_coll);
     if (attr_hit_obj_coll == NULL) {
-        attr_hit_obj_coll = ALLOC(struct attribute_hit_object_collection, 1);
-        snprintf(attr_hit_obj_coll->attribute_name, sizeof(attr_hit_obj_coll->attribute_name), "%s", attribute_name);
+        attr_hit_obj_coll = ALLOC(struct field_hit_object_collection, 1);
+        snprintf(attr_hit_obj_coll->field_name, sizeof(attr_hit_obj_coll->field_name), "%s", field_name);
         utarray_new(attr_hit_obj_coll->all_object_uuids, &ut_object_uuid_icd);
 
         if (1 == maat_inst->opts.hit_object_on) {
             utarray_new(attr_hit_obj_coll->direct_items, &ut_maat_item_icd);
             utarray_new(attr_hit_obj_coll->indirect_object_uuids, &ut_object_uuid_icd);
         }
-        HASH_ADD_STR(rule_compile_state->attr_hit_objects_hashtbl, attribute_name, attr_hit_obj_coll);
+        HASH_ADD_STR(rule_compile_state->attr_hit_objects_hashtbl, field_name, attr_hit_obj_coll);
     }
 
     return attr_hit_obj_coll;
 }
 
 static int rule_compile_state_add_hit_objects(struct rule_compile_state *rule_compile_state, 
-                                            struct attribute_hit_object_collection * attr_hit_obj_coll,
+                                            struct field_hit_object_collection * attr_hit_obj_coll,
                                             uuid_t object_uuids[], size_t n_object_uuids)
 {
     int object_uuid_idx_array[n_object_uuids];
@@ -1686,7 +1686,7 @@ static int rule_compile_state_add_hit_objects(struct rule_compile_state *rule_co
 }
 
 int rule_compile_state_update(struct rule_compile_state *rule_compile_state, struct maat *maat_inst,
-                         const char *attribute_name, int custom_rule_tbl_id, int Nth_scan,
+                         const char *field_name, int custom_rule_tbl_id, int Nth_scan,
                          struct maat_item *hit_items, size_t n_hit_item)
 {
     size_t i = 0, j = 0;
@@ -1707,13 +1707,13 @@ int rule_compile_state_update(struct rule_compile_state *rule_compile_state, str
                                                                   hit_cnt, super_object_uuids,
                                                                   MAX_HIT_OBJECT_NUM);
 
-    struct attribute_hit_object_collection * attr_hit_obj_coll = rule_compile_state_get_attr_hit_obj_coll(maat_inst, rule_compile_state, attribute_name);
+    struct field_hit_object_collection * attr_hit_obj_coll = rule_compile_state_get_attr_hit_obj_coll(maat_inst, rule_compile_state, field_name);
     assert(attr_hit_obj_coll != NULL);
 
     if (1 == maat_inst->opts.hit_path_on && hit_cnt > 0) {
         for (i = 0; i < hit_cnt; i++) {
             rule_compile_state_add_internal_hit_path(rule_compile_state, hit_items[i].item_uuid,
-                                                hit_items[i].object_uuid, attribute_name, 0, Nth_scan);
+                                                hit_items[i].object_uuid, field_name, 0, Nth_scan);
         }
     }
 
@@ -1737,13 +1737,13 @@ int rule_compile_state_update(struct rule_compile_state *rule_compile_state, str
     return hit_cnt;
 }
 
-void rule_compile_state_not_logic_update(struct maat *maat_inst, struct rule_compile_state *rule_compile_state, const char *attribute_name, int Nth_scan)
+void rule_compile_state_not_logic_update(struct maat *maat_inst, struct rule_compile_state *rule_compile_state, const char *field_name, int Nth_scan)
 {
     if (NULL == maat_inst || NULL == rule_compile_state) {
         return;
     }
 
-    struct attribute_hit_object_collection *attr_hit_obj_coll = rule_compile_state_get_attr_hit_obj_coll(maat_inst, rule_compile_state, attribute_name);
+    struct field_hit_object_collection *attr_hit_obj_coll = rule_compile_state_get_attr_hit_obj_coll(maat_inst, rule_compile_state, field_name);
     assert(attr_hit_obj_coll != NULL);
 
     attr_hit_obj_coll->need_negate_condition = 1;
@@ -1759,9 +1759,9 @@ void rule_compile_state_not_logic_update(struct maat *maat_inst, struct rule_com
 }
 
 size_t rule_compile_state_get_indirect_hit_objects(struct maat *maat_inst, struct rule_compile_state *rule_compile_state, 
-                                                    const char *attribute_name, uuid_t object_array[], size_t array_size)
+                                                    const char *field_name, uuid_t object_array[], size_t array_size)
 {
-    struct attribute_hit_object_collection *attr_hit_obj_coll = rule_compile_state_get_attr_hit_obj_coll(maat_inst, rule_compile_state, attribute_name);
+    struct field_hit_object_collection *attr_hit_obj_coll = rule_compile_state_get_attr_hit_obj_coll(maat_inst, rule_compile_state, field_name);
     assert(attr_hit_obj_coll != NULL);
 
     size_t i = 0;
@@ -1774,20 +1774,20 @@ size_t rule_compile_state_get_indirect_hit_objects(struct maat *maat_inst, struc
     return i;
 }
 
-size_t rule_compile_state_get_indirect_hit_object_cnt(struct maat *maat_inst, struct rule_compile_state *rule_compile_state, const char *attribute_name)
+size_t rule_compile_state_get_indirect_hit_object_cnt(struct maat *maat_inst, struct rule_compile_state *rule_compile_state, const char *field_name)
 {
-    struct attribute_hit_object_collection *attr_hit_obj_coll = rule_compile_state_get_attr_hit_obj_coll(maat_inst, rule_compile_state, attribute_name);
+    struct field_hit_object_collection *attr_hit_obj_coll = rule_compile_state_get_attr_hit_obj_coll(maat_inst, rule_compile_state, field_name);
     assert(attr_hit_obj_coll != NULL);
 
     return utarray_len(attr_hit_obj_coll->indirect_object_uuids);
 }
 
-size_t rule_compile_state_get_direct_hit_items(struct maat * maat_inst, struct rule_compile_state *rule_compile_state, const char *attribute_name,
+size_t rule_compile_state_get_direct_hit_items(struct maat * maat_inst, struct rule_compile_state *rule_compile_state, const char *field_name,
                                                 uuid_t item_array[],  uuid_t direct_object_array[], size_t array_size)
 {
     size_t i = 0;
 
-    struct attribute_hit_object_collection *attr_hit_obj_coll = rule_compile_state_get_attr_hit_obj_coll(maat_inst, rule_compile_state, attribute_name);
+    struct field_hit_object_collection *attr_hit_obj_coll = rule_compile_state_get_attr_hit_obj_coll(maat_inst, rule_compile_state, field_name);
     assert(attr_hit_obj_coll != NULL);
 
     for (i = 0; i < utarray_len(attr_hit_obj_coll->direct_items) && i < array_size; i++) {
@@ -1800,18 +1800,18 @@ size_t rule_compile_state_get_direct_hit_items(struct maat * maat_inst, struct r
     return i;
 }
 
-size_t rule_compile_state_get_direct_hit_item_cnt(struct maat * maat_inst, struct rule_compile_state *rule_compile_state, const char *attribute_name)
+size_t rule_compile_state_get_direct_hit_item_cnt(struct maat * maat_inst, struct rule_compile_state *rule_compile_state, const char *field_name)
 {
-    struct attribute_hit_object_collection *attr_hit_obj_coll = rule_compile_state_get_attr_hit_obj_coll(maat_inst, rule_compile_state, attribute_name);
+    struct field_hit_object_collection *attr_hit_obj_coll = rule_compile_state_get_attr_hit_obj_coll(maat_inst, rule_compile_state, field_name);
     assert(attr_hit_obj_coll != NULL);
 
     return utarray_len(attr_hit_obj_coll->direct_items);
 }
 
-size_t rule_compile_state_get_hit_objects(struct maat *maat_inst, struct rule_compile_state *rule_compile_state, const char *attribute_name,
+size_t rule_compile_state_get_hit_objects(struct maat *maat_inst, struct rule_compile_state *rule_compile_state, const char *field_name,
                                           uuid_t object_array[], size_t array_size)
 {
-    struct attribute_hit_object_collection *attr_hit_obj_coll = rule_compile_state_get_attr_hit_obj_coll(maat_inst, rule_compile_state, attribute_name);
+    struct field_hit_object_collection *attr_hit_obj_coll = rule_compile_state_get_attr_hit_obj_coll(maat_inst, rule_compile_state, field_name);
     assert(attr_hit_obj_coll != NULL);
 
     size_t i = 0;
@@ -1822,20 +1822,20 @@ size_t rule_compile_state_get_hit_objects(struct maat *maat_inst, struct rule_co
     return i;
 }
 
-size_t rule_compile_state_get_hit_object_cnt(struct maat *maat_inst, struct rule_compile_state *rule_compile_state, const char *attribute_name)
+size_t rule_compile_state_get_hit_object_cnt(struct maat *maat_inst, struct rule_compile_state *rule_compile_state, const char *field_name)
 {
-    struct attribute_hit_object_collection *attr_hit_obj_coll = rule_compile_state_get_attr_hit_obj_coll(maat_inst, rule_compile_state, attribute_name);
+    struct field_hit_object_collection *attr_hit_obj_coll = rule_compile_state_get_attr_hit_obj_coll(maat_inst, rule_compile_state, field_name);
     assert(attr_hit_obj_coll != NULL);
 
     return utarray_len(attr_hit_obj_coll->all_object_uuids);
 }
 
-size_t rule_compile_state_get_attribute_names(struct rule_compile_state *rule_compile_state, const char *attribute_name_array[], size_t array_size)
+size_t rule_compile_state_get_field_names(struct rule_compile_state *rule_compile_state, const char *field_name_array[], size_t array_size)
 {
     size_t i = 0;
-    struct attribute_hit_object_collection *attr_hit_obj_coll = NULL, *tmp = NULL;
+    struct field_hit_object_collection *attr_hit_obj_coll = NULL, *tmp = NULL;
     HASH_ITER(hh, rule_compile_state->attr_hit_objects_hashtbl, attr_hit_obj_coll, tmp) {
-        attribute_name_array[i] = attr_hit_obj_coll->attribute_name;
+        field_name_array[i] = attr_hit_obj_coll->field_name;
         i++;
         if (i >= array_size) {
             break;
@@ -1845,7 +1845,7 @@ size_t rule_compile_state_get_attribute_names(struct rule_compile_state *rule_co
     return i;
 }
 
-size_t rule_compile_state_get_attribute_cnt(struct rule_compile_state *rule_compile_state)
+size_t rule_compile_state_get_field_cnt(struct rule_compile_state *rule_compile_state)
 {
     return HASH_COUNT(rule_compile_state->attr_hit_objects_hashtbl);
 }
@@ -1898,7 +1898,7 @@ size_t rule_compile_state_get_internal_hit_paths(struct rule_compile_state *rule
             uuid_copy(tmp_path.sub_object_uuid, internal_path->object_uuid);
             uuid_copy(tmp_path.top_object_uuid, *p);
 
-            memcpy(tmp_path.attribute_name, internal_path->attribute_name, sizeof(tmp_path.attribute_name));
+            memcpy(tmp_path.field_name, internal_path->field_name, sizeof(tmp_path.field_name));
             tmp_path.negate_option = internal_path->negate_option;
             tmp_path.condition_index = -1;
             uuid_clear(tmp_path.rule_uuid);

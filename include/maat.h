@@ -25,14 +25,14 @@ extern "C"
 #include <netinet/in.h>
 #include <uuid/uuid.h>
 
-#define MAX_ATTR_NAME_LEN  128
+#define MAX_FIELD_NAME_LEN  128
 
 /* maat instance handle */
 struct maat;
 
 struct maat_hit_path {
     int Nth_scan;
-    char attribute_name[MAX_ATTR_NAME_LEN];    // 0 is not a attribute.
+    char field_name[MAX_FIELD_NAME_LEN];    // 0 is not a field.
     int negate_option;     // 1 means negate condition(condition)
     int condition_index; // 0 ~ 7
     uuid_t item_uuid;
@@ -247,37 +247,37 @@ struct maat_state;
  *         MAAT_SCAN_HALF_HIT
  *         MAAT_SCAN_HIT       
 */
-int maat_scan_flag(struct maat *instance, const char *table_name, const char *attribute_name, 
+int maat_scan_flag(struct maat *instance, const char *table_name, const char *field_name, 
                    long long flag, struct maat_state *state);
 
-int maat_scan_integer(struct maat *instance, const char *table_name, const char *attribute_name,
+int maat_scan_integer(struct maat *instance, const char *table_name, const char *field_name,
                       long long integer, struct maat_state *state);
 
 /**
  * @param ip_addr: ipv4 address in network order
  * @param port:    port in host order. If the port is not specified, use -1. Note that 0 is a valid port.
 */
-int maat_scan_ipv4_port(struct maat *instance, const char *table_name, const char *attribute_name,
+int maat_scan_ipv4_port(struct maat *instance, const char *table_name, const char *field_name,
                     uint32_t ip_addr, int port, struct maat_state *state);
 
-int maat_scan_ipv6_port(struct maat *instance, const char *table_name, const char *attribute_name,
+int maat_scan_ipv6_port(struct maat *instance, const char *table_name, const char *field_name,
                     uint8_t *ip_addr, int port, struct maat_state *state);
-int maat_scan_ipv4(struct maat *instance, const char *table_name, const char *attribute_name,
+int maat_scan_ipv4(struct maat *instance, const char *table_name, const char *field_name,
                     uint32_t ip_addr, struct maat_state *state);
 
-int maat_scan_ipv6(struct maat *instance, const char *table_name, const char *attribute_name,
+int maat_scan_ipv6(struct maat *instance, const char *table_name, const char *field_name,
                     uint8_t *ip_addr, struct maat_state *state);
 
-int maat_scan_string(struct maat *instance, const char *table_name, const char *attribute_name,
+int maat_scan_string(struct maat *instance, const char *table_name, const char *field_name,
                      const char *data, size_t data_len, struct maat_state *state);
 
-int maat_scan_object(struct maat *instance, const char *table_name, const char *attribute_name,
+int maat_scan_object(struct maat *instance, const char *table_name, const char *field_name,
                     uuid_t object_uuid_array[], uuid_t item_uuid_array[], size_t array_size, struct maat_state *state);
 
-int maat_scan_not_logic(struct maat *instance, const char *table_name, const char *attribute_name, struct maat_state *state);
+int maat_scan_not_logic(struct maat *instance, const char *table_name, const char *field_name, struct maat_state *state);
 
 struct maat_stream;
-struct maat_stream *maat_stream_new(struct maat *instance, const char *table_name, const char *attribute_name, struct maat_state *state);
+struct maat_stream *maat_stream_new(struct maat *instance, const char *table_name, const char *field_name, struct maat_state *state);
 
 int maat_stream_scan(struct maat_stream *stream, const char *data, int data_len, struct maat_state *state);
 
@@ -311,36 +311,36 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
 */
 size_t maat_state_get_scan_count(struct maat_state *state);
 
-size_t maat_state_get_attribute_cnt(struct maat_state *state);
+size_t maat_state_get_field_cnt(struct maat_state *state);
 
 /**
- * @brief return all attribute names
- * NOTE: attribute names are valid until the state is freed or reset
+ * @brief return all field names
+ * NOTE: field names are valid until the state is freed or reset
 */
-size_t maat_state_get_attribute_names(struct maat_state *state, const char *attribute_names[], size_t array_size);
+size_t maat_state_get_field_names(struct maat_state *state, const char *field_names[], size_t array_size);
 
 /**
  * @brief return all hit objects
 */
 size_t maat_state_get_hit_objects(struct maat_state *state,
-                              const char *attribute_name,
+                              const char *field_name,
                               uuid_t object_array[],
                               size_t array_size);
 
-size_t maat_state_get_hit_object_cnt(struct maat_state *state, const char *attribute_name);
+size_t maat_state_get_hit_object_cnt(struct maat_state *state, const char *field_name);
 
 /**
  * @brief return direct hit items and direct hit objects
  * NOTE: hit items may be duplicated  
 */
 size_t maat_state_get_hit_items(struct maat_state *state,
-                                const char *attribute_name,
+                                const char *field_name,
                                 uuid_t item_array[],
                                 uuid_t direct_object_array[],
                                 size_t array_size);
 
 size_t maat_state_get_hit_item_cnt(struct maat_state *state,
-                                   const char *attribute_name);
+                                   const char *field_name);
 
 /**
  * @brief indirect object means superior object
@@ -348,11 +348,11 @@ size_t maat_state_get_hit_item_cnt(struct maat_state *state,
  * NOTE: hit objects may be duplicated
 */
 size_t maat_state_get_indirect_hit_objects(struct maat_state *state,
-                                           const char *attribute_name,
+                                           const char *field_name,
                                            uuid_t object_array[],
                                            size_t array_size);
 
-size_t maat_state_get_indirect_hit_object_cnt(struct maat_state *state, const char *attribute_name);
+size_t maat_state_get_indirect_hit_object_cnt(struct maat_state *state, const char *field_name);
 
 #ifdef __cplusplus
 }

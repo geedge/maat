@@ -7,7 +7,7 @@ The maat table consists of two parts: `schema` and `runtime`, which is the core 
 
 ## 1. Table schema
 
-Maat tables are divided into two categories: physical tables that actually exist in the database and attributes that reference physical tables.
+Maat tables are divided into two categories: physical tables that actually exist in the database and fields that reference physical tables.
 
 The types of physical tables are as follows:
 - [item table](#11-item-table)
@@ -22,7 +22,7 @@ The types of physical tables are as follows:
 
 Different physical tables can be combined into one table, see [conjunction table](#110-conjunction-table)
 
-A attribute can only reference one physical table or conjuntion table, see [attribute](#111-attribute)
+A field can only reference one physical table or conjuntion table, see [field](#111-field)
 
 ### 1.1 <a name='Itemtable'></a> Item table
 
@@ -257,7 +257,7 @@ Describe the relationship between object and rule.
 | **rule_id**    | LONG LONG     | rule id |
 | **is_valid**      | INT           | 0(invalid), 1(valid) |
 | **negate_option**      | INT           | logical 'NOT', identify a negate condition, 0(no) 1(yes) |
-| **attribute** | VARCHAR2(256) | attribute name, NOT NULL |
+| **field** | VARCHAR2(256) | field name, NOT NULL |
 | **Nth_condition**    | INT           | the condition seq in (conjunctive normal form)CNF, from 0 to 7. objects with the same condition ID are logical 'OR' |
 
 NOTE: If object_id is invalid in xx_item table, it must be marked as invalid in this table.
@@ -370,11 +370,11 @@ For example: HTTP_REGION is the conjunction of HTTP_URL and HTTP_HOST.
 
 `Note`: Only physical tables support conjunction.
 
-### 1.11 <a name='Attribute'></a> attribute
+### 1.11 <a name='Field'></a> field
 
-A physical table refers to a table that physically exists in the database. In contrast, there are no attributes in the database. Attributes are merely references to physical tables, where one attribute can only reference one physical table. If you want to reference multiple physical tables of the same type, you need to first combine these physical tables into a conjunction table, and then have the attribute reference it. A physical table can be referenced by multiple attributes.
+A physical table refers to a table that physically exists in the database. In contrast, there are no fields in the database. Fields are merely references to physical tables, where one field can only reference one physical table. If you want to reference multiple physical tables of the same type, you need to first combine these physical tables into a conjunction table, and then have the field reference it. A physical table can be referenced by multiple fields.
 
-Attributes are often used for different traffic attributes, where different attributes represent different traffic attributes, such as HTTP_HOST, HTTP_URL, and so on.
+Fields are often used for different traffic fields, where different fields represent different traffic fields, such as HTTP_HOST, HTTP_URL, and so on.
 
 ### 1.12 <a name='ForeignFiles'></a>Foreign Files
 
@@ -445,21 +445,21 @@ In addition to the rule table, there is also the object2rule table in the table 
 
 1. For expressions without negate-conditions, returning the matched rule_id:
 
-    * rule1 = condition1 & condition2 = {attribute1, g1} & {attribute2, g2}
+    * rule1 = condition1 & condition2 = {field1, g1} & {field2, g2}
 
-    * rule2 = condition1 & condition2 = {attribute1, g2} & {attribute2, g3}
+    * rule2 = condition1 & condition2 = {field1, g2} & {field2, g3}
 
-    Given the matched attribute_id and object_id, all matching rule_ids can be provided. For example, if scanning attribute1 matches g2 and attribute2 matches g3, rule_runtime will return the matched rule_id 2.
+    Given the matched field_id and object_id, all matching rule_ids can be provided. For example, if scanning field1 matches g2 and field2 matches g3, rule_runtime will return the matched rule_id 2.
 
 2. For expressions with negate-conditions, returning the matched rule_id:
 
-    * rule3 = condition1 & !condition2 = {attribute1, g1} & !{attribute2, g2}
+    * rule3 = condition1 & !condition2 = {field1, g1} & !{field2, g2}
 
-    * rule4 = !condition1 & condition2 = !{attribute1, g2} & {attribute2, g3}
+    * rule4 = !condition1 & condition2 = !{field1, g2} & {field2, g3}
 
-    If scanning attribute1 matches g1 and attribute2 matches g3, rule_runtime will return the matched rule_id 4.
+    If scanning field1 matches g1 and field2 matches g3, rule_runtime will return the matched rule_id 4.
 
-3. If a rule_id is matched, the full hit path can be obtained: **item_id -> object_id ->** {super_object_id} -> condition{**attribute_id, negate_option, condition_index} -> rule_id**. If the matched object is not referenced by a rule, a half hit path can be obtained: **item_id -> object_id** -> {super_object_id}.
+3. If a rule_id is matched, the full hit path can be obtained: **item_id -> object_id ->** {super_object_id} -> condition{**field_id, negate_option, condition_index} -> rule_id**. If the matched object is not referenced by a rule, a half hit path can be obtained: **item_id -> object_id** -> {super_object_id}.
 
 4. Getting the matched object_ids and the count of hit objects.
 
@@ -473,9 +473,9 @@ Rule runtime loads the rule table and object2rule table configurations into memo
 
 1. All condition_ids under the same rule are used to construct AND expressions, and all rule AND expressions are used to build a bool_matcher.
 
-2. For negate_option=0 (conditions), a `condition_id hash` is built, key:{object_id, attribute_id, negate_option}, value:condition_id.
+2. For negate_option=0 (conditions), a `condition_id hash` is built, key:{object_id, field_id, negate_option}, value:condition_id.
 
-3. For negate_option=1 (negate-conditions), a `NOT_condition_id hash` is built, key:{object_id, attribute_id, negate_option}, value:condition_id.
+3. For negate_option=1 (negate-conditions), a `NOT_condition_id hash` is built, key:{object_id, field_id, negate_option}, value:condition_id.
 
 * **Data Plane**
 
@@ -485,17 +485,17 @@ On the data plane, services are provided externally through the maat API, primar
 
 * The hit item_id and object_id form a half-hit path.
 
-* The object_id that is hit and the scanned `attribute_id` form the key {object_id, attribute_id, 0}. This key is used to find the `hit condition_ids` in the condition_id hash.
+* The object_id that is hit and the scanned `field_id` form the key {object_id, field_id, 0}. This key is used to find the `hit condition_ids` in the condition_id hash.
 
-* Use the key {object_id, attribute_id, 1} to search for NOT_condition_ids in the NOT_condition_id hash and cache them as `exclude condition_ids`. These condition_ids need to be removed from all condition_ids that are eventually hit. This is because the scan hit {object_id, attribute_id, 0} => condition_id, leading to the deduction that {object_id, attribute_id, 1} => NOT_condition_id does not hit.
+* Use the key {object_id, field_id, 1} to search for NOT_condition_ids in the NOT_condition_id hash and cache them as `exclude condition_ids`. These condition_ids need to be removed from all condition_ids that are eventually hit. This is because the scan hit {object_id, field_id, 0} => condition_id, leading to the deduction that {object_id, field_id, 1} => NOT_condition_id does not hit.
 
-* Identify the object_ids in attribute_id table that appear in the NOT_condition and add them to the `NOT_condition_object` set. Ensure that this set does not contain any object_id that was hit during scanning. If any such object_id is present, remove it from the set to form the final `NOT_condition_object` for the attribute_id table.
+* Identify the object_ids in field_id table that appear in the NOT_condition and add them to the `NOT_condition_object` set. Ensure that this set does not contain any object_id that was hit during scanning. If any such object_id is present, remove it from the set to form the final `NOT_condition_object` for the field_id table.
 
 * Use the hit condition_ids to determine if there are any hit rule_ids. If there are, populate the half-hit path which will become full-hit path.
 
 2. **maat_scan_not_logic**: This interface is used to activate negate-condition logic.
 
-* Traverse the `NOT_condition_object` of `attribute_id`. For each `object_id`, form a key `{object_id, attribute_id, 1}` to obtain the `NOT_condition_id`. If it is in the `exclude condition_ids` set, ignore it; otherwise, add it to the `all hit condition_ids` set as a hit `NOT_condition_id`, and record the half-hit path of the negate-condition.
+* Traverse the `NOT_condition_object` of `field_id`. For each `object_id`, form a key `{object_id, field_id, 1}` to obtain the `NOT_condition_id`. If it is in the `exclude condition_ids` set, ignore it; otherwise, add it to the `all hit condition_ids` set as a hit `NOT_condition_id`, and record the half-hit path of the negate-condition.
 
 * Use the `all hit condition_ids` to calculate if there are any newly hit rule_ids. If there are, populate the half-hit path of the negate-condition which will become full-hit path.
 

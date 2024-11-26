@@ -6,7 +6,7 @@
 * [Condition(Condition)](#condition)
 * [Literal](#literal)
 * [Physical table](#physical-table)
-* [Attribute](#attribute)
+* [Field](#field)
 * [Table schema](#table-schema)
 * [Table runtime](#table-runtime)
 * [Table rule](#table-ruleconfiguration)
@@ -19,7 +19,7 @@
 
 ## Item
 
-As a filter for network attributes, the smallest unit of a rule
+As a filter for network fields, the smallest unit of a rule
 
 - Eg1: specify that the UserAgent field in the HTTP protocol contains substrings "Chrome" and "11.8.1",  
    &ensp;&ensp; HTTP UserAgent: Chrome & 11.8.1
@@ -48,7 +48,7 @@ The relationship between object and object is stored in the [object_group table]
 
 ## Rule(Policy)
 
-A conjunctive normal form(CNF) consisting of multiple objects and attributes.
+A conjunctive normal form(CNF) consisting of multiple objects and fields.
 
 `Note`: A rule can contain up to 8 conditions and multiple conditions in the same rule can be logical 'AND' and logical 'NOT' relationships.
 
@@ -64,19 +64,19 @@ Conditions are divided into two categories based on whether they contain the log
 
 ## Literal
 
-A Literal consists of `attribute_id(attribute id)` and `object_id`. During the rules loading process, a unique condition_id  will be generated based on the combination of attribute_id and object_id in the same condition.
+A Literal consists of `field_id(field id)` and `object_id`. During the rules loading process, a unique condition_id  will be generated based on the combination of field_id and object_id in the same condition.
 
 ## Physical table
 
 Different rules are stored in different tables in the actual database, including [item table](./maat_table.md#11-item-table), [rule table](./maat_table.md#12-rule-table), [object2rule table](./maat_table.md#13-object2rule-table), [object_group table](./maat_table.md#14-object_group-table), and [xx_plugin table](./maat_table.md#15-plugin-table), and so on.
 
-## Attribute
+## Field
 
-A attribute references a physical table. In practice, network traffic attributes are commonly used as attribute, such as HTTP_HOST, SSL_SNI, etc. The constraints of attributes are as follows:
+A field references a physical table. In practice, network traffic fields are commonly used as field, such as HTTP_HOST, SSL_SNI, etc. The constraints of fields are as follows:
 
-* A attribute can only reference one physical table. If it need to reference multiple physical tables of the same type, these physical tables can be first joined together into one table and then referenced.
+* A field can only reference one physical table. If it need to reference multiple physical tables of the same type, these physical tables can be first joined together into one table and then referenced.
 
-* A physical table can be referenced by different attributes. For example, the keyword_table can be referenced by two attributes, http_request_body_virt and http_response_body_virt.
+* A physical table can be referenced by different fields. For example, the keyword_table can be referenced by two fields, http_request_body_virt and http_response_body_virt.
 
 <img src="./imgs/virt-phy-mapping.png" width="300" height="150" > 
 

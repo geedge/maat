@@ -42,7 +42,7 @@ Before showing how to configure the specific rules, we need some raw materials (
 
 ```bash
 rule(rule) = condition1 & condition2
-              = {attribute1, object1, condition_index1} & {attribute2, object2, condition_index2}
+              = {field1, object1, condition_index1} & {field2, object2, condition_index2}
               = {2, 211, 1} & {1, 201, 2}
 ```
 
@@ -53,7 +53,7 @@ rule(rule) = condition1 & condition2
 
 ```bash
 rule(rule) = condition1 & condition2
-              = {attribute1, object1, condition_index1} & {attribute2, object2, condition_index2}
+              = {field1, object1, condition_index1} & {field2, object2, condition_index2}
               = {2, 211, 1} & {3, 221, 2}
 ```
 
@@ -74,7 +74,7 @@ object_name: "152_mail_addr" and object_name: "interval_object_refered" are two 
 
 ```bash
 rule(rule) = condition1 & condition2
-              = {attribute1, (object1 | object2), condition_index1} & {attribute2, object3, condition_index2}
+              = {field1, (object1 | object2), condition_index1} & {field2, object3, condition_index2}
               = {2, (211 | 212), 1} & {1, 201, 2}
 ```
 
@@ -86,7 +86,7 @@ rule(rule) = condition1 & condition2
 
 ```bash
 rule(rule) = condition1 & condition2
-              = {attribute1, object1, condition_index1} & {attribute2, (object2 | object3), condition_index2}
+              = {field1, object1, condition_index1} & {field2, (object2 | object3), condition_index2}
               = {2, 211, 1} & {3, (221 | 222), 2}
 ```
 
@@ -106,7 +106,7 @@ object_name: "152_mail_addr" contains two regions(items) with a logical `OR` rel
 
 ```bash
 rule(rule) = condition1 & !condition2
-              = {attribute1, object1, condition_index1} & !{attribute2, object2, condition_index2}
+              = {field1, object1, condition_index1} & !{field2, object2, condition_index2}
               = {2, 211, 1} & !{1, 201, 2}
 ```
 
@@ -118,7 +118,7 @@ rule(rule) = condition1 & !condition2
 
 ```bash
 rule(rule) = condition1 & !condition2
-              = {attribute1, object1, condition_index1} & !{attribute2, (object2 | object3), condition_index2}
+              = {field1, object1, condition_index1} & !{field2, (object2 | object3), condition_index2}
               = {2, 211, 1} & !{3, (221 | 222), 2}
 ```
 
@@ -148,7 +148,7 @@ super_object1 = object1 exclude object2
 And then configure the rule.
 ```bash
 rule(rule) = condition1 & condition2
-              = {attribute1, super_object1, condition_index1} & {attribute2, object2, condition_index2}
+              = {field1, super_object1, condition_index1} & {field2, object2, condition_index2}
               = {2, (210 exclude 211), 1} & {1, 201, 2}
 ```
 
@@ -167,7 +167,7 @@ super_object2 = object2 exclude object3
 And then configure the rule.
 ```bash
 rule(rule) = condition1 & condition2
-              = {attribute1, object1, condition_index1} & {attribute2, super_object2, condition_index2}
+              = {field1, object1, condition_index1} & {field2, super_object2, condition_index2}
               = {2, 211, 1} & {1, (202 exclude 201), 2}
 ```
 

@@ -42,12 +42,6 @@ struct maat_table {
     void *updating_runtime;
 };
 
-struct maat_attribute {
-    int table_id;
-    int attr_id;
-    char attr_name[MAX_NAME_STR_LEN + 1];
-};
-
 struct table_manager {
     struct maat_table *tbl[MAX_TABLE_NUM];
     size_t n_table;

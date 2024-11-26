@@ -56,7 +56,7 @@ struct maat_stream {
     struct log_handle *logger;
     int thread_id;
     int table_id;
-    char attribute_name[MAX_ATTR_NAME_LEN];
+    char field_name[MAX_FIELD_NAME_LEN];
 };
 
 struct maat_options* maat_options_new(void)
@@ -1023,7 +1023,7 @@ int maat_bool_plugin_table_get_ex_data(struct maat *maat_inst, const char *table
 
 static int
 flag_scan(struct table_manager *tbl_mgr, int thread_id, long long flag,
-          int table_id, const char *attribute_name, struct maat_state *state)
+          int table_id, const char *field_name, struct maat_state *state)
 {
     enum table_type table_type =
         table_manager_get_table_type(tbl_mgr, table_id);
@@ -1040,7 +1040,7 @@ flag_scan(struct table_manager *tbl_mgr, int thread_id, long long flag,
     flag_runtime_scan_times_inc((struct flag_runtime *)flag_rt, thread_id);
 
     int object_hit_cnt = flag_runtime_scan((struct flag_runtime *)flag_rt,
-                                         thread_id, flag, attribute_name, state);
+                                         thread_id, flag, field_name, state);
     if (object_hit_cnt <= 0) {
         return object_hit_cnt;
     }
@@ -1052,7 +1052,7 @@ flag_scan(struct table_manager *tbl_mgr, int thread_id, long long flag,
 
 static int
 interval_scan(struct table_manager *tbl_mgr, int thread_id, long long integer,
-              int table_id, const char *attribute_name, struct maat_state *state)
+              int table_id, const char *field_name, struct maat_state *state)
 {
 
     enum table_type table_type =
@@ -1070,7 +1070,7 @@ interval_scan(struct table_manager *tbl_mgr, int thread_id, long long integer,
     interval_runtime_scan_times_inc((struct interval_runtime *)interval_rt, thread_id);
 
     int object_hit_cnt = interval_runtime_scan((struct interval_runtime *)interval_rt,
-                                              thread_id, integer, attribute_name, state);
+                                              thread_id, integer, field_name, state);
     if (object_hit_cnt <= 0) {
         return object_hit_cnt;
     }
@@ -1082,7 +1082,7 @@ interval_scan(struct table_manager *tbl_mgr, int thread_id, long long integer,
 
 static int
 ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_addr,
-          int port, int table_id, const char *attribute_name, struct maat_state *state)
+          int port, int table_id, const char *field_name, struct maat_state *state)
 {
 
     enum table_type table_type =
@@ -1099,7 +1099,7 @@ ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_addr,
     ip_runtime_scan_times_inc(ip_rt, thread_id);
 
     int object_hit_cnt = ip_runtime_scan((struct ip_runtime *)ip_rt, thread_id, IPv4,
-                                        (uint8_t *)&ip_addr, port, attribute_name, state);
+                                        (uint8_t *)&ip_addr, port, field_name, state);
     if (object_hit_cnt <= 0) {
         return object_hit_cnt;
     }
@@ -1111,7 +1111,7 @@ ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_addr,
 
 static int
 ipv6_scan(struct table_manager *tbl_mgr, int thread_id, uint8_t *ip_addr,
-          int port, int table_id, const char *attribute_name, struct maat_state *state)
+          int port, int table_id, const char *field_name, struct maat_state *state)
 {
 
     enum table_type table_type =
@@ -1128,7 +1128,7 @@ ipv6_scan(struct table_manager *tbl_mgr, int thread_id, uint8_t *ip_addr,
     ip_runtime_scan_times_inc(ip_rt, thread_id);
 
     int object_hit_cnt = ip_runtime_scan((struct ip_runtime *)ip_rt, thread_id, IPv6,
-                                        ip_addr, port, attribute_name, state);
+                                        ip_addr, port, field_name, state);
     if (object_hit_cnt <= 0) {
         return object_hit_cnt;
     }
@@ -1141,7 +1141,7 @@ ipv6_scan(struct table_manager *tbl_mgr, int thread_id, uint8_t *ip_addr,
 static int
 string_scan(struct table_manager *tbl_mgr, int thread_id,
             const char *data, size_t data_len, int table_id,
-            const char *attribute_name, struct maat_state *state)
+            const char *field_name, struct maat_state *state)
 {
     enum table_type table_type =
         table_manager_get_table_type(tbl_mgr, table_id);
@@ -1160,7 +1160,7 @@ string_scan(struct table_manager *tbl_mgr, int thread_id,
 
     int object_hit_cnt = expr_runtime_scan((struct expr_runtime *)expr_rt,
                                           thread_id, data, data_len,
-                                          attribute_name, state);
+                                          field_name, state);
     if (object_hit_cnt <= 0) {
         return object_hit_cnt;
     }
@@ -1209,7 +1209,7 @@ int maat_state_need_compile(struct maat_state *state, const char *table_name)
     return rule_runtime_need_compile(table_id, (struct rule_runtime *)rule_rt, state->rule_compile_state);
 }
 
-int maat_scan_flag(struct maat *maat_inst, const char *table_name, const char *attribute_name,
+int maat_scan_flag(struct maat *maat_inst, const char *table_name, const char *field_name,
                    long long flag, struct maat_state *state)
 {
     if ((NULL == maat_inst) || (NULL == state) || (state->thread_id < 0)) {
@@ -1245,7 +1245,7 @@ int maat_scan_flag(struct maat *maat_inst, const char *table_name, const char *a
 
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
     int hit_object_cnt = flag_scan(maat_inst->tbl_mgr, state->thread_id, flag,
-                                  table_id, attribute_name, state);
+                                  table_id, field_name, state);
     if (hit_object_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
         goto ERROR;
@@ -1274,7 +1274,7 @@ ERROR:
     return MAAT_SCAN_ERR;
 }
 
-int maat_scan_integer(struct maat *maat_inst, const char *table_name, const char *attribute_name,
+int maat_scan_integer(struct maat *maat_inst, const char *table_name, const char *field_name,
                       long long integer, struct maat_state *state)
 {
     if ((NULL == maat_inst) || (NULL == state) || (state->thread_id < 0)) {
@@ -1310,7 +1310,7 @@ int maat_scan_integer(struct maat *maat_inst, const char *table_name, const char
 
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
     int hit_object_cnt = interval_scan(maat_inst->tbl_mgr, state->thread_id, integer,
-                                      table_id, attribute_name, state);
+                                      table_id, field_name, state);
     if (hit_object_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
         goto ERROR;
@@ -1339,7 +1339,7 @@ ERROR:
     return MAAT_SCAN_ERR;
 }
 
-int maat_scan_ipv4_port(struct maat *maat_inst, const char *table_name, const char *attribute_name, 
+int maat_scan_ipv4_port(struct maat *maat_inst, const char *table_name, const char *field_name, 
                         uint32_t ip_addr, int port, struct maat_state *state)
 {
     if ((NULL == maat_inst) || (NULL == state) || (state->thread_id < 0)) {
@@ -1375,7 +1375,7 @@ int maat_scan_ipv4_port(struct maat *maat_inst, const char *table_name, const ch
 
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
     int hit_object_cnt = ipv4_scan(maat_inst->tbl_mgr, state->thread_id, ip_addr, port,
-                                  table_id, attribute_name, state);
+                                  table_id, field_name, state);
     if (hit_object_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
         goto ERROR;
@@ -1404,7 +1404,7 @@ ERROR:
     return MAAT_SCAN_ERR;
 }
 
-int maat_scan_ipv6_port(struct maat *maat_inst, const char *table_name, const char *attribute_name, 
+int maat_scan_ipv6_port(struct maat *maat_inst, const char *table_name, const char *field_name, 
                         uint8_t *ip_addr, int port, struct maat_state *state)
 {
     if ((NULL == maat_inst) || (NULL == ip_addr) || (NULL == state) || (state->thread_id < 0)) {
@@ -1440,7 +1440,7 @@ int maat_scan_ipv6_port(struct maat *maat_inst, const char *table_name, const ch
 
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
     int hit_object_cnt = ipv6_scan(maat_inst->tbl_mgr, state->thread_id, ip_addr, port,
-                                  table_id, attribute_name, state);
+                                  table_id, field_name, state);
     if (hit_object_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
         goto ERROR;
@@ -1470,19 +1470,19 @@ ERROR:
 }
 
 #define PORT_IGNORED -1
-inline int maat_scan_ipv6(struct maat *instance, const char *table_name, const char *attribute_name,
+inline int maat_scan_ipv6(struct maat *instance, const char *table_name, const char *field_name,
                         uint8_t *ip_addr, struct maat_state *state)
 {
-    return maat_scan_ipv6_port(instance, table_name, attribute_name, ip_addr, PORT_IGNORED, state);
+    return maat_scan_ipv6_port(instance, table_name, field_name, ip_addr, PORT_IGNORED, state);
 }
 
-inline int maat_scan_ipv4(struct maat *instance, const char *table_name, const char *attribute_name, 
+inline int maat_scan_ipv4(struct maat *instance, const char *table_name, const char *field_name, 
                         uint32_t ip_addr, struct maat_state *state)
 {
-    return maat_scan_ipv4_port(instance, table_name, attribute_name, ip_addr, PORT_IGNORED, state);
+    return maat_scan_ipv4_port(instance, table_name, field_name, ip_addr, PORT_IGNORED, state);
 }
 
-int maat_scan_string(struct maat *maat_inst, const char *table_name, const char *attribute_name,
+int maat_scan_string(struct maat *maat_inst, const char *table_name, const char *field_name,
                      const char *data, size_t data_len, struct maat_state *state)
 {
     if ((NULL == maat_inst) || (NULL == data) || (0 == data_len) || (NULL == state) ||
@@ -1519,7 +1519,7 @@ int maat_scan_string(struct maat *maat_inst, const char *table_name, const char 
 
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
     int hit_object_cnt = string_scan(maat_inst->tbl_mgr, state->thread_id, data,
-                                    data_len, table_id, attribute_name, state);
+                                    data_len, table_id, field_name, state);
     if (hit_object_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
         goto ERROR;
@@ -1548,7 +1548,7 @@ ERROR:
     return MAAT_SCAN_ERR;
 }
 
-static void maat_state_add_hit_object(struct maat_state *state, const char *attribute_name,
+static void maat_state_add_hit_object(struct maat_state *state, const char *field_name,
                                      uuid_t object_uuid_array[], uuid_t item_uuid_array[], size_t array_size)
 {
     struct maat *maat_inst = state->maat_inst;
@@ -1570,12 +1570,12 @@ static void maat_state_add_hit_object(struct maat_state *state, const char *attr
         uuid_copy(hit_items[i].object_uuid, object_uuid_array[i]);
     }
 
-    rule_compile_state_update(state->rule_compile_state, maat_inst, attribute_name,
+    rule_compile_state_update(state->rule_compile_state, maat_inst, field_name,
                          state->rule_table_id, state->Nth_scan,
                          hit_items, n_hit_item);
 }
 
-int maat_scan_object(struct maat *maat_inst, const char *table_name, const char *attribute_name,
+int maat_scan_object(struct maat *maat_inst, const char *table_name, const char *field_name,
                     uuid_t object_uuid_array[], uuid_t item_uuid_array[], size_t array_size, struct maat_state *state)
 {
     if ((NULL == maat_inst) || (array_size == 0) || (NULL == state) ||
@@ -1600,14 +1600,14 @@ int maat_scan_object(struct maat *maat_inst, const char *table_name, const char 
 
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
 
-    maat_state_add_hit_object(state, attribute_name, object_uuid_array, item_uuid_array, array_size);
+    maat_state_add_hit_object(state, field_name, object_uuid_array, item_uuid_array, array_size);
 
     maat_runtime_ref_dec(maat_inst->maat_rt, state->thread_id);
 
     return MAAT_SCAN_OK;
 }
 
-int maat_scan_not_logic(struct maat *maat_inst, const char *table_name, const char *attribute_name, struct maat_state *state)
+int maat_scan_not_logic(struct maat *maat_inst, const char *table_name, const char *field_name, struct maat_state *state)
 {
     if ((NULL == maat_inst) || (NULL == state) || (state->thread_id < 0)) {
         return -1;
@@ -1626,14 +1626,14 @@ int maat_scan_not_logic(struct maat *maat_inst, const char *table_name, const ch
 
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
 
-    rule_compile_state_not_logic_update(maat_inst, state->rule_compile_state, attribute_name, state->Nth_scan);
+    rule_compile_state_not_logic_update(maat_inst, state->rule_compile_state, field_name, state->Nth_scan);
 
     maat_runtime_ref_dec(maat_inst->maat_rt, state->thread_id);
 
     return MAAT_SCAN_OK;
 }
 
-struct maat_stream *maat_stream_new(struct maat *maat_inst, const char *table_name, const char *attribute_name, struct maat_state *state)
+struct maat_stream *maat_stream_new(struct maat *maat_inst, const char *table_name, const char *field_name, struct maat_state *state)
 {
     if ((NULL == maat_inst) || (NULL == state) || (state->thread_id < 0)) {
         return NULL;
@@ -1644,7 +1644,7 @@ struct maat_stream *maat_stream_new(struct maat *maat_inst, const char *table_na
     stream->last_full_version = maat_inst->last_full_version;
     stream->thread_id = state->thread_id;
     stream->table_id = table_manager_get_table_id(maat_inst->tbl_mgr, table_name);
-    snprintf(stream->attribute_name, sizeof(stream->attribute_name), "%s", attribute_name);
+    snprintf(stream->field_name, sizeof(stream->field_name), "%s", field_name);
     stream->logger = maat_inst->logger;
 
     enum table_type table_type = TABLE_TYPE_INVALID;
@@ -1703,7 +1703,7 @@ static int expr_stream_scan(struct maat_stream *stream, const char *data,
                                        data_len);
 
     int object_hit_cnt = expr_runtime_stream_scan(stream->expr_rt_stream, data,
-                                                 data_len, stream->attribute_name, state);
+                                                 data_len, stream->field_name, state);
     if (object_hit_cnt <= 0) {
         return object_hit_cnt;
     }
@@ -1907,7 +1907,7 @@ size_t maat_state_get_scan_count(struct maat_state *state)
     return state->Nth_scan;
 }
 
-size_t maat_state_get_hit_items(struct maat_state *state, const char *attribute_name,
+size_t maat_state_get_hit_items(struct maat_state *state, const char *field_name,
                             uuid_t item_array[],  uuid_t direct_object_array[],
                             size_t array_size)
 {
@@ -1919,19 +1919,19 @@ size_t maat_state_get_hit_items(struct maat_state *state, const char *attribute_
         return 0;
     }
     
-    return rule_compile_state_get_direct_hit_items(state->maat_inst, state->rule_compile_state, attribute_name, item_array, direct_object_array, array_size);
+    return rule_compile_state_get_direct_hit_items(state->maat_inst, state->rule_compile_state, field_name, item_array, direct_object_array, array_size);
 }
 
-size_t maat_state_get_hit_item_cnt(struct maat_state *state, const char *attribute_name)
+size_t maat_state_get_hit_item_cnt(struct maat_state *state, const char *field_name)
 {
     if (NULL == state || NULL == state->rule_compile_state) {
         return 0;
     }
 
-    return rule_compile_state_get_direct_hit_item_cnt(state->maat_inst, state->rule_compile_state, attribute_name);
+    return rule_compile_state_get_direct_hit_item_cnt(state->maat_inst, state->rule_compile_state, field_name);
 }
 
-size_t maat_state_get_indirect_hit_objects(struct maat_state *state, const char *attribute_name,
+size_t maat_state_get_indirect_hit_objects(struct maat_state *state, const char *field_name,
                                         uuid_t object_array[], size_t array_size)
 {
     if (NULL == state || NULL == object_array || 0 == array_size) {
@@ -1942,19 +1942,19 @@ size_t maat_state_get_indirect_hit_objects(struct maat_state *state, const char 
         return 0;
     }
 
-    return rule_compile_state_get_indirect_hit_objects(state->maat_inst, state->rule_compile_state, attribute_name, object_array, array_size);
+    return rule_compile_state_get_indirect_hit_objects(state->maat_inst, state->rule_compile_state, field_name, object_array, array_size);
 }
 
-size_t maat_state_get_indirect_hit_object_cnt(struct maat_state *state, const char *attribute_name)
+size_t maat_state_get_indirect_hit_object_cnt(struct maat_state *state, const char *field_name)
 {
     if (NULL == state || NULL == state->rule_compile_state) {
         return 0;
     }
 
-    return rule_compile_state_get_indirect_hit_object_cnt(state->maat_inst, state->rule_compile_state, attribute_name);
+    return rule_compile_state_get_indirect_hit_object_cnt(state->maat_inst, state->rule_compile_state, field_name);
 }
 
-size_t maat_state_get_hit_objects(struct maat_state *state, const char *attribute_name, uuid_t object_array[], size_t array_size)
+size_t maat_state_get_hit_objects(struct maat_state *state, const char *field_name, uuid_t object_array[], size_t array_size)
 {
     if (NULL == state || NULL == object_array || 0 == array_size) {
         return 0;
@@ -1964,21 +1964,21 @@ size_t maat_state_get_hit_objects(struct maat_state *state, const char *attribut
         return 0;
     }
 
-    return rule_compile_state_get_hit_objects(state->maat_inst, state->rule_compile_state, attribute_name, object_array, array_size);
+    return rule_compile_state_get_hit_objects(state->maat_inst, state->rule_compile_state, field_name, object_array, array_size);
 }
 
-size_t maat_state_get_hit_object_cnt(struct maat_state *state, const char *attribute_name)
+size_t maat_state_get_hit_object_cnt(struct maat_state *state, const char *field_name)
 {
     if (NULL == state || NULL == state->rule_compile_state) {
         return 0;
     }
 
-    return rule_compile_state_get_hit_object_cnt(state->maat_inst, state->rule_compile_state, attribute_name);
+    return rule_compile_state_get_hit_object_cnt(state->maat_inst, state->rule_compile_state, field_name);
 }
 
-size_t maat_state_get_attribute_names(struct maat_state *state, const char *attribute_names[], size_t array_size)
+size_t maat_state_get_field_names(struct maat_state *state, const char *field_names[], size_t array_size)
 {
-    if (NULL == state || NULL == attribute_names || 0 == array_size) {
+    if (NULL == state || NULL == field_names || 0 == array_size) {
         return 0;
     }
 
@@ -1986,14 +1986,14 @@ size_t maat_state_get_attribute_names(struct maat_state *state, const char *attr
         return 0;
     }
 
-    return rule_compile_state_get_attribute_names(state->rule_compile_state, attribute_names, array_size);
+    return rule_compile_state_get_field_names(state->rule_compile_state, field_names, array_size);
 }
 
-size_t maat_state_get_attribute_cnt(struct maat_state *state)
+size_t maat_state_get_field_cnt(struct maat_state *state)
 {
     if (NULL == state || NULL == state->rule_compile_state) {
         return 0;
     }
 
-    return rule_compile_state_get_attribute_cnt(state->rule_compile_state);
+    return rule_compile_state_get_field_cnt(state->rule_compile_state);
 }
