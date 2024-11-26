@@ -308,6 +308,13 @@ void maat_state_reset(struct maat_state *state);
 
 void maat_state_free(struct maat_state *state);
 
+/**
+ * @param rule_uuids:     input rule_uuid array, and also store the result of sorted rule uuids
+ * 
+ * @retval count of sorted rule_uuids
+*/
+size_t maat_state_sort_rules(struct maat *maat_inst, const char *table_name, uuid_t *rule_uuids, uuid_t *sorted_rule_uuids, size_t n_rule_uuids);
+
 int maat_state_set_scan_rule_table(struct maat_state *state, const char *rule_table_name);
 
 int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *path_array, 

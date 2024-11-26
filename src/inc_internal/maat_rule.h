@@ -72,6 +72,8 @@ int rule_compile_state_update(struct maat_state *maat_state, struct maat *maat_i
                          const char *field_name, int custom_rule_tbl_id, int Nth_scan,
                          struct maat_item *hit_items, size_t n_hit_item);
 
+size_t rule_compile_state_sort_rules(struct rule_runtime *rule_rt, uuid_t *rule_uuids, uuid_t *sorted_rule_uuids, size_t n_rule_uuids);
+
 void rule_compile_state_clear_last_hit_object(struct rule_compile_state *rule_state);
 
 void rule_compile_state_not_logic_update(struct rule_compile_state *rule_compile_state, 

@@ -43,6 +43,7 @@ struct rule_schema {
 
 struct rule_item {
     int condition_num;
+    int priority;
     uuid_t rule_uuid;
     char *table_line;
     size_t table_line_len;
@@ -107,6 +108,7 @@ struct rule_condition {
 
 struct rule_sort_para {
 	int condition_num;
+    int priority;
 	uuid_t rule_uuid;
 };
 
@@ -114,6 +116,7 @@ struct rule_sort_para {
 struct maat_rule {
 	uint32_t magic_num;
     int condition_num;
+    int priority;
     int table_id;
     uuid_t rule_uuid;
     void *user_data; // rule_item
@@ -250,6 +253,15 @@ static struct maat_rule *maat_rule_new(struct rule_runtime *rule_rt, struct rule
 	rule->magic_num = MAAT_RULE_MAGIC;
     uuid_copy(rule->rule_uuid, rule_uuid);
 
+    tmp_obj = cJSON_GetObjectItem(table_json, "priority");
+    if (tmp_obj == NULL || tmp_obj->type != cJSON_Number) {
+        log_fatal(logger, MODULE_RULE,
+                  "[%s:%d] table: <%s> has no priority or not number format",
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
+    }
+    rule->priority = tmp_obj->valueint;
+
     for(int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {	
         utarray_new(rule->conditions[i].literals, &ut_condition_literal_icd);
 		rule->conditions[i].in_use = 0;
@@ -343,6 +355,7 @@ static struct maat_rule *maat_rule_new(struct rule_runtime *rule_rt, struct rule
     }
 
     rule_item->condition_num = rule->condition_num;
+    rule_item->priority = rule->priority;
     rule->user_data = rule_item;
 
     if (table_json) {
@@ -1024,6 +1037,43 @@ void rule_compile_state_free(struct rule_compile_state *rule_compile_state,
                               thread_id, free_bytes);
 }
 
+static int compare_rule(const void *a, const void *b)
+{
+	const struct maat_rule *ra = *(const struct maat_rule **)a;
+	const struct maat_rule *rb = *(const struct maat_rule **)b;
+
+    if (ra->priority != rb->priority) {
+        return ra->priority - rb->priority;
+    } else if (ra->condition_num != rb->condition_num) {
+		return (rb->condition_num - ra->condition_num);
+	} else {
+        return uuid_compare(rb->rule_uuid, ra->rule_uuid);
+	}
+}
+
+size_t rule_compile_state_sort_rules(struct rule_runtime *rule_rt, uuid_t *rule_uuids, uuid_t *sorted_rule_uuids, size_t n_rule_uuids)
+{
+    struct maat_rule *rules[n_rule_uuids];
+    size_t rule_cnt = 0;
+    for (size_t i = 0; i < n_rule_uuids; i++) {
+        struct maat_rule *tmp_rule = rcu_hash_find(rule_rt->cfg_hash, (const char*)(rule_uuids[i]), sizeof(uuid_t));
+        if (NULL == tmp_rule) {
+            continue;
+        }
+
+        rules[rule_cnt] = tmp_rule;
+        rule_cnt++;
+    }
+
+    qsort(rules, rule_cnt, sizeof(struct maat_rule *), compare_rule);
+
+    for (size_t i = 0; i < rule_cnt; i++) {
+        uuid_copy(sorted_rule_uuids[i], rules[i]->rule_uuid);
+    }
+
+    return rule_cnt;
+}
+
 static void
 rule_compile_state_add_internal_hit_path(struct rule_compile_state *rule_compile_state,
                                     uuid_t item_uuid, uuid_t object_uuid,
@@ -1687,8 +1737,10 @@ static int rule_sort_para_compare(const struct rule_sort_para *a,
                                      const struct rule_sort_para *b)
 {
 	//If rule rule's execute sequences are not specified or equal.
-	if (a->condition_num != b->condition_num) {
-		return (a->condition_num - b->condition_num);
+    if (a->priority != b->priority) {
+        return a->priority - b->priority;
+    } else if (a->condition_num != b->condition_num) {
+		return (b->condition_num - a->condition_num);
 	} else {
         return uuid_compare(b->rule_uuid, a->rule_uuid);
 	}
@@ -1699,6 +1751,7 @@ static void rule_sort_para_set(struct rule_sort_para *para,
 {
     uuid_copy(para->rule_uuid, item->rule_uuid);
 	para->condition_num = item->condition_num;
+    para->priority = item->priority;
 }
 
 static int compare_rule_item(const void *a, const void *b)

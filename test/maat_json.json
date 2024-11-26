@@ -1970,7 +1970,7 @@
 			"do_log": 1,
 			"action_parameter": "EvaluationOrder",
 			"is_valid": "yes",
-			"evaluation_order": "2.111",
+			"priority": 1,
 			"and_conditions": [
 				{
 					"field_name": "HTTP_URL",
@@ -2020,7 +2020,7 @@
 			"do_log": 1,
 			"action_parameter": "EvaluationOrder",
 			"is_valid": "yes",
-			"evaluation_order": "100.233",
+			"priority": 2,
 			"and_conditions": [
 				{
 					"field_name": "HTTP_URL",
@@ -2051,7 +2051,7 @@
 			"do_log": 1,
 			"action_parameter": "EvaluationOrder",
 			"is_valid": "yes",
-			"evaluation_order": "300.999",
+			"priority": 2,
 			"and_conditions": [
 				{
 					"field_name": "HTTP_URL",
@@ -2077,7 +2077,7 @@
 			"do_log": 1,
 			"action_parameter": "EvaluationOrder",
 			"is_valid": "yes",
-			"evaluation_order": "0",
+			"priority": 2,
 			"and_conditions": [
 				{
 					"field_name": "HTTP_URL",

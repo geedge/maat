@@ -950,9 +950,9 @@ TEST_P(StringScan, PrefixAndSuffix) {
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
-    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000151");
-    uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000152");
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000151");
 
     ret = maat_scan_not_logic(maat_inst, mail_addr_table_name, mail_addr_field_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -5278,13 +5278,13 @@ TEST_F(Policy, EvaluationOrder) {
     EXPECT_EQ(n_hit_result, 3);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
-    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000166");
-
-    uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000168");
 
-    uuid_unparse(results[2], uuid_str);
+    uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000167");
+
+    uuid_unparse(results[2], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000166");
 
     struct maat_hit_path hit_path[128];
     memset(hit_path, 0, sizeof(hit_path));
@@ -5368,6 +5368,23 @@ TEST_F(Policy, EvaluationOrder) {
     ret = maat_scan_not_logic(maat_inst, ip_plus_table_name, ip_plus_field_name, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    uuid_parse("00000000-0000-0000-0000-000000000166", results[0]);
+    uuid_parse("00000000-0000-0000-0000-000000000168", results[1]);
+    uuid_parse("00000000-0000-0000-0000-000000000167", results[2]);
+    uuid_parse("00000000-0000-0000-0000-000000000165", results[3]);
+    uuid_t sorted_results[4];
+    ret = maat_state_sort_rules(maat_inst, "RULE_CONJUNCTION", results, sorted_results, 4);
+    EXPECT_EQ(ret, 4);
+
+    uuid_unparse(sorted_results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000165");
+    uuid_unparse(sorted_results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000168");
+    uuid_unparse(sorted_results[2], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000167");
+    uuid_unparse(sorted_results[3], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000166");
 
     maat_state_free(state);
 }

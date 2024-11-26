@@ -1964,6 +1964,27 @@ void maat_state_free(struct maat_state *state)
                               thread_id, sizeof(struct maat_state));
 }
 
+size_t maat_state_sort_rules(struct maat *maat_inst, const char *table_name, uuid_t *rule_uuids, uuid_t *sorted_rule_uuids, size_t n_rule_uuids)
+{
+    if (NULL == table_name || NULL == rule_uuids || 0 == n_rule_uuids) {
+        return 0;
+    }
+
+    int rule_table_id = table_manager_get_table_id(maat_inst->tbl_mgr, table_name);
+
+    if (rule_table_id < 0) {
+        return 0;
+    }
+
+    void *rule_rt = table_manager_get_runtime(maat_inst->tbl_mgr,
+                                                 rule_table_id);
+    if (NULL == rule_rt) {
+        return 0;
+    }
+
+    return rule_compile_state_sort_rules(rule_rt, rule_uuids, sorted_rule_uuids, n_rule_uuids);
+}
+
 int maat_state_set_scan_rule_table(struct maat_state *state, const char *rule_table_name)
 {
     if (NULL == state) {

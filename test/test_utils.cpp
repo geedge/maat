@@ -177,6 +177,8 @@ int rule_table_set_line(struct maat *maat_inst, const char *table_name,
         cJSON_AddStringToObject(json_root, "action_parameter", action_para_str);
     }
 
+    cJSON_AddNumberToObject(json_root, "priority", 1000);//TODO: support config priority
+
     char *json_str = cJSON_PrintUnformatted(json_root);
 
     struct maat_cmd_line line_rule;
