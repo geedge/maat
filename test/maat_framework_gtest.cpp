@@ -111,6 +111,7 @@ void scan_with_old_or_new_cfg(struct maat *maat_inst, int is_old)
     const char *field_name = "HTTP_URL";
     const char *table_name = "HTTP_URL";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
@@ -127,7 +128,7 @@ void scan_with_old_or_new_cfg(struct maat *maat_inst, int is_old)
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
 
     if (is_old) {
         EXPECT_EQ(n_hit_result, 1);
@@ -150,7 +151,7 @@ void scan_with_old_or_new_cfg(struct maat *maat_inst, int is_old)
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
 
     if (!is_old) {
         EXPECT_EQ(n_hit_result, 1);
@@ -239,6 +240,7 @@ TEST_F(FlagScan, basic) {
     //scan_data: 0000 1001 or 0000 1101 should hit
     long long scan_data = 9;
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
@@ -251,7 +253,7 @@ TEST_F(FlagScan, basic) {
     ret = maat_scan_not_logic(maat_inst, flag_table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -276,7 +278,7 @@ TEST_F(FlagScan, basic) {
     ret = maat_scan_not_logic(maat_inst, flag_table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000207");
@@ -295,7 +297,7 @@ TEST_F(FlagScan, basic) {
     ret = maat_scan_not_logic(maat_inst, flag_table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
@@ -313,6 +315,7 @@ TEST_F(FlagScan, withExprRegion) {
     //scan_data: 0000 0010 or 0000 0100 should hit
     long long flag_scan_data = 2;
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
@@ -325,7 +328,7 @@ TEST_F(FlagScan, withExprRegion) {
     ret = maat_scan_not_logic(maat_inst, flag_table_name, flag_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     struct maat_hit_path hit_path[HIT_PATH_SIZE];
@@ -343,7 +346,7 @@ TEST_F(FlagScan, withExprRegion) {
     ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -363,6 +366,7 @@ TEST_F(FlagScan, hitMultiRule) {
     //scan_data: 0001 0101 should hit rule192 and rule194
     long long flag_scan_data = 21;
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
@@ -375,7 +379,7 @@ TEST_F(FlagScan, hitMultiRule) {
     ret = maat_scan_not_logic(maat_inst, flag_table_name, flag_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 3);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -394,7 +398,7 @@ TEST_F(FlagScan, hitMultiRule) {
     ret = maat_scan_not_logic(maat_inst, flag_table_name, flag_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 3);//maat return all hit rules every time without removing duplicate hit rules
 
     struct maat_hit_path hit_path[HIT_PATH_SIZE];
@@ -414,6 +418,7 @@ TEST_F(FlagScan, hitRepeatedRule) {
     struct maat *maat_inst = FlagScan::_shared_maat_inst;
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
@@ -429,7 +434,7 @@ TEST_F(FlagScan, hitRepeatedRule) {
     ret = maat_scan_not_logic(maat_inst, flag_table_name, flag_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -448,7 +453,7 @@ TEST_F(FlagScan, hitRepeatedRule) {
     ret = maat_scan_not_logic(maat_inst, flag_table_name, flag_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 3);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000207");
@@ -464,7 +469,7 @@ TEST_F(FlagScan, hitRepeatedRule) {
     ret = maat_scan_not_logic(maat_inst, flag_table_name, flag_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 3);//maat return all hit rules every time without removing duplicate hit rules
 
     struct maat_hit_path hit_path[HIT_PATH_SIZE];
@@ -557,6 +562,7 @@ TEST_P(StringScan, ScanDataOnlyOneByte) {
     struct maat *maat_inst = StringScan::_shared_maat_inst;
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
@@ -570,7 +576,7 @@ TEST_P(StringScan, ScanDataOnlyOneByte) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
@@ -583,6 +589,7 @@ TEST_P(StringScan, Full) {
     struct maat *maat_inst = StringScan::_shared_maat_inst;
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
@@ -596,7 +603,7 @@ TEST_P(StringScan, Full) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -609,6 +616,7 @@ TEST_P(StringScan, Full) {
 TEST_P(StringScan, Regex) {
     int ret = 0;
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *scan_data = "Cookie: Txa123aheadBCAxd";
@@ -624,7 +632,7 @@ TEST_P(StringScan, Regex) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -637,6 +645,7 @@ TEST_P(StringScan, Regex) {
 TEST_P(StringScan, RegexUnicode) {
     int ret = 0;
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *scan_data = "String contains É";
@@ -652,7 +661,7 @@ TEST_P(StringScan, RegexUnicode) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -665,6 +674,7 @@ TEST_P(StringScan, RegexUnicode) {
 TEST_P(StringScan, BackslashR_N_Escape) {
     int ret = 0;
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *table_name = "KEYWORDS_TABLE";
@@ -680,7 +690,7 @@ TEST_P(StringScan, BackslashR_N_Escape) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -693,6 +703,7 @@ TEST_P(StringScan, BackslashR_N_Escape) {
 TEST_P(StringScan, BackslashR_N_Escape_IncUpdate) {
     int ret = 0;
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *table_name = "KEYWORDS_TABLE";
@@ -708,7 +719,7 @@ TEST_P(StringScan, BackslashR_N_Escape_IncUpdate) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -755,7 +766,7 @@ TEST_P(StringScan, BackslashR_N_Escape_IncUpdate) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000234");
@@ -770,6 +781,7 @@ TEST_P(StringScan, BackslashCtrlCharactor)
 {
     int ret = 0;
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *table_name = "KEYWORDS_TABLE";
@@ -785,7 +797,7 @@ TEST_P(StringScan, BackslashCtrlCharactor)
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -803,6 +815,7 @@ TEST_P(StringScan, Expr8) {
     char scan_data[128] = "string1, string2, string3, string4, string5, "
                           "string6, string7, string8";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
 
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
@@ -814,7 +827,7 @@ TEST_P(StringScan, Expr8) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -840,6 +853,7 @@ TEST_P(StringScan, HexBinCaseSensitive) {
     int thread_id = 0;
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -850,7 +864,7 @@ TEST_P(StringScan, HexBinCaseSensitive) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -861,7 +875,7 @@ TEST_P(StringScan, HexBinCaseSensitive) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -882,6 +896,7 @@ TEST_P(StringScan, HexbinCombineString)
     int thread_id = 0;
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -892,7 +907,7 @@ TEST_P(StringScan, HexbinCombineString)
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -903,7 +918,7 @@ TEST_P(StringScan, HexbinCombineString)
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -937,6 +952,7 @@ TEST_P(StringScan, BugReport20190325) {
     int thread_id = 0;
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -948,7 +964,7 @@ TEST_P(StringScan, BugReport20190325) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -970,6 +986,7 @@ TEST_P(StringScan, PrefixAndSuffix) {
     int thread_id = 0;
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -987,7 +1004,7 @@ TEST_P(StringScan, PrefixAndSuffix) {
     ret = maat_scan_not_logic(maat_inst, mail_addr_table_name, mail_addr_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -1002,7 +1019,7 @@ TEST_P(StringScan, PrefixAndSuffix) {
     ret = maat_scan_not_logic(maat_inst, mail_addr_table_name, mail_addr_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000151");
@@ -1020,7 +1037,7 @@ TEST_P(StringScan, PrefixAndSuffix) {
     ret = maat_scan_not_logic(maat_inst, mail_addr_table_name, mail_addr_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000151");
@@ -1039,6 +1056,7 @@ TEST_P(StringScan, MaatUnescape) {
     int thread_id = 0;
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -1049,7 +1067,7 @@ TEST_P(StringScan, MaatUnescape) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -1064,6 +1082,7 @@ TEST_P(StringScan, OffsetChunk64) {
     const char *field_name = "IMAGE_FP";
 	const char *file_name = "./testdata/mesa_logo.jpg";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = StringScan::_shared_maat_inst;
@@ -1098,7 +1117,7 @@ TEST_P(StringScan, OffsetChunk64) {
     }
     EXPECT_EQ(pass_flag, 1);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -1114,6 +1133,7 @@ TEST_P(StringScan, OffsetChunk1460) {
     const char *field_name = "IMAGE_FP";
 	const char *file_name = "./testdata/mesa_logo.jpg";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = StringScan::_shared_maat_inst;
@@ -1148,7 +1168,7 @@ TEST_P(StringScan, OffsetChunk1460) {
     }
     EXPECT_EQ(pass_flag, 1);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -1164,6 +1184,7 @@ TEST_P(StringScan, StreamScanUTF8) {
     const char *field_name = "TROJAN_PAYLOAD";
 	const char* file_name = "./testdata/jd.com.html";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     char scan_data[2048];
@@ -1195,7 +1216,7 @@ TEST_P(StringScan, StreamScanUTF8) {
 
     EXPECT_EQ(pass_flag, 1);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -1216,6 +1237,7 @@ TEST_P(StringScan, InvisibleCharactor) {
     int thread_id = 0;
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -1234,7 +1256,7 @@ TEST_P(StringScan, InvisibleCharactor) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -1246,6 +1268,7 @@ TEST_P(StringScan, InvisibleCharactor) {
 
 TEST_P(StringScan, StreamInput) {
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = StringScan::_shared_maat_inst;
@@ -1274,7 +1297,7 @@ TEST_P(StringScan, StreamInput) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-	n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+	n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -1287,6 +1310,7 @@ TEST_P(StringScan, StreamInput) {
 //TODO: HS has different behavior with RS
 TEST_P(StringScan, StreamHitDirectObject) {
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     int ret;
@@ -1308,7 +1332,7 @@ TEST_P(StringScan, StreamHitDirectObject) {
     ret = maat_scan_not_logic(maat_inst, table_name_url, field_name_url, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -1345,7 +1369,7 @@ TEST_P(StringScan, StreamHitDirectObject) {
     ret = maat_scan_not_logic(maat_inst, table_name_sig, field_name_sig, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000128");
@@ -1372,6 +1396,7 @@ TEST_P(StringScan, StreamHitDirectObject) {
 TEST_P(StringScan, StreamLiteralPrefix)
 {
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     int ret;
@@ -1391,7 +1416,7 @@ TEST_P(StringScan, StreamLiteralPrefix)
     ret = maat_scan_not_logic(maat_inst, table_name_url, field_name_url, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -1405,6 +1430,7 @@ TEST_P(StringScan, StreamLiteralPrefix)
 TEST_P(StringScan, StreamLiteralSuffix)
 {
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     int ret;
@@ -1424,7 +1450,7 @@ TEST_P(StringScan, StreamLiteralSuffix)
     ret = maat_scan_not_logic(maat_inst, table_name_url, field_name_url, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -1438,6 +1464,7 @@ TEST_P(StringScan, StreamLiteralSuffix)
 TEST_P(StringScan, StreamRegexPrefix)
 {
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     int ret;
@@ -1457,7 +1484,7 @@ TEST_P(StringScan, StreamRegexPrefix)
     ret = maat_scan_not_logic(maat_inst, table_name_url, field_name_url, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -1471,6 +1498,7 @@ TEST_P(StringScan, StreamRegexPrefix)
 TEST_P(StringScan, StreamRegexSuffix)
 {
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     int ret;
@@ -1490,7 +1518,7 @@ TEST_P(StringScan, StreamRegexSuffix)
     ret = maat_scan_not_logic(maat_inst, table_name_url, field_name_url, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -1508,6 +1536,7 @@ TEST_P(StringScan, LiteralPrefix)
     struct maat *maat_inst = StringScan::_shared_maat_inst;
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
@@ -1519,7 +1548,7 @@ TEST_P(StringScan, LiteralPrefix)
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -1536,6 +1565,7 @@ TEST_P(StringScan, LiteralSuffix)
     struct maat *maat_inst = StringScan::_shared_maat_inst;
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
@@ -1547,7 +1577,7 @@ TEST_P(StringScan, LiteralSuffix)
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -1564,6 +1594,7 @@ TEST_P(StringScan, RegexPrefix)
     struct maat *maat_inst = StringScan::_shared_maat_inst;
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
@@ -1575,7 +1606,7 @@ TEST_P(StringScan, RegexPrefix)
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -1592,6 +1623,7 @@ TEST_P(StringScan, RegexSuffix)
     struct maat *maat_inst = StringScan::_shared_maat_inst;
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
@@ -1603,7 +1635,7 @@ TEST_P(StringScan, RegexSuffix)
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -1618,6 +1650,7 @@ TEST_P(StringScan, dynamic_config) {
     const char *field_name = "HTTP_URL";
     char data[128] = "hello world, welcome to maat version4, it's funny.";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = StringScan::_shared_maat_inst;
@@ -1631,7 +1664,7 @@ TEST_P(StringScan, dynamic_config) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -1673,7 +1706,7 @@ TEST_P(StringScan, dynamic_config) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -1698,7 +1731,7 @@ TEST_P(StringScan, dynamic_config) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
@@ -1765,6 +1798,7 @@ TEST_P(StreamScan, dynamic_config) {
     const char *keywords1 = "hello";
     char keyword_buf[128];
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *scan_data1 = "www.cyberessays.com";
@@ -1797,7 +1831,7 @@ TEST_P(StreamScan, dynamic_config) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -1817,7 +1851,7 @@ TEST_P(StreamScan, dynamic_config) {
     ret = maat_stream_scan(sp, scan_data2, strlen(scan_data2), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
@@ -1833,7 +1867,7 @@ TEST_P(StreamScan, dynamic_config) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_stream_free(sp);
@@ -1905,6 +1939,7 @@ TEST_F(IPScan, IPv4Unspecified) {
     EXPECT_EQ(ret, 1);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -1914,7 +1949,7 @@ TEST_F(IPScan, IPv4Unspecified) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
@@ -1933,6 +1968,7 @@ TEST_F(IPScan, IPv4Broadcast) {
     EXPECT_EQ(ret, 1);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -1942,7 +1978,7 @@ TEST_F(IPScan, IPv4Broadcast) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
@@ -1961,6 +1997,7 @@ TEST_F(IPScan, MatchSingleIPv4) {
     EXPECT_EQ(ret, 1);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -1970,7 +2007,7 @@ TEST_F(IPScan, MatchSingleIPv4) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -1992,6 +2029,7 @@ TEST_F(IPScan, IPv6Unspecified) {
     EXPECT_EQ(ret, 1);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -2001,7 +2039,7 @@ TEST_F(IPScan, IPv6Unspecified) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2022,6 +2060,7 @@ TEST_F(IPScan, IPv6Broadcast) {
     EXPECT_EQ(ret, 1);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -2031,7 +2070,7 @@ TEST_F(IPScan, IPv6Broadcast) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);  
@@ -2049,6 +2088,7 @@ TEST_F(IPScan, MatchSingleIPv6) {
     EXPECT_EQ(ret, 1);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -2058,7 +2098,7 @@ TEST_F(IPScan, MatchSingleIPv6) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2080,6 +2120,7 @@ TEST_F(IPScan, MatchIPv4Range) {
     EXPECT_EQ(ret, 1);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -2089,7 +2130,7 @@ TEST_F(IPScan, MatchIPv4Range) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2113,6 +2154,7 @@ TEST_F(IPScan, MatchIPv4Port) {
     EXPECT_EQ(ret, 1);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
     
@@ -2124,7 +2166,7 @@ TEST_F(IPScan, MatchIPv4Port) {
     ret = maat_scan_ipv4_port(maat_inst, table_name, field_name, sip, 80, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2145,6 +2187,7 @@ TEST_F(IPScan, MatchIPv6Range) {
     EXPECT_EQ(ret, 1);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -2154,7 +2197,7 @@ TEST_F(IPScan, MatchIPv6Range) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2179,6 +2222,7 @@ TEST_F(IPScan, MatchIPv6Port) {
     EXPECT_EQ(ret, 1);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -2186,7 +2230,7 @@ TEST_F(IPScan, MatchIPv6Port) {
     ret = maat_scan_ipv6_port(maat_inst, table_name, field_name, sip, port, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2200,7 +2244,7 @@ TEST_F(IPScan, MatchIPv6Port) {
     ret = maat_scan_ipv6(maat_inst, table_name, field_name, sip, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000210");
@@ -2221,6 +2265,7 @@ TEST_F(IPScan, BugReport20210515) {
     EXPECT_EQ(ret, 1);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -2231,7 +2276,7 @@ TEST_F(IPScan, BugReport20210515) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
@@ -2250,6 +2295,7 @@ TEST_F(IPScan, RuleUpdates) {
     EXPECT_EQ(ret, 1);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
     ret = maat_scan_ipv4(maat_inst, table_name, field_name, sip, state);
@@ -2257,7 +2303,7 @@ TEST_F(IPScan, RuleUpdates) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -2296,7 +2342,7 @@ TEST_F(IPScan, RuleUpdates) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2322,7 +2368,7 @@ TEST_F(IPScan, RuleUpdates) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
@@ -2376,6 +2422,7 @@ struct log_handle *IntervalScan::logger;
 
 TEST_F(IntervalScan, IntegerRange) {	
 	uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *table_name = "CONTENT_SIZE";
@@ -2399,7 +2446,7 @@ TEST_F(IntervalScan, IntegerRange) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
 	maat_state_free(state);
@@ -2408,6 +2455,7 @@ TEST_F(IntervalScan, IntegerRange) {
 
 TEST_F(IntervalScan, SingleInteger) {	
 	uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *table_name = "CONTENT_SIZE";
@@ -2422,7 +2470,7 @@ TEST_F(IntervalScan, SingleInteger) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2479,6 +2527,7 @@ struct log_handle *ObjectScan::logger;
 
 TEST_F(ObjectScan, PhysicalTable) {
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
 	const char *table_name = "KEYWORDS_TABLE";
@@ -2494,7 +2543,7 @@ TEST_F(ObjectScan, PhysicalTable) {
     int ret = maat_scan_object(maat_inst, table_name, field_name, &object_uuid, &item_uuid, 1, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2507,6 +2556,7 @@ TEST_F(ObjectScan, PhysicalTable) {
 
 TEST_F(ObjectScan, Field) {
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
 	const char *field_name = "HTTP_RESPONSE_KEYWORDS";
@@ -2522,7 +2572,7 @@ TEST_F(ObjectScan, Field) {
     int ret = maat_scan_object(maat_inst, table_name, field_name, &object_uuid, &item_uuid, 1, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2584,6 +2634,7 @@ TEST_F(NOTLogic, OneRegion) {
 	const char *string_should_not_hit = "This string contains both must-contained-string-of-rule-143 "
                                         "and must-not-contained-string-of-rule-143.";
 	uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
 	const char *field_name = "HTTP_URL_FILTER";
@@ -2598,7 +2649,7 @@ TEST_F(NOTLogic, OneRegion) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2613,7 +2664,7 @@ TEST_F(NOTLogic, OneRegion) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
     
 	maat_state_free(state);
@@ -2626,6 +2677,7 @@ TEST_F(NOTLogic, ScanNotAtLast) {
                                         "and must-not-contained-string-of-rule-144.";
     const char *string_contain_nothing = "This string contains nothing.";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
 	const char *hit_field_name = "HTTP_URL_FILTER";
@@ -2651,7 +2703,7 @@ TEST_F(NOTLogic, ScanNotAtLast) {
     ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -2668,7 +2720,7 @@ TEST_F(NOTLogic, ScanNotAtLast) {
     ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2682,6 +2734,7 @@ TEST_F(NOTLogic, ScanIrrelavantAtLast) {
     const char *string_should_hit = "This string ONLY contains must-contained-string-of-rule-144.";
 	const char *string_irrelevant = "This string contains nothing to hit.";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *hit_field_name = "HTTP_URL_FILTER";
@@ -2705,7 +2758,7 @@ TEST_F(NOTLogic, ScanIrrelavantAtLast) {
     ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2719,6 +2772,7 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyExpr) {
     const char *string_should_not_hit = "This string should not hit.";
 	const char *string_match_no_region = "This string is matched against a empty table.";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *not_hit_field_name = "HTTP_URL_FILTER";
@@ -2746,7 +2800,7 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyExpr) {
     ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2759,7 +2813,7 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyExpr) {
     ret = maat_scan_not_logic(maat_inst, empty_table_name, empty_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
 
     maat_state_free(state);
@@ -2769,6 +2823,7 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyExpr) {
 TEST_F(NOTLogic, ScanHitAtLastEmptyInteger) {
     const char *string_should_not_hit = "This string should not hit.";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *not_hit_field_name = "HTTP_URL_FILTER";
@@ -2796,7 +2851,7 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyInteger) {
     ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2811,7 +2866,7 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyInteger) {
     ret = maat_scan_not_logic(maat_inst, empty_table_name, empty_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
 
     maat_state_free(state);
@@ -2821,6 +2876,7 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyInteger) {
 TEST_F(NOTLogic, ScanNotIP) {
     const char *string_should_hit = "This string ONLY contains must-contained-string-of-rule-145.";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *hit_table_name = "HTTP_URL";
@@ -2847,7 +2903,7 @@ TEST_F(NOTLogic, ScanNotIP) {
     ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2867,7 +2923,7 @@ TEST_F(NOTLogic, ScanNotIP) {
     ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
@@ -2880,6 +2936,7 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
                                          "must-contained-not-string-of-rule-146.";
     const char *string_nothing = "This string contain nothing";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *url_field_name = "HTTP_URL_FILTER";
@@ -2908,7 +2965,7 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -2929,7 +2986,7 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -2953,7 +3010,7 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -2968,6 +3025,7 @@ TEST_F(NOTLogic, NotPhysicalTable) {
     const char *string2 = "This string ONLY contains not_logic_rule_224_2.";
     const char *string3 = "This string ONLY contains nothing.";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *table_name = "KEYWORDS_TABLE";
@@ -2986,7 +3044,7 @@ TEST_F(NOTLogic, NotPhysicalTable) {
     ret = maat_scan_string(maat_inst, table_name, field_name, string2, strlen(string2), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -3001,7 +3059,7 @@ TEST_F(NOTLogic, NotPhysicalTable) {
     ret = maat_scan_string(maat_inst, table_name, field_name, string2, strlen(string2), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT); 
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3014,6 +3072,7 @@ TEST_F(NOTLogic, NotPhysicalTable) {
 TEST_F(NOTLogic, EightNotCondition) {
     const char *string_nothing = "This string contain nothing";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *field_name1 = "HTTP_RESPONSE_KEYWORDS_1";
@@ -3084,7 +3143,7 @@ TEST_F(NOTLogic, EightNotCondition) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name8, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3100,6 +3159,7 @@ TEST_F(NOTLogic, NotConditionAndExcludeObject1) {
     const char *string_should_half_hit = "This string ONLY contains must-contained-string-of-rule-200";
     const char *string_nothing = "This string contain nothing";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *url_field_name = "HTTP_URL_FILTER";
@@ -3130,7 +3190,7 @@ TEST_F(NOTLogic, NotConditionAndExcludeObject1) {
     ret = maat_scan_not_logic(maat_inst, http_table_name, http_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3145,6 +3205,7 @@ TEST_F(NOTLogic, NotConditionAndExcludeObject2) {
     const char *string2= "This string ONLY contains www.string-of-rule-217.com";
     const char *string_keywords = "This string contain keywords-for-rule-217";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *url_field_name = "HTTP_URL_FILTER";
@@ -3167,7 +3228,7 @@ TEST_F(NOTLogic, NotConditionAndExcludeObject2) {
     ret = maat_scan_not_logic(maat_inst, url_table_name, url_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -3185,7 +3246,7 @@ TEST_F(NOTLogic, NotConditionAndExcludeObject2) {
     ret = maat_scan_not_logic(maat_inst, url_table_name, url_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3201,6 +3262,7 @@ TEST_F(NOTLogic, SingleNotCondition) {
     const char *field_name = "HTTP_NOT_LOGIC_1";
     const char *table_name = "KEYWORDS_TABLE";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = NOTLogic::_shared_maat_inst;
@@ -3214,7 +3276,7 @@ TEST_F(NOTLogic, SingleNotCondition) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -3226,7 +3288,7 @@ TEST_F(NOTLogic, SingleNotCondition) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3244,6 +3306,7 @@ TEST_F(NOTLogic, MultiNotConditions) {
     const char *field_name = "HTTP_NOT_LOGIC";
     const char *table_name = "KEYWORDS_TABLE";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = NOTLogic::_shared_maat_inst;
@@ -3260,7 +3323,7 @@ TEST_F(NOTLogic, MultiNotConditions) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -3275,7 +3338,7 @@ TEST_F(NOTLogic, MultiNotConditions) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -3290,7 +3353,7 @@ TEST_F(NOTLogic, MultiNotConditions) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -3302,7 +3365,7 @@ TEST_F(NOTLogic, MultiNotConditions) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3322,6 +3385,7 @@ TEST_F(NOTLogic, MultiObjectsInOneNotCondition) {
     const char *dst_asn_field_name = "DESTINATION_IP_ASN";
     const char *table_name = "AS_NUMBER";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = NOTLogic::_shared_maat_inst;
@@ -3339,7 +3403,7 @@ TEST_F(NOTLogic, MultiObjectsInOneNotCondition) {
     ret = maat_scan_string(maat_inst, table_name, dst_asn_field_name, dst_asn, strlen(dst_asn), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -3356,7 +3420,7 @@ TEST_F(NOTLogic, MultiObjectsInOneNotCondition) {
     ret = maat_scan_string(maat_inst, table_name, dst_asn_field_name, dst_asn, strlen(dst_asn), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -3373,7 +3437,7 @@ TEST_F(NOTLogic, MultiObjectsInOneNotCondition) {
     ret = maat_scan_string(maat_inst, table_name, dst_asn_field_name, dst_asn, strlen(dst_asn), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -3389,7 +3453,7 @@ TEST_F(NOTLogic, MultiObjectsInOneNotCondition) {
     ret = maat_scan_string(maat_inst, table_name, dst_asn_field_name, dst_asn, strlen(dst_asn), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3411,6 +3475,7 @@ TEST_F(NOTLogic, MultiLiteralsInOneNotCondition) {
     const char *ip_geo_field_name = "SOURCE_IP_GEO";
     const char *ip_geo_table_name = "GeoLocation";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = NOTLogic::_shared_maat_inst;
@@ -3428,7 +3493,7 @@ TEST_F(NOTLogic, MultiLiteralsInOneNotCondition) {
     ret = maat_scan_not_logic(maat_inst, src_asn_table_name, src_asn_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -3445,7 +3510,7 @@ TEST_F(NOTLogic, MultiLiteralsInOneNotCondition) {
     ret = maat_scan_not_logic(maat_inst, src_asn_table_name, src_asn_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3465,7 +3530,7 @@ TEST_F(NOTLogic, MultiLiteralsInOneNotCondition) {
     ret = maat_scan_not_logic(maat_inst, src_asn_table_name, src_asn_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -3484,7 +3549,7 @@ TEST_F(NOTLogic, MultiLiteralsInOneNotCondition) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -3503,7 +3568,7 @@ TEST_F(NOTLogic, MultiLiteralsInOneNotCondition) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000181");
@@ -3524,6 +3589,7 @@ TEST_F(NOTLogic, SameFieldInMultiCondition) {
     const char *ip_geo_field_name = "SOURCE_IP_GEO";
     const char *ip_geo_table_name = "GeoLocation";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = NOTLogic::_shared_maat_inst;
@@ -3546,7 +3612,7 @@ TEST_F(NOTLogic, SameFieldInMultiCondition) {
     ret = maat_scan_not_logic(maat_inst, dst_asn_table_name, dst_asn_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -3566,7 +3632,7 @@ TEST_F(NOTLogic, SameFieldInMultiCondition) {
     ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_field_name, ip_addr, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -3589,7 +3655,7 @@ TEST_F(NOTLogic, SameFieldInMultiCondition) {
     ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_field_name, ip_addr, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -3606,7 +3672,7 @@ TEST_F(NOTLogic, SameFieldInMultiCondition) {
     ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_field_name, ip_addr, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3627,7 +3693,7 @@ TEST_F(NOTLogic, SameFieldInMultiCondition) {
     ret = maat_scan_not_logic(maat_inst, dst_asn_table_name, dst_asn_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
@@ -3684,6 +3750,7 @@ TEST_F(ExcludeLogic, ScanExcludeAtFirst) {
     const char *string_should_not_hit = "This string ONLY contains must-not-contained-string-of-rule-199.";
 	const char *string_should_hit = "This string contains must-contained-string-of-rule-199";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
 	const char *not_hit_table_name = "KEYWORDS_TABLE";
@@ -3707,7 +3774,7 @@ TEST_F(ExcludeLogic, ScanExcludeAtFirst) {
     ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3722,6 +3789,7 @@ TEST_F(ExcludeLogic, ScanExcludeAtLast) {
 	const char *string_should_not_hit = "This string contains both must-contained-string-of-rule-200"
                                         " and must-not-contained-string-of-rule-200.";
 	uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
 	const char *table_name = "HTTP_URL";
@@ -3736,7 +3804,7 @@ TEST_F(ExcludeLogic, ScanExcludeAtLast) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -3748,7 +3816,7 @@ TEST_F(ExcludeLogic, ScanExcludeAtLast) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK); 
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
 	EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3762,6 +3830,7 @@ TEST_F(ExcludeLogic, ScanIrrelavantAtLast) {
     const char *string_should_hit = "This string ONLY contains must-contained-string-of-rule-200.";
 	const char *string_irrelevant = "This string contains nothing to hit.";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *hit_table_name = "HTTP_URL";
@@ -3777,7 +3846,7 @@ TEST_F(ExcludeLogic, ScanIrrelavantAtLast) {
     ret = maat_scan_not_logic(maat_inst, hit_table_name, hit_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3790,7 +3859,7 @@ TEST_F(ExcludeLogic, ScanIrrelavantAtLast) {
     ret = maat_scan_not_logic(maat_inst, not_hit_table_name, not_hit_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000200");
@@ -3801,6 +3870,7 @@ TEST_F(ExcludeLogic, ScanIrrelavantAtLast) {
 
 TEST_F(ExcludeLogic, ScanField) {
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = ExcludeLogic::_shared_maat_inst;
@@ -3817,7 +3887,7 @@ TEST_F(ExcludeLogic, ScanField) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3831,7 +3901,7 @@ TEST_F(ExcludeLogic, ScanField) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000202");
@@ -3845,7 +3915,7 @@ TEST_F(ExcludeLogic, ScanField) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -3857,7 +3927,7 @@ TEST_F(ExcludeLogic, ScanField) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
     
     maat_state_free(state);
@@ -3865,6 +3935,7 @@ TEST_F(ExcludeLogic, ScanField) {
 
 TEST_F(ExcludeLogic, ScanWithMultiCondition) {
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = ExcludeLogic::_shared_maat_inst;
@@ -3892,7 +3963,7 @@ TEST_F(ExcludeLogic, ScanWithMultiCondition) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, dst_ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     const char *expr_field_name = "HTTP_RESPONSE_KEYWORDS";
@@ -3906,7 +3977,7 @@ TEST_F(ExcludeLogic, ScanWithMultiCondition) {
     ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     const char *should_hit_expr = "mail.jianshu.com";
@@ -3917,7 +3988,7 @@ TEST_F(ExcludeLogic, ScanWithMultiCondition) {
     ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -3929,6 +4000,7 @@ TEST_F(ExcludeLogic, ScanWithMultiCondition) {
 
 TEST_F(ExcludeLogic, ExcludeInDifferentLevel) {
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = ExcludeLogic::_shared_maat_inst;
@@ -3946,7 +4018,7 @@ TEST_F(ExcludeLogic, ExcludeInDifferentLevel) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, src_ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     inet_pton(AF_INET, "100.64.2.6", &ip_addr);
@@ -3957,7 +4029,7 @@ TEST_F(ExcludeLogic, ExcludeInDifferentLevel) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, dst_ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     const char *expr_field_name = "HTTP_RESPONSE_KEYWORDS";
@@ -3971,7 +4043,7 @@ TEST_F(ExcludeLogic, ExcludeInDifferentLevel) {
     ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     const char *should_not_hit_expr2 = "mail.baidu.com";
@@ -3982,7 +4054,7 @@ TEST_F(ExcludeLogic, ExcludeInDifferentLevel) {
     ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     const char *should_hit_expr = "hit.baidu.com";
@@ -3993,7 +4065,7 @@ TEST_F(ExcludeLogic, ExcludeInDifferentLevel) {
     ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -4942,6 +5014,7 @@ struct log_handle *Field::logger;
 
 TEST_F(Field, basic) {
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *field_name = "HTTP_RESPONSE_KEYWORDS";
@@ -4956,7 +5029,7 @@ TEST_F(Field, basic) {
     int ret = maat_scan_string(maat_inst, table_name, field_name, scan_data, strlen(scan_data), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(state);
     state = NULL;
@@ -5145,6 +5218,7 @@ void rule_ex_param_dup(const char *table_name, void **to, void **from, long argl
 
 TEST_F(RuleTable, Conjunction1) {
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *scan_data = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNAC"
@@ -5159,7 +5233,7 @@ TEST_F(RuleTable, Conjunction1) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -5178,6 +5252,7 @@ TEST_F(RuleTable, Conjunction1) {
 
 TEST_F(RuleTable, Conjunction2) {
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *scan_data = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELw"
@@ -5192,7 +5267,7 @@ TEST_F(RuleTable, Conjunction2) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -5212,7 +5287,7 @@ TEST_F(RuleTable, Conjunction2) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
 
     memset(hit_path, 0, sizeof(hit_path));
@@ -5322,6 +5397,7 @@ TEST_F(Policy, PluginRuleTags2) {
 
 TEST_F(Policy, RuleRuleTags) {
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
 	const char *should_hit = "string bbb should hit";
@@ -5346,7 +5422,7 @@ TEST_F(Policy, RuleRuleTags) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -5361,22 +5437,22 @@ TEST_F(Policy, RuleEXData) {
     const char *url = "firewall should hit";
 	const char *table_name = "HTTP_URL";
     const char *field_name = "HTTP_URL";
-    const char *plugin_table_name = "RULE_FIREWALL_PLUGIN";
     const char *conj_rule_table_name = "RULE_FIREWALL_CONJUNCTION";
 	const char *expect_name = "I have a name";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = Policy::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int ex_data_counter = 0;
-    int ret = maat_plugin_table_ex_schema_register(maat_inst, plugin_table_name,
+    int ret = maat_plugin_table_ex_schema_register(maat_inst, conj_rule_table_name,
                                                     rule_ex_param_new,
                                                     rule_ex_param_free,
                                                     rule_ex_param_dup,
                                                     0, &ex_data_counter);
-    ASSERT_TRUE(ret == 0);
+    ASSERT_EQ(ret, 0);
     EXPECT_EQ(ex_data_counter, 1);
 
     ret = maat_scan_string(maat_inst, table_name, field_name, url, strlen(url), state);
@@ -5384,15 +5460,13 @@ TEST_F(Policy, RuleEXData) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, conj_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, conj_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000198");
 
-    void *ex_data = maat_plugin_table_get_ex_data(maat_inst, plugin_table_name, 
-                                                 uuid_str, strlen(uuid_str));
-    struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
+    struct rule_ex_param *param = (struct rule_ex_param *)exdata_array[0];
 	EXPECT_EQ(param->id, 7799);
 
 	EXPECT_EQ(strcmp(param->name, expect_name), 0);
@@ -5403,6 +5477,7 @@ TEST_F(Policy, RuleEXData) {
 
 TEST_F(Policy, SubObject) {
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = Policy::_shared_maat_inst;
@@ -5421,7 +5496,7 @@ TEST_F(Policy, SubObject) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     const char *ip_table_name = "IP_CONFIG";
@@ -5432,7 +5507,7 @@ TEST_F(Policy, SubObject) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -5444,6 +5519,7 @@ TEST_F(Policy, SubObject) {
 TEST_F(Policy, EvaluationOrder) {
     const char *url = "cavemancircus.com/2019/12/27/pretty-girls-6/";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = Policy::_shared_maat_inst;
@@ -5457,7 +5533,7 @@ TEST_F(Policy, EvaluationOrder) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 3);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -5542,7 +5618,7 @@ TEST_F(Policy, EvaluationOrder) {
     ret = maat_scan_not_logic(maat_inst, ip_plus_table_name, ip_plus_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 4);
     uuid_unparse(results[3], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000165");
@@ -5557,6 +5633,7 @@ TEST_F(Policy, NotConditionHitPath) {
     const char *ip_field_name = "FIELD_IP_CONFIG";
     const char *url = "www.youtube.com";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = Policy::_shared_maat_inst;
@@ -5565,7 +5642,7 @@ TEST_F(Policy, NotConditionHitPath) {
     int ret = maat_scan_string(maat_inst, url_table_name, url_field_name, url, strlen(url), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     uint32_t ip_addr;
@@ -5577,7 +5654,7 @@ TEST_F(Policy, NotConditionHitPath) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -5682,6 +5759,7 @@ struct log_handle *TableInfo::logger;
 
 TEST_F(TableInfo, Conjunction) {
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *scan_data = "soq is using table conjunction function."
@@ -5697,7 +5775,7 @@ TEST_F(TableInfo, Conjunction) {
     ret = maat_scan_not_logic(maat_inst, conj_table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -5870,6 +5948,7 @@ TEST_F(ObjectHierarchy, FieldOfOnePhysical)
     const char *keywords_field_name = "HTTP_RESPONSE_KEYWORDS";
     const char *keywords_table_name = "KEYWORDS_TABLE";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = ObjectHierarchy::_shared_maat_inst;
@@ -5887,7 +5966,7 @@ TEST_F(ObjectHierarchy, FieldOfOnePhysical)
     ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -5904,7 +5983,7 @@ TEST_F(ObjectHierarchy, FieldOfOnePhysical)
     ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
@@ -5918,6 +5997,7 @@ TEST_F(ObjectHierarchy, OneObjectInTwoField) {
     const char *table_name = "HTTP_SIGNATURE";
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     int ret = 0;
@@ -5938,7 +6018,7 @@ TEST_F(ObjectHierarchy, OneObjectInTwoField) {
     ret = maat_scan_not_logic(maat_inst, table_name, res_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -5957,6 +6037,7 @@ TEST_F(ObjectHierarchy, MultiObjectsInOneCondition) {
     const char *dst_asn_sttribute_name = "DESTINATION_IP_ASN";
     const char *table_name = "AS_NUMBER";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = ObjectHierarchy::_shared_maat_inst;
@@ -5976,7 +6057,7 @@ TEST_F(ObjectHierarchy, MultiObjectsInOneCondition) {
     ret = maat_scan_not_logic(maat_inst, table_name, dst_asn_sttribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -5999,7 +6080,7 @@ TEST_F(ObjectHierarchy, MultiObjectsInOneCondition) {
     ret = maat_scan_not_logic(maat_inst, table_name, dst_asn_sttribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000178");
@@ -6021,7 +6102,7 @@ TEST_F(ObjectHierarchy, MultiObjectsInOneCondition) {
     ret = maat_scan_not_logic(maat_inst, table_name, dst_asn_sttribute_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000178");
@@ -6041,6 +6122,7 @@ TEST_F(ObjectHierarchy, MultiLiteralsInOneCondition) {
     const char *ip_geo_field_name = "SOURCE_IP_GEO";
     const char *ip_geo_table_name = "GeoLocation";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = ObjectHierarchy::_shared_maat_inst;
@@ -6059,7 +6141,7 @@ TEST_F(ObjectHierarchy, MultiLiteralsInOneCondition) {
     ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_field_name, ip_addr, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -6076,7 +6158,7 @@ TEST_F(ObjectHierarchy, MultiLiteralsInOneCondition) {
     ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_field_name, ip_addr, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000180");
@@ -6095,7 +6177,7 @@ TEST_F(ObjectHierarchy, MultiLiteralsInOneCondition) {
     ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_field_name, ip_addr, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000180");
@@ -6147,6 +6229,7 @@ int *MaatCmd::_ex_data_counter;
 
 TEST_F(MaatCmd, SetIP) {
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
 	const char *ip_table_name = "IP_CONFIG";
@@ -6197,7 +6280,7 @@ TEST_F(MaatCmd, SetIP) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -6219,6 +6302,7 @@ TEST_F(MaatCmd, SetExpr) {
 	char keywords[512];
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
@@ -6244,7 +6328,7 @@ TEST_F(MaatCmd, SetExpr) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -6268,7 +6352,7 @@ TEST_F(MaatCmd, SetExpr) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -6286,7 +6370,7 @@ TEST_F(MaatCmd, SetExpr) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
@@ -6305,6 +6389,7 @@ TEST_F(MaatCmd, SetExpr8) {
 	const char *keywords7 = "string1&string2&string3&string4&string5&string6&string7";
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
@@ -6343,7 +6428,7 @@ TEST_F(MaatCmd, SetExpr8) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -6367,7 +6452,7 @@ TEST_F(MaatCmd, SetExpr8) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule_uuid_str);
@@ -6378,6 +6463,7 @@ TEST_F(MaatCmd, SetExpr8) {
 
 TEST_F(MaatCmd, ObjectScan) {
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
 	const char *table_name = "HTTP_URL";
@@ -6413,7 +6499,7 @@ TEST_F(MaatCmd, ObjectScan) {
     ret = maat_scan_object(maat_inst, table_name, field_name, &object_uuid, &item_uuid, 1, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -6434,6 +6520,7 @@ TEST_F(MaatCmd, SameFilterRefByOneRule) {
     const char *keywords = "menot.com";
     const char *rule_table_name = "RULE_DEFAULT";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
@@ -6477,7 +6564,7 @@ TEST_F(MaatCmd, SameFilterRefByOneRule) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -6493,6 +6580,7 @@ TEST_F(MaatCmd, RuleIDRecycle) {
 	const char *scan_data = "Reuse rule ID is allowed.";
 	const char *keywords = "Reuse&rule";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
@@ -6512,7 +6600,7 @@ TEST_F(MaatCmd, RuleIDRecycle) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -6529,7 +6617,7 @@ TEST_F(MaatCmd, RuleIDRecycle) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -6544,7 +6632,7 @@ TEST_F(MaatCmd, RuleIDRecycle) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule_uuid_str);
@@ -6559,6 +6647,7 @@ TEST_F(MaatCmd, ReturnRuleIDWithDescendingOrder) {
 	const char *scan_data = "This string will hit mulptiple rules.";
 	const char *keywords = "string will hit";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
@@ -6586,7 +6675,7 @@ TEST_F(MaatCmd, ReturnRuleIDWithDescendingOrder) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, repeat_times);
     for (i = 0; i < repeat_times; i++) {
         char uuid_str[UUID_STR_LEN] = {0};
@@ -6662,6 +6751,7 @@ TEST_F(MaatCmd, SubObject) {
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     ret = maat_scan_string(maat_inst, table_name, field_name, scan_data1, strlen(scan_data1), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -6669,7 +6759,7 @@ TEST_F(MaatCmd, SubObject) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -6694,7 +6784,7 @@ TEST_F(MaatCmd, SubObject) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
@@ -6721,7 +6811,7 @@ TEST_F(MaatCmd, SubObject) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule2_uuid_str);
@@ -6752,7 +6842,7 @@ TEST_F(MaatCmd, SubObject) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_reset(state);
@@ -6778,7 +6868,7 @@ TEST_F(MaatCmd, SubObject) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule2_uuid_str);
@@ -6849,6 +6939,7 @@ TEST_F(MaatCmd, RefObject) {
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     ret = maat_scan_string(maat_inst, table_name, field_name, scan_data1, strlen(scan_data1), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -6856,7 +6947,7 @@ TEST_F(MaatCmd, RefObject) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -6926,6 +7017,7 @@ TEST_F(MaatCmd, Field) {
                                   "(KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36";
 	const char* http_resp_hdr_cookie = "uid=12345678;BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; sugstore=1;";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
 
     ret = maat_scan_string(maat_inst, table_name, field_req_name, http_req_hdr_ua,
@@ -6942,7 +7034,7 @@ TEST_F(MaatCmd, Field) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_resp_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -6971,7 +7063,7 @@ TEST_F(MaatCmd, Field) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_resp_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
@@ -7242,7 +7334,7 @@ TEST_F(MaatCmd, SetFile) {
 }
 
 TEST_F(MaatCmd, RuleEXData) {
-    const char *plugin_table_name = "RULE_FIREWALL_PLUGIN";
+    const char *conj_rule_table_name = "RULE_FIREWALL_CONJUNCTION";
     const char *rule_table_name = "RULE_FIREWALL_DEFAULT";
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     int *ex_data_counter = MaatCmd::_ex_data_counter;
@@ -7272,7 +7364,7 @@ TEST_F(MaatCmd, RuleEXData) {
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     *ex_data_counter = 0;
-    ret = maat_plugin_table_ex_schema_register(maat_inst, plugin_table_name,
+    ret = maat_plugin_table_ex_schema_register(maat_inst, conj_rule_table_name,
                                                rule_ex_param_new,
                                                rule_ex_param_free,
                                                rule_ex_param_dup,
@@ -7280,24 +7372,36 @@ TEST_F(MaatCmd, RuleEXData) {
     ASSERT_TRUE(ret == 0);
     EXPECT_EQ(*ex_data_counter, 2);
 
-    void *ex_data = maat_plugin_table_get_ex_data(maat_inst, plugin_table_name,
-                                                 (char *)rule1_uuid_str,
-                                                 strlen(rule1_uuid_str));
-    ASSERT_TRUE(ex_data != NULL);
-    struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
-	EXPECT_EQ(param->id, 1111);
+    struct maat_state *state = maat_state_new(maat_inst, 0);
+    uuid_t object_uuid;
+    uuid_t item_uuid;
+    uuid_clear(item_uuid);
+    uuid_parse(object_uuid_str, object_uuid);
+    maat_scan_object(maat_inst, conj_rule_table_name, "HTTP_URL", &object_uuid, &item_uuid, 1, state);
 
-    ex_data = maat_plugin_table_get_ex_data(maat_inst, plugin_table_name,
-                                            (char *)rule2_uuid_str,
-                                            strlen(rule2_uuid_str));
-    ASSERT_TRUE(ex_data != NULL);
-    param = (struct rule_ex_param *)ex_data;
+    uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
+    size_t n_hit_result = maat_state_compile(state, conj_rule_table_name, results, exdata_array, ARRAY_SIZE);
+    EXPECT_EQ(n_hit_result, 2);
+    char uuid_str[UUID_STR_LEN] = {0};
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, rule2_uuid_str);
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, rule1_uuid_str);
+
+
+    ASSERT_TRUE(exdata_array[0] != NULL);
+    struct rule_ex_param *param = (struct rule_ex_param *)exdata_array[0];
 	EXPECT_EQ(param->id, 2222);
+
+    ASSERT_TRUE(exdata_array[1] != NULL);
+    param = (struct rule_ex_param *)exdata_array[1];
+	EXPECT_EQ(param->id, 1111);
 
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
                                  rule2_uuid_str, &and_condition, 1, "test:rule2,2222", 0);
     sleep(WAIT_FOR_EFFECTIVE_S);
-    EXPECT_EQ(param->id, 2222); 
+    EXPECT_EQ(param->id, 1111); 
     sleep(2);
     //excced gc_timeout_s(3s), the data pointed by param has been freed
 }
@@ -7766,6 +7870,7 @@ TEST_F(MaatCmd, ObjectInMassRules) {
                              "&rsv_iqid=0x8b4cae8100000560&issp=1&f=8&rsv_bp=1";
 
     uuid_t results[4];
+    void *exdata_array[4];
     size_t n_hit_result = 0;
     ret = maat_scan_string(maat_inst, url_table_name, url_field_anme, http_url2, strlen(http_url2), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -7779,7 +7884,7 @@ TEST_F(MaatCmd, ObjectInMassRules) {
     ret = maat_scan_not_logic(maat_inst, appid_table_name, appid_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, 4);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, 4);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -7799,7 +7904,7 @@ TEST_F(MaatCmd, ObjectInMassRules) {
     ret = maat_scan_not_logic(maat_inst, appid_table_name, appid_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, 4);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, 4);
     EXPECT_EQ(n_hit_result, 4);
 
     maat_state_free(state);
@@ -7946,6 +8051,7 @@ TEST_F(MaatCmd, HitObject) {
                                        "main[XWJOKE]=hoho; Hm_lvt_bbac0322e6ee13093f98d5c4b5a10912=1578874808;";
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     ret = maat_scan_string(maat_inst, http_sig_table_name, http_req_attr_name, http_url, strlen(http_url), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -7986,7 +8092,7 @@ TEST_F(MaatCmd, HitObject) {
                            strlen(http_resp_hdr_cookie), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
@@ -8198,6 +8304,7 @@ TEST_F(MaatCmd, HitPathBasic) {
 
     Nth_scan++;
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     ret = maat_scan_string(maat_inst, http_sig_table_name, http_req_attr_name, http_url, strlen(http_url), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -8205,7 +8312,7 @@ TEST_F(MaatCmd, HitPathBasic) {
     ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_req_attr_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     size_t scan_times = maat_state_get_scan_count(state);
@@ -8246,7 +8353,7 @@ TEST_F(MaatCmd, HitPathBasic) {
     ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_resp_attr_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
@@ -8318,7 +8425,7 @@ that the edges be all directed in the same direction.";
     ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attr_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);//still rule1
 
     scan_times = maat_state_get_scan_count(state);
@@ -8348,7 +8455,7 @@ that the edges be all directed in the same direction.";
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);//still rule1
 
     scan_times = maat_state_get_scan_count(state);
@@ -8375,7 +8482,7 @@ that the edges be all directed in the same direction.";
     ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attr_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);//still rule1
 
     scan_times = maat_state_get_scan_count(state);
@@ -8579,12 +8686,13 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     ASSERT_GT(keywords_table_id, 0);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     ret = maat_scan_string(maat_inst, keywords_table_name, keywords_attr_name, http_url_computer,
                            strlen(http_url_computer), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     struct maat_hit_path hit_path[128];
@@ -8608,7 +8716,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
                            strlen(http_url_social), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
@@ -8661,7 +8769,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_field_name, ip_addr, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule2_uuid_str);
@@ -8742,7 +8850,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
                            strlen(keywords1), state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 3);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule3_uuid_str);
@@ -8975,6 +9083,7 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
 
     Nth_scan++;
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     ret = maat_scan_string(maat_inst, http_sig_table_name, http_req_attr_name, http_url, strlen(http_url), state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
@@ -8982,7 +9091,7 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_req_attr_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     size_t scan_times = maat_state_get_scan_count(state);
@@ -9024,7 +9133,7 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_resp_attr_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
@@ -9097,7 +9206,7 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attr_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
 
     scan_times = maat_state_get_scan_count(state);
@@ -9127,7 +9236,7 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
 
     scan_times = maat_state_get_scan_count(state);
@@ -9155,7 +9264,7 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     ret = maat_scan_not_logic(maat_inst, keywords_table_name, keywords_attr_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
 
     scan_times = maat_state_get_scan_count(state);
@@ -9238,6 +9347,7 @@ TEST_F(MaatCmd, SameSuperObjectRefByMultiRule) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);    
     const char *http_res_key_str = "same superobject referenced by multi rule";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     struct maat_hit_path hit_path[128];
 
@@ -9248,7 +9358,7 @@ TEST_F(MaatCmd, SameSuperObjectRefByMultiRule) {
     ret = maat_scan_not_logic(maat_inst, http_sig_table_name, http_resp_attr_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -9354,6 +9464,7 @@ TEST_F(MaatCmd, ObjectEdit) {
     inet_pton(AF_INET, "192.168.3.2", &ip_addr);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
 
     ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_field_name, ip_addr, state);
@@ -9362,7 +9473,7 @@ TEST_F(MaatCmd, ObjectEdit) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     int scan_app_id = 42;
@@ -9399,7 +9510,7 @@ TEST_F(MaatCmd, ObjectEdit) {
     ret = maat_scan_not_logic(maat_inst, app_id_table_name, app_id_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -9434,7 +9545,7 @@ TEST_F(MaatCmd, ObjectEdit) {
     ret = maat_scan_not_logic(maat_inst, app_id_table_name, app_id_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(state);
@@ -9480,6 +9591,7 @@ TEST_F(MaatCmd, RuleDelete_TSG6548) {
     inet_pton(AF_INET, "192.168.73.169", &ip_addr);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
 
     int table_id = maat_get_table_id(maat_inst, ip_table_name);
@@ -9491,7 +9603,7 @@ TEST_F(MaatCmd, RuleDelete_TSG6548) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -9508,7 +9620,7 @@ TEST_F(MaatCmd, RuleDelete_TSG6548) {
 	while (now - update_time < 3) {
 		ret = maat_scan_ipv4(maat_inst, ip_table_name, ip_field_name, ip_addr, state);
 		if (ret == MAAT_SCAN_HIT) {
-            n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+            n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
             if (n_hit_result > 0) {
                 hit_cnt++;
                 uuid_unparse(results[0], uuid_str);
@@ -9565,6 +9677,7 @@ TEST_F(MaatCmd, UpdateDeadLockDetection) {
 	const char* scan_data2 = "scan string part-2.";
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
 
     ret = maat_scan_string(maat_inst, table_http_url, field_http_url, scan_data1, strlen(scan_data1), state);
@@ -9573,7 +9686,7 @@ TEST_F(MaatCmd, UpdateDeadLockDetection) {
     ret = maat_scan_not_logic(maat_inst, table_http_url, field_http_url, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -9616,7 +9729,7 @@ TEST_F(MaatCmd, UpdateDeadLockDetection) {
     ret = maat_scan_not_logic(maat_inst, table_http_url, field_http_url, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule2_uuid_str);
@@ -9657,6 +9770,7 @@ TEST_F(MaatCmd, StreamScanWhenExprTableIncUpdate) {
 
     const char *scan_data = "Here is a stream-keywords-001-inc-update, this should hit.";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
 
     struct maat_stream *stream = maat_stream_new(maat_inst, scan_table_name, scan_field_name, state);
@@ -9695,7 +9809,7 @@ TEST_F(MaatCmd, StreamScanWhenExprTableIncUpdate) {
     ret = maat_scan_not_logic(maat_inst, scan_table_name, scan_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -9744,6 +9858,7 @@ TEST_F(MaatCmd, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
 
     const char *scan_data = "Here is a stream-keywords-002, this should hit.";
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
 
     struct maat_stream *stream = maat_stream_new(maat_inst, scan_table_name, scan_field_name, state);
@@ -9753,7 +9868,7 @@ TEST_F(MaatCmd, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
     ret = maat_scan_not_logic(maat_inst, scan_table_name, scan_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -9837,6 +9952,7 @@ TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     char ip_str[32] = "100.100.100.1";
     uint32_t ip_addr;
@@ -9852,7 +9968,7 @@ TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     //add rule2 for rule runtime inc update
@@ -9874,7 +9990,7 @@ TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
     ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -9946,6 +10062,7 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     char ip_str[32] = "100.100.100.2";
     uint32_t ip_addr;
@@ -9958,7 +10075,7 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     //DON'T DO THIS!!!
@@ -9983,7 +10100,7 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -10053,6 +10170,7 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     char ip_str[32] = "100.100.100.1";
     uint32_t ip_addr;
@@ -10065,7 +10183,7 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     //add rule2 for rule runtime inc update
@@ -10086,7 +10204,7 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
     ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -10157,6 +10275,7 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     char ip_str[32] = "100.100.100.3";
     uint32_t ip_addr;
@@ -10169,7 +10288,7 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 0);
 
     //DON'T DO THIS!!!
@@ -10187,7 +10306,7 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
     ret = maat_scan_not_logic(maat_inst, expr_table_name, expr_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -10199,7 +10318,7 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
     ret = maat_scan_not_logic(maat_inst, ip_table_name, ip_field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
@@ -10350,6 +10469,7 @@ TEST_F(MaatRollback, FullConfigRollback) {
     struct log_handle *logger = MaatRollback::logger;
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
@@ -10362,7 +10482,7 @@ TEST_F(MaatRollback, FullConfigRollback) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -10395,7 +10515,7 @@ TEST_F(MaatRollback, FullConfigRollback) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000125");
@@ -10411,6 +10531,7 @@ TEST_F(MaatRollback, FullConfigRollbackWhenScanUnfinished) {
     struct log_handle *logger = MaatRollback::logger;
 
     uuid_t results[ARRAY_SIZE];
+    void *exdata_array[ARRAY_SIZE];
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
@@ -10423,7 +10544,7 @@ TEST_F(MaatRollback, FullConfigRollbackWhenScanUnfinished) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
@@ -10456,7 +10577,7 @@ TEST_F(MaatRollback, FullConfigRollbackWhenScanUnfinished) {
     ret = maat_scan_not_logic(maat_inst, table_name, field_name, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    n_hit_result = maat_state_compile(state, default_rule_table_name, results, ARRAY_SIZE);
+    n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 1);
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000125");

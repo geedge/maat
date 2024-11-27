@@ -37,6 +37,7 @@ enum condition_negate_option {
 
 struct rule_schema {
     int table_id;
+    struct ex_container_schema container_schema;
     struct table_manager *ref_tbl_mgr;
     struct log_handle *logger;
 };
@@ -98,10 +99,12 @@ struct rule_runtime {
     struct bool_expr_match *expr_match_buff;
     struct maat_garbage_bin *ref_garbage_bin;
     struct table_condition *tbl_not_condition_hash; //each field's negate condition number <= MAX_NOT_CONDITION_NUM
+    struct ex_data_runtime *ex_data_rt;
     struct log_handle *logger;
     time_t version;
 
     long long rule_num;
+    long long exdata_num;
     long long update_err_cnt;
 };
 
@@ -479,11 +482,20 @@ void *rule_runtime_new(void *rule_schema, size_t max_thread_num,
 	if (NULL == rule_schema) {
         return NULL;
     }
-
+    struct rule_schema *schema = (struct rule_schema *)rule_schema;
     struct rule_runtime *rule_rt = ALLOC(struct rule_runtime, 1);
 
     rule_rt->expr_match_buff = ALLOC(struct bool_expr_match, 
                                         max_thread_num * MAX_HIT_RULE_NUM);
+
+    rule_rt->ex_data_rt = ex_data_runtime_new(schema->table_id,
+                                                RULE_GC_TIMEOUT_S,
+                                                logger);
+    if (1 == schema->container_schema.set_flag) {
+        ex_data_runtime_set_ex_container_schema(rule_rt->ex_data_rt,
+                                                &(schema->container_schema));
+    }
+
     rule_rt->version = time(NULL);
     rule_rt->cfg_hash = rcu_hash_new(rcu_rule_cfg_free, NULL, RULE_GC_TIMEOUT_S);
     rule_rt->condition_id_kv_hash = NULL;
@@ -565,6 +577,11 @@ void rule_runtime_free(void *rule_runtime)
 
     if (rule_rt->expr_match_buff != NULL) {
         FREE(rule_rt->expr_match_buff);
+    }
+
+     if (rule_rt->ex_data_rt != NULL) {
+        ex_data_runtime_free(rule_rt->ex_data_rt);
+        rule_rt->ex_data_rt = NULL;
     }
 
     FREE(rule_rt);
@@ -1234,6 +1251,119 @@ rule_compile_state_add_hit_not_conditions(struct rule_compile_state *rule_compil
     }
 }
 
+int rule_runtime_update_rule_exdata(struct rule_runtime *rule_rt, 
+                                     struct rule_schema *rule_schema, 
+                                     const char *table_name, const char *row, 
+                                     enum maat_operation op)
+{
+    int ret = -1;
+    struct ex_container_schema *container_schema = &(rule_schema->container_schema);
+
+    cJSON *json = cJSON_Parse(row);
+    if (NULL == json) {
+        log_debug(rule_rt->logger, MODULE_RULE,
+                  "[%s:%d]parse row failed when updating rule exdata, row:%s", __FUNCTION__, __LINE__, row);
+        return -1;
+    }
+    cJSON *uuid_obj = cJSON_GetObjectItem(json, "uuid");
+    if (NULL == uuid_obj) {
+        log_debug(rule_rt->logger, MODULE_RULE,
+                  "[%s:%d]get uuid failed when updating rule exdata, row:%s", __FUNCTION__, __LINE__, row);
+        cJSON_Delete(json);
+        return -1;
+    }
+
+    uuid_t key;
+    size_t key_len = sizeof(uuid_t);
+    uuid_parse(uuid_obj->valuestring, key);
+
+    /* already set plugin_table_schema's ex_data_schema */
+    if (1 == container_schema->set_flag) {
+        if (MAAT_OP_DEL == op) {
+            // delete
+            ret = ex_data_runtime_del_ex_container(rule_rt->ex_data_rt, (char*)&key, key_len);
+            if (ret < 0) {
+                return -1;
+            }
+        } else {
+            // add
+            void *ex_data = ex_data_runtime_row2ex_data(rule_rt->ex_data_rt, table_name, 
+                                                        row, (char*)&key, key_len);
+            struct ex_container *ex_container = ex_container_new(ex_data, NULL);
+            ret = ex_data_runtime_add_ex_container(rule_rt->ex_data_rt, (char*)&key, key_len,
+                                                   ex_container);
+            if (ret < 0) {
+                log_debug(rule_rt->logger, MODULE_RULE,
+                      "[%s:%d]rule table:<%s> add exdata key failed, "
+                      "key:%s", __FUNCTION__, __LINE__, table_name, key);
+                ex_container_free(rule_rt->ex_data_rt, ex_container);
+                //don't return failed, ignore the case of adding duplicate keys
+                return 0;
+            }
+        }
+    }
+    
+    if (0 == container_schema->set_flag) {
+        ex_data_runtime_cache_row_put(rule_rt->ex_data_rt, row, op);
+        rule_rt->exdata_num = ex_data_runtime_cached_row_count(rule_rt->ex_data_rt);
+    }
+
+    return 0;
+}
+
+int rule_runtime_commit_exdata(void *rule_runtime, const char *table_name,
+                          long long maat_rt_version)
+{
+    if (NULL == rule_runtime) {
+        return -1;
+    }
+
+    struct rule_runtime *rule_rt = (struct rule_runtime *)rule_runtime;
+    struct ex_data_runtime *ex_data_rt = rule_rt->ex_data_rt;
+    if (NULL == ex_data_rt) {
+        return -1;
+    }
+
+    int updating_flag = ex_data_runtime_is_updating(ex_data_rt);
+    if (0 == updating_flag) {
+        return 0;
+    }
+
+    ex_data_runtime_commit(ex_data_rt);
+    
+    rule_rt->exdata_num = ex_data_runtime_ex_container_count(ex_data_rt);
+    
+    log_info(rule_rt->logger, MODULE_RULE,
+             "table[%s] commit %zu plugin rules, version:%lld", 
+             table_name, rule_rt->rule_num, maat_rt_version);
+
+    return 0;
+}
+
+void *rule_runtime_get_ex_data(void *rule_runtime, const char *key, size_t key_len)
+{
+    if (NULL == rule_runtime) {
+        return NULL;
+    }
+
+    struct rule_runtime *rule_rt = (struct rule_runtime *)rule_runtime;
+    
+    return ex_data_runtime_get_ex_data_by_key(rule_rt->ex_data_rt, key, key_len);    
+}
+
+struct ex_container_schema *rule_table_get_ex_container_schema(void *rule_schema)
+{
+    struct rule_schema *schema = (struct rule_schema *)rule_schema;
+
+    return &(schema->container_schema);
+}
+
+struct ex_data_runtime *rule_runtime_get_ex_data_rt(void *rule_runtime)
+{
+    struct rule_runtime *rule_rt = (struct rule_runtime *)rule_runtime;
+    return rule_rt->ex_data_rt;
+}
+
 static int
 rule_runtime_add_rule(struct rule_runtime *rule_rt,
                             struct rule_schema *schema,
@@ -1324,6 +1454,36 @@ static void rule_runtime_del_rule(struct rule_runtime *rule_rt,
     }
 }
 
+int rule_table_set_ex_container_schema(void *rule_schema, int table_id,
+                                         maat_ex_new_func_t *new_func,
+							             maat_ex_free_func_t *free_func,
+							             maat_ex_dup_func_t *dup_func,
+                                         void (*custom_data_free)(void *),
+							             long argl, void *argp)
+{
+    struct rule_schema *schema = (struct rule_schema *)rule_schema;
+    
+    if (1 == schema->container_schema.set_flag) {
+        log_fatal(schema->logger, MODULE_RULE, 
+                  "[%s:%d] rule table(table_id:%d) ex_container_schema"
+                  " has been set, can't set again", __FUNCTION__, __LINE__,
+                  table_id);
+        return -1;
+    }
+
+    schema->container_schema.table_id = table_id;
+    schema->container_schema.table_name = (char *)table_manager_get_table_name(schema->ref_tbl_mgr, table_id);
+    schema->container_schema.custom_data_free = custom_data_free;
+    schema->container_schema.ex_schema.new_func = new_func;
+    schema->container_schema.ex_schema.free_func = free_func;
+    schema->container_schema.ex_schema.dup_func = dup_func;
+    schema->container_schema.ex_schema.argl = argl;
+    schema->container_schema.ex_schema.argp = argp;
+    schema->container_schema.set_flag = 1;
+
+    return 0;
+}
+
 int rule_runtime_update(void *rule_runtime, void *rule_schema, 
                            const char *table_name, const char *line, 
                            enum maat_operation op)
@@ -1367,6 +1527,8 @@ int rule_runtime_update(void *rule_runtime, void *rule_schema,
             rule_rt->update_err_cnt++;
         }
     }
+
+    rule_runtime_update_rule_exdata(rule_rt, schema, table_name, line, op);
 
     cJSON_Delete(json);
     return 0;
@@ -1451,6 +1613,8 @@ int rule_runtime_commit(void *rule_runtime, const char *table_name,
                         garbage_condition_id_kv_hash_free);
 
     rule_rt->rule_num = rcu_hash_count(rule_rt->cfg_hash);
+
+    rule_runtime_commit_exdata(rule_rt, table_name, maat_rt_version);
 
     return ret;
 }

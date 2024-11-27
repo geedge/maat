@@ -47,17 +47,6 @@
         }
     },
     {
-        "table_id":9,
-        "table_name":"RULE_FIREWALL_PLUGIN",
-        "db_tables":["RULE_FIREWALL_DEFAULT"],
-        "table_type":"plugin",
-         "custom": {
-            "gc_timeout_s":3,
-            "key_type":"pointer",
-            "key_name":"uuid"
-        }
-    },
-    {
         "table_id":10,
         "table_name":"HTTP_REGION",
         "db_tables":["HTTP_URL", "HTTP_HOST"],

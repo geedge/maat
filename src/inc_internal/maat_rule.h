@@ -27,6 +27,23 @@ struct rule_runtime;
 struct rule_state;
 struct object_group_runtime;
 
+/* rule exdata API */
+int rule_table_set_ex_container_schema(void *rule_schema, int table_id,
+                                         maat_ex_new_func_t *new_func,
+							             maat_ex_free_func_t *free_func,
+							             maat_ex_dup_func_t *dup_func,
+                                         void (*custom_data_free)(void *),
+							             long argl, void *argp);
+int rule_runtime_update_rule_exdata(struct rule_runtime *rule_rt, 
+                                     struct rule_schema *rule_schema, 
+                                     const char *table_name, const char *row, 
+                                     enum maat_operation op);
+int rule_runtime_commit_exdata(void *rule_runtime, const char *table_name,
+                          long long maat_rt_version);
+void *rule_runtime_get_ex_data(void *rule_runtime, const char *key, size_t key_len);
+struct ex_container_schema *rule_table_get_ex_container_schema(void *rule_schema);
+struct ex_data_runtime *rule_runtime_get_ex_data_rt(void *rule_runtime);
+
 /* rule schema API */
 void *rule_schema_new(cJSON *json, struct table_manager *tbl_mgr,
                          const char *table_name, struct log_handle *logger);

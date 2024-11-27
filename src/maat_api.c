@@ -641,6 +641,11 @@ generic_plugin_table_set_ex_schema(struct table_manager *tbl_mgr, int table_id,
                                                             bool_plugin_expr_free,
                                                             argl, argp);
             break;
+        case TABLE_TYPE_RULE:
+            ret = rule_table_set_ex_container_schema(schema, table_id,
+                                                     new_func, free_func, dup_func,
+                                                     free, argl, argp);
+            break;
         default:
             log_fatal(logger, MODULE_MAAT_API,
                       "[%s:%d], table(table_id:%d) is not plugin table, can't set ex schema",
@@ -668,6 +673,25 @@ static void plugin_runtime_commit_ex_schema(void *runtime, void *schema, const c
 
     ex_data_runtime_clear_row_cache(ex_data_rt);
     plugin_runtime_commit(runtime, table_name, 0);
+}
+
+static void rule_runtime_commit_ex_schema(void *runtime, void *schema, const char *table_name)
+{
+    struct ex_container_schema *container_schema = NULL;
+    struct ex_data_runtime *ex_data_rt = NULL;
+
+    container_schema = rule_table_get_ex_container_schema(schema);
+    ex_data_rt = rule_runtime_get_ex_data_rt(runtime);
+    ex_data_runtime_set_ex_container_schema(ex_data_rt, container_schema);
+
+    size_t n_cached_row = ex_data_runtime_cached_row_count(ex_data_rt);
+    for (size_t i = 0; i < n_cached_row; i++) {
+        const struct ex_data_row *ex_data_row = ex_data_runtime_cached_row_get(ex_data_rt, i);
+        rule_runtime_update_rule_exdata(runtime, schema, table_name, ex_data_row->row, ex_data_row->op);
+    }
+
+    ex_data_runtime_clear_row_cache(ex_data_rt);
+    rule_runtime_commit_exdata(runtime, table_name, 0);
 }
 
 static void ip_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
@@ -775,6 +799,9 @@ static int generic_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
         case TABLE_TYPE_BOOL_PLUGIN:
             bool_plugin_runtime_commit_ex_schema(runtime, schema, table_name);
             break;
+        case TABLE_TYPE_RULE:
+            rule_runtime_commit_ex_schema(runtime, schema, table_name);
+            break;
         default:
             log_fatal(logger, MODULE_MAAT_API, 
                       "[%s:%d] table_type:%d invalid", __FUNCTION__, __LINE__, table_type);
@@ -843,7 +870,7 @@ int maat_plugin_table_ex_schema_register(struct maat *maat_inst,
                                                               table_id);
     if (table_type == TABLE_TYPE_PLUGIN || table_type == TABLE_TYPE_IP_PLUGIN ||
         table_type == TABLE_TYPE_IPPORT_PLUGIN || table_type == TABLE_TYPE_FQDN_PLUGIN ||
-        table_type == TABLE_TYPE_BOOL_PLUGIN) {
+        table_type == TABLE_TYPE_BOOL_PLUGIN || table_type == TABLE_TYPE_RULE) {
         ret = generic_plugin_table_ex_schema_register(maat_inst, table_name,
                                                       table_id, new_func, free_func,
                                                       dup_func, argl, argp);
@@ -1170,7 +1197,7 @@ string_scan(struct table_manager *tbl_mgr, int thread_id,
     return object_hit_cnt;
 }
 
-size_t maat_state_compile(struct maat_state *state, const char *table_name, uuid_t rule_array[], size_t n_result)
+size_t maat_state_compile(struct maat_state *state, const char *table_name, uuid_t rule_array[], void *exdata[], size_t n_result)
 {
     int table_id = maat_get_table_id(state->maat_inst, table_name);
     if (table_id < 0) {
@@ -1185,6 +1212,10 @@ size_t maat_state_compile(struct maat_state *state, const char *table_name, uuid
     int rule_num = rule_runtime_match(table_id, (struct rule_runtime *)rule_rt, rule_array, n_result, state);
     if (rule_num > 0) {
         alignment_int64_array_add(state->maat_inst->stat->hit_rule_cnt, state->thread_id, rule_num);
+    }
+
+    for (size_t i = 0; i < rule_num; i++) {
+        exdata[i] = rule_runtime_get_ex_data((struct rule_runtime *)rule_rt, (char*)&rule_array[i], sizeof(uuid_t));
     }
 
     return rule_num;
