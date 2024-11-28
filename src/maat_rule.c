@@ -42,13 +42,6 @@ struct rule_schema {
     struct log_handle *logger;
 };
 
-struct rule_item {
-    int condition_num;
-    uuid_t rule_uuid;
-    char *table_line;
-    size_t table_line_len;
-};
-
 struct condition_query_key {
 	uuid_t object_uuid;
     char field_name[MAX_FIELD_NAME_LEN];
@@ -131,9 +124,9 @@ struct rule_sort_para {
 struct maat_rule {
 	uint32_t magic_num;
     int condition_num;
+    int ptiority;
     int table_id;
     uuid_t rule_uuid;
-    void *user_data; // rule_item
 	struct rule_condition conditions[MAX_ITEMS_PER_BOOL_EXPR];
 };
 
@@ -161,25 +154,9 @@ static UT_icd ut_object_uuid_icd = {sizeof(uuid_t), NULL, NULL, NULL};
 static UT_icd ut_maat_item_icd = {sizeof(struct maat_item), NULL, NULL, NULL};
 static UT_icd ut_hit_path_icd = {sizeof(struct internal_hit_path), NULL, NULL, NULL};
 
-static void rule_item_free(struct rule_item *item)
-{
-    item->condition_num = 0;
-
-    if (item->table_line != NULL) {
-        FREE(item->table_line);
-    }
-    
-    FREE(item);
-}
-
 static void maat_rule_free(struct maat_rule *rule)
 {
 	struct rule_condition *condition = NULL;
-
-	if (rule->user_data != NULL) {
-		rule_item_free(rule->user_data);
-        rule->user_data = NULL;
-	}
 
 	for (int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
 		condition = rule->conditions + i;
@@ -232,9 +209,45 @@ static int validate_table_not_condition(struct rule_runtime *rule_rt,
     return 0;
 }
 
+static int rule_accept_tag_match(struct rule_schema *schema, const char *line,
+                                    const char *table_name, struct log_handle *logger)
+{
+    size_t n_tag = table_manager_accept_tags_count(schema->ref_tbl_mgr);
+    cJSON *tmp_obj = NULL;
+    cJSON *table_json = cJSON_Parse(line);
+    int ret = TAG_MATCH_MATCHED;
+
+    tmp_obj = cJSON_GetObjectItem(table_json, "effective_range");
+
+    if ((tmp_obj && cJSON_GetArraySize(tmp_obj) > 0) && n_tag > 0) {
+        char *tag_str = cJSON_Print(tmp_obj);
+        ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
+        FREE(tag_str);
+        if (TAG_MATCH_ERR == ret) {
+            log_fatal(logger, MODULE_RULE,
+                      "[%s:%d] table: <%s> has invalid tag format in line:%s",
+                      __FUNCTION__, __LINE__, table_name, line);
+            goto END;
+        }
+
+        if (TAG_MATCH_UNMATCHED == ret) {
+            log_fatal(logger, MODULE_RULE,
+                      "[%s:%d] table: <%s> has unmatched tag in line:%s",
+                      __FUNCTION__, __LINE__, table_name, line);
+            goto END;
+        }
+    }
+
+END:
+    if (table_json) {
+        cJSON_Delete(table_json);
+    }
+
+    return ret;
+}
+
 static struct maat_rule *maat_rule_new(struct rule_runtime *rule_rt, struct rule_schema *schema,
-                                        const char *table_name, uuid_t rule_uuid, 
-                                        const char *table_line, struct rule_item *rule_item)
+                                        const char *table_name, uuid_t rule_uuid, const char *table_line)
 {
 	struct maat_rule *rule = ALLOC(struct maat_rule, 1);
     struct log_handle *logger = rule_rt->logger;
@@ -250,9 +263,24 @@ static struct maat_rule *maat_rule_new(struct rule_runtime *rule_rt, struct rule
         goto error;
     }
 
+    int ret = rule_accept_tag_match(schema, table_line, table_name, logger);
+    if (ret == TAG_MATCH_UNMATCHED) {
+        goto error;
+    }
+
+
     rule->table_id = table_id;
 	rule->magic_num = MAAT_RULE_MAGIC;
     uuid_copy(rule->rule_uuid, rule_uuid);
+
+    tmp_obj = cJSON_GetObjectItem(table_json, "priority");
+    if (tmp_obj == NULL || tmp_obj->type != cJSON_Number) {
+        log_fatal(logger, MODULE_RULE,
+                  "[%s:%d] table: <%s> has no priority or not number format",
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
+    }
+    rule->ptiority = tmp_obj->valueint;
 
     for(int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {	
         utarray_new(rule->conditions[i].literals, &ut_condition_literal_icd);
@@ -346,9 +374,6 @@ static struct maat_rule *maat_rule_new(struct rule_runtime *rule_rt, struct rule
         condition->in_use = 1;
     }
 
-    rule_item->condition_num = rule->condition_num;
-    rule->user_data = rule_item;
-
     if (table_json) {
         cJSON_Delete(table_json);
     }
@@ -364,78 +389,6 @@ error:
         cJSON_Delete(table_json);
     }
 
-    return NULL;
-}
-
-static int rule_accept_tag_match(struct rule_schema *schema, const char *line,
-                                    const char *table_name, struct log_handle *logger)
-{
-    size_t n_tag = table_manager_accept_tags_count(schema->ref_tbl_mgr);
-    cJSON *tmp_obj = NULL;
-    cJSON *table_json = cJSON_Parse(line);
-    int ret = TAG_MATCH_MATCHED;
-
-    tmp_obj = cJSON_GetObjectItem(table_json, "effective_range");
-
-    if ((tmp_obj && cJSON_GetArraySize(tmp_obj) > 0) && n_tag > 0) {
-        char *tag_str = cJSON_Print(tmp_obj);
-        ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
-        FREE(tag_str);
-        if (TAG_MATCH_ERR == ret) {
-            log_fatal(logger, MODULE_RULE,
-                      "[%s:%d] table: <%s> has invalid tag format in line:%s",
-                      __FUNCTION__, __LINE__, table_name, line);
-            goto END;
-        }
-
-        if (TAG_MATCH_UNMATCHED == ret) {
-            log_fatal(logger, MODULE_RULE,
-                      "[%s:%d] table: <%s> has unmatched tag in line:%s",
-                      __FUNCTION__, __LINE__, table_name, line);
-            goto END;
-        }
-    }
-
-END:
-    if (table_json) {
-        cJSON_Delete(table_json);
-    }
-
-    return ret;
-}
-
-static struct rule_item *rule_item_new(const char *table_line, struct rule_schema *schema,
-                 const char *table_name, struct log_handle *logger)
-{
-    int ret = rule_accept_tag_match(schema, table_line, table_name, logger);
-    if (ret == TAG_MATCH_UNMATCHED) {
-        return NULL;
-    }
-
-    cJSON *tmp_obj = NULL;
-    struct rule_item *rule_item = ALLOC(struct rule_item, 1);
-    cJSON *table_json = cJSON_Parse(table_line);
-
-    tmp_obj = cJSON_GetObjectItem(table_json, "uuid");
-    if (tmp_obj == NULL && tmp_obj->type != cJSON_String) {
-        log_fatal(logger, MODULE_RULE,
-                  "[%s:%d] table: <%s> has no rule_id or not string format in line:%s",
-                  __FUNCTION__, __LINE__, table_name, table_line);
-        goto error;
-    }
-    uuid_parse(tmp_obj->valuestring, rule_item->rule_uuid);
-
-    rule_item->table_line_len = strlen(table_line);
-    rule_item->table_line = ALLOC(char, rule_item->table_line_len + 1);
-    memcpy(rule_item->table_line, table_line, rule_item->table_line_len);
-
-    cJSON_Delete(table_json);
-    return rule_item;
-error:
-    if (table_json) {
-        cJSON_Delete(table_json);
-    }
-    FREE(rule_item);
     return NULL;
 }
 
@@ -805,8 +758,8 @@ maat_rule_bool_matcher_match(struct rule_runtime *rule_rt,
 			continue;
 		}
 
-        if (rule->user_data != NULL) {
-            user_data_array[ud_result_cnt] = rule->user_data;
+        if (rule != NULL) {
+            user_data_array[ud_result_cnt] = rule;
 			ud_result_cnt++;
         }
 	}
@@ -1106,13 +1059,13 @@ size_t rule_runtime_get_hit_paths(struct rule_runtime *rule_rt, int thread_id,
     int bool_match_ret =
         bool_matcher_match(rule_rt->bm, 
                           (unsigned long long *)utarray_eltptr(rule_compile_state->all_hit_conditions, 0),
-						  utarray_len(rule_compile_state->all_hit_conditions), expr_match, MAX_HIT_RULE_NUM);
+						  utarray_len(rule_compile_state->all_hit_conditions), expr_match, MAX_HIT_RULE_NUM);//TODO: maat_state_compile
 
 	for (int idx = 0; idx < bool_match_ret; idx++) {
         rule = (struct maat_rule *)expr_match[idx].user_tag;
 		assert(rule->magic_num == MAAT_RULE_MAGIC);
         assert(uuid_compare(rule->rule_uuid, expr_match[idx].expr_uuid) == 0);
-		if (0 == rule->condition_num || NULL == rule->user_data) {
+		if (0 == rule->condition_num) {
 			continue;
 		}
 
@@ -1263,14 +1216,13 @@ int rule_runtime_update_rule_exdata(struct rule_runtime *rule_rt,
     if (NULL == json) {
         log_debug(rule_rt->logger, MODULE_RULE,
                   "[%s:%d]parse row failed when updating rule exdata, row:%s", __FUNCTION__, __LINE__, row);
-        return -1;
+        goto ERROR;
     }
     cJSON *uuid_obj = cJSON_GetObjectItem(json, "uuid");
     if (NULL == uuid_obj) {
         log_debug(rule_rt->logger, MODULE_RULE,
                   "[%s:%d]get uuid failed when updating rule exdata, row:%s", __FUNCTION__, __LINE__, row);
-        cJSON_Delete(json);
-        return -1;
+        goto ERROR;
     }
 
     uuid_t key;
@@ -1283,7 +1235,7 @@ int rule_runtime_update_rule_exdata(struct rule_runtime *rule_rt,
             // delete
             ret = ex_data_runtime_del_ex_container(rule_rt->ex_data_rt, (char*)&key, key_len);
             if (ret < 0) {
-                return -1;
+                goto ERROR;
             }
         } else {
             // add
@@ -1298,7 +1250,8 @@ int rule_runtime_update_rule_exdata(struct rule_runtime *rule_rt,
                       "key:%s", __FUNCTION__, __LINE__, table_name, key);
                 ex_container_free(rule_rt->ex_data_rt, ex_container);
                 //don't return failed, ignore the case of adding duplicate keys
-                return 0;
+                ret = 0;
+                goto ERROR;
             }
         }
     }
@@ -1308,7 +1261,14 @@ int rule_runtime_update_rule_exdata(struct rule_runtime *rule_rt,
         rule_rt->exdata_num = ex_data_runtime_cached_row_count(rule_rt->ex_data_rt);
     }
 
+    cJSON_Delete(json);
+
     return 0;
+ERROR:
+    if (json != NULL) {
+        cJSON_Delete(json);
+    }
+    return ret;
 }
 
 int rule_runtime_commit_exdata(void *rule_runtime, const char *table_name,
@@ -1371,11 +1331,6 @@ rule_runtime_add_rule(struct rule_runtime *rule_rt,
                             const char *line, struct log_handle *logger)
 {
     struct maat_rule *rule = NULL;
-    struct rule_item *rule_item = rule_item_new(line, schema, table_name,
-                                                         rule_rt->logger);
-    if (NULL == rule_item) {
-        goto ERROR;
-    }
 
     int table_id = table_manager_get_table_id(schema->ref_tbl_mgr, table_name);
     if (table_id < 0) {
@@ -1402,7 +1357,7 @@ rule_runtime_add_rule(struct rule_runtime *rule_rt,
         goto ERROR;
     }
 
-    rule = maat_rule_new(rule_rt, schema, table_name, *rule_uuid, line, rule_item);
+    rule = maat_rule_new(rule_rt, schema, table_name, *rule_uuid, line);
     if (NULL == rule) {
         log_fatal(logger, MODULE_RULE,
                   "[%s:%d]maat_rule_new failed, drop line:%s",
@@ -1415,10 +1370,6 @@ rule_runtime_add_rule(struct rule_runtime *rule_rt,
     return 0;
 
 ERROR:
-    if (rule_item != NULL) {
-        rule_item_free(rule_item);
-    }
-
     return -1;
 }
 
@@ -1643,41 +1594,25 @@ long long rule_runtime_update_err_count(void *rule_runtime)
     return rule_rt->update_err_cnt;
 }
 
-static int rule_sort_para_compare(const struct rule_sort_para *a,
-                                     const struct rule_sort_para *b)
+static int compare_rule(const void *a, const void *b)
 {
-	//If rule rule's execute sequences are not specified or equal.
-	if (a->condition_num != b->condition_num) {
-		return (a->condition_num - b->condition_num);
+	const struct maat_rule *ra = *(const struct maat_rule **)a;
+	const struct maat_rule *rb = *(const struct maat_rule **)b;
+
+    if (ra->ptiority != rb->ptiority) {
+        return (ra->ptiority - rb->ptiority);
+    } else if (ra->condition_num != rb->condition_num) {
+		return (rb->condition_num - ra->condition_num);
 	} else {
-        return uuid_compare(b->rule_uuid, a->rule_uuid);
+        return uuid_compare(rb->rule_uuid, ra->rule_uuid);
 	}
-}
-
-static void rule_sort_para_set(struct rule_sort_para *para, 
-                                  const struct rule_item *item)
-{
-    uuid_copy(para->rule_uuid, item->rule_uuid);
-	para->condition_num = item->condition_num;
-}
-
-static int compare_rule_item(const void *a, const void *b)
-{
-	const struct rule_item *ra = *(const struct rule_item **)a;
-	const struct rule_item *rb = *(const struct rule_item **)b;
-	
-	struct rule_sort_para sa, sb;
-	rule_sort_para_set(&sa, ra);
-	rule_sort_para_set(&sb, rb);
-
-	return rule_sort_para_compare(&sa, &sb);
 }
 
 int rule_runtime_match(int table_id, struct rule_runtime *rule_rt, uuid_t *rule_uuids,
                           size_t rule_ids_size, struct maat_state *state)
 {
     struct rule_compile_state *rule_compile_state = state->rule_compile_state;
-    struct rule_item *rule_items[rule_ids_size];
+    struct maat_rule *rules[rule_ids_size];
     int clear_scan_not_obj_flag = 0;
 
     utarray_clear(rule_compile_state->all_hit_conditions);
@@ -1765,15 +1700,15 @@ int rule_runtime_match(int table_id, struct rule_runtime *rule_rt, uuid_t *rule_
     size_t bool_match_ret =
         maat_rule_bool_matcher_match(rule_rt, rule_compile_state,
                                         state->thread_id,
-                                        (void **)rule_items,
+                                        (void **)rules,
                                         rule_ids_size);
     if (bool_match_ret > 0) {
-        qsort(rule_items, bool_match_ret, sizeof(struct rule_item *),
-              compare_rule_item);
+        qsort(rules, bool_match_ret, sizeof(struct maat_rule *),
+              compare_rule);
     }
    
     for (size_t i = 0; i < bool_match_ret; i++) {
-        uuid_copy(rule_uuids[i], rule_items[i]->rule_uuid);
+        uuid_copy(rule_uuids[i], rules[i]->rule_uuid);
 	}
     
     return MIN(bool_match_ret, rule_ids_size);

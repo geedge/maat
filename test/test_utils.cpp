@@ -138,7 +138,8 @@ int write_json_to_redis(const char *json_filename, char *redis_ip, int redis_por
 int rule_table_set_line(struct maat *maat_inst, const char *table_name,
                            enum maat_operation op, const char *rule_uuid_str,
                            struct maat_cmd_and_condition and_conditions[],
-                           int condition_num, const char *action_para_str, int expire_after)
+                           int condition_num, const char *action_para_str, 
+                           int priority, int expire_after)
 {
     cJSON *json_root = cJSON_CreateObject();
 
@@ -176,6 +177,8 @@ int rule_table_set_line(struct maat *maat_inst, const char *table_name,
     if (action_para_str) {
         cJSON_AddStringToObject(json_root, "action_parameter", action_para_str);
     }
+
+    cJSON_AddNumberToObject(json_root, "priority", priority);
 
     char *json_str = cJSON_PrintUnformatted(json_root);
 

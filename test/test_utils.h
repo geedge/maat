@@ -23,7 +23,8 @@ int write_json_to_redis(const char *json_filename, char *redis_ip, int redis_por
 int rule_table_set_line(struct maat *maat_inst, const char *table_name,
                            enum maat_operation op, const char *rule_uuid_str,
                            struct maat_cmd_and_condition and_conditions[],
-                           int condition_num, const char *action_para_str, int expire_after);
+                           int condition_num, const char *action_para_str, 
+                           int priority, int expire_after);
 
 int object_group_table_set_line(struct maat *maat_inst, const char *table_name,
                                enum maat_operation op, const char *object_uuid_str,

@@ -373,6 +373,11 @@ void convert_maat_json_rule(cJSON **json_root, unsigned char *json_buff)
 	*/	
 	cJSON *tmp_rule = NULL;
 	cJSON_ArrayForEach(tmp_rule, rules) {
+		cJSON *priority_obj = cJSON_GetObjectItem(tmp_rule, "priority");
+		if (priority_obj == NULL) {
+			cJSON_AddNumberToObject(tmp_rule, "priority", 1000);
+		}
+
 		cJSON *tmp_and_condition = NULL;
 		cJSON *condition_array = cJSON_GetObjectItem(tmp_rule, "and_conditions");
 		cJSON_ArrayForEach(tmp_and_condition, condition_array) {

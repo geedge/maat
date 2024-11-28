@@ -18,6 +18,7 @@
 #define ARRAY_SIZE              10
 #define HIT_PATH_SIZE           128
 #define	WAIT_FOR_EFFECTIVE_S	2
+#define RULE_PRIORITY_DEFAULT   1000
 
 const char *g_table_info_path = "./table_info.json";
 const char *g_json_filename = "maat_json.json";
@@ -51,7 +52,8 @@ static int test_add_expr_command(struct maat *maat_inst, const char *expr_table,
     and_condition->or_conditions[0].object_uuids_str[0] = object_uuid_str;
     and_condition->or_conditions[0].object_num = 1;
     ret = rule_table_set_line(maat_inst, "RULE_DEFAULT", MAAT_OP_ADD,
-                                 rule_uuid_str, and_condition, 1, NULL, timeout);
+                                 rule_uuid_str, and_condition, 1, NULL,
+                                 RULE_PRIORITY_DEFAULT, timeout);
     EXPECT_EQ(ret, 1);
 
     return ret;
@@ -755,7 +757,8 @@ TEST_P(StringScan, BackslashR_N_Escape_IncUpdate) {
     and_condition.or_conditions[0].object_uuids_str[0] = object_uuid_str;
     and_condition.or_conditions[0].object_num = 1;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule_uuid_str, &and_condition, 1, NULL, 0);
+                                 rule_uuid_str, &and_condition, 1, NULL,
+                                 RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 3);
@@ -1008,9 +1011,9 @@ TEST_P(StringScan, PrefixAndSuffix) {
     EXPECT_EQ(n_hit_result, 2);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
-    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000151");
-    uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000152");
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000151");
 
     maat_state_reset(state);
     ret = maat_scan_string(maat_inst, mail_addr_table_name, mail_addr_field_name, hit_suffix,
@@ -1040,9 +1043,9 @@ TEST_P(StringScan, PrefixAndSuffix) {
     n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 2);
     uuid_unparse(results[0], uuid_str);
-    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000151");
-    uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000152");
+    uuid_unparse(results[1], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000151");
 
     maat_state_free(state);
     state = NULL;
@@ -1696,7 +1699,8 @@ TEST_P(StringScan, dynamic_config) {
     and_condition.or_conditions[0].object_num = 1;
     and_condition.or_conditions[0].object_uuids_str[0] = object_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule_uuid_str, &and_condition, 1, NULL, 0);
+                                 rule_uuid_str, &and_condition, 1, NULL,
+                                 RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 3);
@@ -1721,7 +1725,8 @@ TEST_P(StringScan, dynamic_config) {
 
     /* rule table del line */
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
-                                 rule_uuid_str, &and_condition, 1, NULL, 0);
+                                 rule_uuid_str, &and_condition, 1, NULL,
+                                 RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -2332,7 +2337,8 @@ TEST_F(IPScan, RuleUpdates) {
     and_condition.or_conditions[0].object_uuids_str[0] = object_uuid_str;
     and_condition.or_conditions[0].field_name = field_name;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
-                                 rule_uuid_str, &and_condition, 1, NULL, 0);
+                                 rule_uuid_str, &and_condition, 1, NULL,
+                                 RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -2357,7 +2363,8 @@ TEST_F(IPScan, RuleUpdates) {
 
     /* rule table del line */
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, 
-                                 rule_uuid_str, &and_condition, 1, NULL, 0);
+                                 rule_uuid_str, &and_condition, 1, NULL,
+                                 RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -5537,13 +5544,13 @@ TEST_F(Policy, EvaluationOrder) {
     EXPECT_EQ(n_hit_result, 3);
     char uuid_str[UUID_STR_LEN] = {0};
     uuid_unparse(results[0], uuid_str);
-    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000166");
-
-    uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000168");
 
-    uuid_unparse(results[2], uuid_str);
+    uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000167");
+
+    uuid_unparse(results[2], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000166");
 
     struct maat_hit_path hit_path[128];
     memset(hit_path, 0, sizeof(hit_path));
@@ -5620,8 +5627,8 @@ TEST_F(Policy, EvaluationOrder) {
 
     n_hit_result = maat_state_compile(state, default_rule_table_name, results, exdata_array, ARRAY_SIZE);
     EXPECT_EQ(n_hit_result, 4);
-    uuid_unparse(results[3], uuid_str);
-    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000165");
+    uuid_unparse(results[0], uuid_str);
+    EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000165");//higher priority
 
     maat_state_free(state);
 }
@@ -6262,7 +6269,8 @@ TEST_F(MaatCmd, SetIP) {
     and_condition.or_conditions[0].object_num = 1;
     and_condition.or_conditions[0].object_uuids_str[0] = object_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule_uuid_str, &and_condition, 1, NULL, 0);
+                            rule_uuid_str, &and_condition, 1, NULL,
+                            RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -6339,10 +6347,10 @@ TEST_F(MaatCmd, SetExpr) {
     maat_state_reset(state);
 
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, rule_uuid_str1, 
-                                 &and_condition1, 1, NULL, 0);
+                                 &and_condition1, 1, NULL, RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, rule_uuid_str2, 
-                                 &and_condition2, 1, NULL, 0);
+                                 &and_condition2, 1, NULL, RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
@@ -6417,7 +6425,8 @@ TEST_F(MaatCmd, SetExpr8) {
     and_condition.or_conditions[0].object_num = 1;
     and_condition.or_conditions[0].object_uuids_str[0] = object_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule_uuid_str, &and_condition, 1, NULL, 0);
+                                     rule_uuid_str, &and_condition, 1, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -6486,7 +6495,8 @@ TEST_F(MaatCmd, ObjectScan) {
     and_condition.or_conditions[0].object_num = 1;
     and_condition.or_conditions[0].object_uuids_str[0] = object_uuid_str;
     int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule_uuid_str, &and_condition, 1, NULL, 0);
+                                     rule_uuid_str, &and_condition, 1, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -6553,7 +6563,8 @@ TEST_F(MaatCmd, SameFilterRefByOneRule) {
     and_condition[1].or_conditions[0].object_num = 1;
     and_condition[1].or_conditions[0].object_uuids_str[0] = object_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule_uuid_str, and_condition, 2, NULL, 0); // rule has two condition
+                                     rule_uuid_str, and_condition, 2, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0); // rule has two condition
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -6608,7 +6619,7 @@ TEST_F(MaatCmd, RuleIDRecycle) {
 
     maat_state_reset(state);
 
-    rule_table_set_line(maat_inst, "RULE_DEFAULT", MAAT_OP_DEL, rule_uuid_str, &and_condition, 1, NULL, 0);
+    rule_table_set_line(maat_inst, "RULE_DEFAULT", MAAT_OP_DEL, rule_uuid_str, &and_condition, 1, NULL, RULE_PRIORITY_DEFAULT, 0);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     ret = maat_scan_string(maat_inst, table_name, field_name, scan_data, strlen(scan_data), state);
@@ -6736,7 +6747,8 @@ TEST_F(MaatCmd, SubObject) {
     and_condition.or_conditions[0].object_num = 1;
     and_condition.or_conditions[0].object_uuids_str[0] = object1_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
-                                     rule1_uuid_str, &and_condition, 1, NULL, 0);
+                                     rule1_uuid_str, &and_condition, 1, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     //rule2
@@ -6745,7 +6757,8 @@ TEST_F(MaatCmd, SubObject) {
     char rule2_uuid_str[UUID_STR_LEN] = {0};
     snprintf(rule2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule2_id);
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
-                                 rule2_uuid_str, &and_condition, 1, NULL, 0);
+                                 rule2_uuid_str, &and_condition, 1, NULL,
+                                 RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -6774,7 +6787,8 @@ TEST_F(MaatCmd, SubObject) {
                            \_ X -> rule2
     */
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, 
-                                 rule2_uuid_str, &and_condition, 1, NULL, 0);
+                                 rule2_uuid_str, &and_condition, 1, NULL,
+                                 RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
@@ -6796,12 +6810,14 @@ TEST_F(MaatCmd, SubObject) {
                    \_ -> rule2
     */
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, 
-                                 rule1_uuid_str, &and_condition, 1, NULL, 0);
+                                 rule1_uuid_str, &and_condition, 1, NULL,
+                                 RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     and_condition.or_conditions[0].object_uuids_str[0] = object2_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
-                                 rule2_uuid_str, &and_condition, 1, NULL, 0);
+                                 rule2_uuid_str, &and_condition, 1, NULL,
+                                 RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -6854,11 +6870,13 @@ TEST_F(MaatCmd, SubObject) {
     */
     and_condition.or_conditions[0].object_uuids_str[0] = object1_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule1_uuid_str, &and_condition, 1, NULL, 0);
+                                 rule1_uuid_str, &and_condition, 1, NULL,
+                                 RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
-                                 rule1_uuid_str, &and_condition, 1, NULL, 0);
+                                 rule1_uuid_str, &and_condition, 1, NULL,
+                                 RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -6911,7 +6929,8 @@ TEST_F(MaatCmd, RefObject) {
     and_condition.or_conditions[0].object_num = 1;
     and_condition.or_conditions[0].object_uuids_str[0] = object1_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
-                                     rule1_uuid_str, &and_condition, 1, NULL, 0);
+                                     rule1_uuid_str, &and_condition, 1, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -6919,14 +6938,15 @@ TEST_F(MaatCmd, RefObject) {
     /* item1 -> object1 -> X                   
         item2 -> object2 -> rule1
     */
-    rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, rule1_uuid_str, &and_condition, 1, NULL, 0);
+    rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, rule1_uuid_str, &and_condition, 1, NULL, RULE_PRIORITY_DEFAULT, 0);
 
     long long object2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
     char object2_uuid_str[UUID_STR_LEN] = {0};
     snprintf(object2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", object2_id);
     and_condition.or_conditions[0].object_uuids_str[0] = object2_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
-                                     rule1_uuid_str, &and_condition, 1, NULL, 0);
+                                     rule1_uuid_str, &and_condition, 1, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -7008,7 +7028,8 @@ TEST_F(MaatCmd, Field) {
     and_conditions[1].or_conditions[0].object_num = 1;
     and_conditions[1].or_conditions[0].object_uuids_str[0] = object2_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
-                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
+                                     rule1_uuid_str, and_conditions, 2, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -7044,14 +7065,16 @@ TEST_F(MaatCmd, Field) {
 
     //delete object1
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL, 
-                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
+                                     rule1_uuid_str, and_conditions, 2, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     and_conditions[0].negate_option = 0;
     and_conditions[0].or_condition_num = 1;
     and_conditions[0].or_conditions[0].field_name = field_resp_name;
     and_conditions[0].or_conditions[0].object_num = 1;
     and_conditions[0].or_conditions[0].object_uuids_str[0] = object2_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD, 
-                                     rule1_uuid_str, and_conditions, 1, NULL, 0);
+                                     rule1_uuid_str, and_conditions, 1, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -7353,14 +7376,16 @@ TEST_F(MaatCmd, RuleEXData) {
     and_condition.or_conditions[0].object_num = 1;
     and_condition.or_conditions[0].object_uuids_str[0] = object_uuid_str;
     int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_uuid_str, &and_condition, 1, "test:rule1,1111", 0);
+                                     rule1_uuid_str, &and_condition, 1, "test:rule1,1111",
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     long long rule2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
     char rule2_uuid_str[UUID_STR_LEN] = {0};
     snprintf(rule2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule2_id);
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule2_uuid_str, &and_condition, 1, "test:rule2,2222", 0);
+                                 rule2_uuid_str, &and_condition, 1, "test:rule2,2222",
+                                 RULE_PRIORITY_DEFAULT, 0);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     *ex_data_counter = 0;
@@ -7389,6 +7414,7 @@ TEST_F(MaatCmd, RuleEXData) {
     uuid_unparse(results[1], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
+    maat_state_free(state);
 
     ASSERT_TRUE(exdata_array[0] != NULL);
     struct rule_ex_param *param = (struct rule_ex_param *)exdata_array[0];
@@ -7399,7 +7425,8 @@ TEST_F(MaatCmd, RuleEXData) {
 	EXPECT_EQ(param->id, 1111);
 
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
-                                 rule2_uuid_str, &and_condition, 1, "test:rule2,2222", 0);
+                                 rule2_uuid_str, &and_condition, 1, "test:rule2,2222",
+                                 RULE_PRIORITY_DEFAULT, 0);
     sleep(WAIT_FOR_EFFECTIVE_S);
     EXPECT_EQ(param->id, 1111); 
     sleep(2);
@@ -7837,7 +7864,8 @@ TEST_F(MaatCmd, ObjectInMassRules) {
         rule_id[i] = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
         snprintf(rule_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule_id[i]);
         ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule_uuid_str, and_conditions, 2, "mass_rule", 0);
+                                     rule_uuid_str, and_conditions, 2, "mass_rule",
+                                     RULE_PRIORITY_DEFAULT, 0);
         EXPECT_EQ(ret, 1);
     }
 
@@ -7860,7 +7888,8 @@ TEST_F(MaatCmd, ObjectInMassRules) {
     target_and_conditions[1].or_conditions[0].object_num = 1;
     target_and_conditions[1].or_conditions[0].object_uuids_str[0] = object3_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 target_rule_uuid_str, target_and_conditions, 2, "null", 0);
+                                 target_rule_uuid_str, target_and_conditions, 2, "null",
+                                 RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -7965,7 +7994,8 @@ TEST_F(MaatCmd, HitObject) {
     and_conditions[1].or_conditions[0].object_num = 1;
     and_conditions[1].or_conditions[0].object_uuids_str[0] = object21_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
+                                     rule1_uuid_str, and_conditions, 2, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     /* item1 -> object1 -> rule1
@@ -8230,7 +8260,8 @@ TEST_F(MaatCmd, HitPathBasic) {
     and_conditions[1].or_conditions[0].object_uuids_str[0] = object21_uuid_str;
     snprintf(rule1_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule1_id);
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                rule1_uuid_str, and_conditions, 2, NULL, 0);
+                                rule1_uuid_str, and_conditions, 2, NULL,
+                                RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     /* item1 -> object1 -> rule1
@@ -8570,7 +8601,8 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     and_conditions[1].or_conditions[0].object_num = 1;
     and_conditions[1].or_conditions[0].object_uuids_str[0] = object21_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
+                                     rule1_uuid_str, and_conditions, 2, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     /* item1 -> object1 -> rule1
@@ -8629,7 +8661,8 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     and_conditions[1].or_conditions[0].object_num = 1;
     and_conditions[1].or_conditions[0].object_uuids_str[0] = object3_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule2_uuid_str, and_conditions, 2, NULL, 0);
+                                     rule2_uuid_str, and_conditions, 2, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
 
@@ -8674,7 +8707,8 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     and_conditions[1].or_conditions[0].object_num = 1;
     and_conditions[1].or_conditions[0].object_uuids_str[0] = object4_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule3_uuid_str, and_conditions, 2, NULL, 0);
+                                     rule3_uuid_str, and_conditions, 2, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -9009,7 +9043,8 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     and_conditions[1].or_conditions[0].object_num = 1;
     and_conditions[1].or_conditions[0].object_uuids_str[0] = object21_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
+                                     rule1_uuid_str, and_conditions, 2, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     /* !(item1 -> object1) -> rule1
@@ -9331,14 +9366,16 @@ TEST_F(MaatCmd, SameSuperObjectRefByMultiRule) {
     and_condition.or_conditions[0].object_num = 1;
     and_condition.or_conditions[0].object_uuids_str[0] = object52_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule2_uuid_str, &and_condition, 1, "HTTP_RESPONSE_HEADER", 0);
+                                 rule2_uuid_str, &and_condition, 1, "HTTP_RESPONSE_HEADER",
+                                 RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     long long rule3_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
     char rule3_uuid_str[UUID_STR_LEN] = {0};
     snprintf(rule3_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule3_id);
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule3_uuid_str, &and_condition, 1, "HTTP_RESPONSE_HEADER", 0);
+                                 rule3_uuid_str, &and_condition, 1, "HTTP_RESPONSE_HEADER",
+                                 RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -9455,7 +9492,8 @@ TEST_F(MaatCmd, ObjectEdit) {
     and_conditions[1].or_conditions[0].object_num = 1;
     and_conditions[1].or_conditions[0].object_uuids_str[0] = object21_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
+                                     rule1_uuid_str, and_conditions, 2, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -9582,7 +9620,8 @@ TEST_F(MaatCmd, RuleDelete_TSG6548) {
     and_conditions[0].or_conditions[0].object_num = 1;
     and_conditions[0].or_conditions[0].object_uuids_str[0] = object11_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_uuid_str, and_conditions, 1, NULL, 0);
+                                     rule1_uuid_str, and_conditions, 1, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -9610,7 +9649,8 @@ TEST_F(MaatCmd, RuleDelete_TSG6548) {
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
-                                 rule1_uuid_str, and_conditions, 1, NULL, 0);
+                                 rule1_uuid_str, and_conditions, 1, NULL,
+                                 RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     int hit_cnt = 0;
@@ -9668,7 +9708,8 @@ TEST_F(MaatCmd, UpdateDeadLockDetection) {
     and_conditions[0].or_conditions[0].object_num = 1;
     and_conditions[0].or_conditions[0].object_uuids_str[0] = object1_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_uuid_str, and_conditions, 1, NULL, 0);
+                                     rule1_uuid_str, and_conditions, 1, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -9710,7 +9751,8 @@ TEST_F(MaatCmd, UpdateDeadLockDetection) {
     snprintf(rule2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule2_id);
     and_conditions[0].or_conditions[0].object_uuids_str[0] = object2_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule2_uuid_str, and_conditions, 1, NULL, 0);
+                                 rule2_uuid_str, and_conditions, 1, NULL,
+                                 RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     //DON'T DO THIS!!!
@@ -9763,7 +9805,8 @@ TEST_F(MaatCmd, StreamScanWhenExprTableIncUpdate) {
     and_conditions[0].or_conditions[0].object_num = 1;
     and_conditions[0].or_conditions[0].object_uuids_str[0] = object1_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_uuid_str, and_conditions, 1, NULL, 0);
+                                     rule1_uuid_str, and_conditions, 1, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -9851,7 +9894,8 @@ TEST_F(MaatCmd, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
     and_conditions[0].or_conditions[0].object_num = 1;
     and_conditions[0].or_conditions[0].object_uuids_str[0] = object1_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_uuid_str, and_conditions, 1, NULL, 0);
+                                     rule1_uuid_str, and_conditions, 1, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -9946,7 +9990,8 @@ TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
     and_conditions[1].or_conditions[0].object_num = 1;
     and_conditions[1].or_conditions[0].object_uuids_str[0] = object2_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
+                                     rule1_uuid_str, and_conditions, 2, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -9976,7 +10021,8 @@ TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
     char rule2_uuid_str[UUID_STR_LEN] = {0};
     snprintf(rule2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule2_id);
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule2_uuid_str, and_conditions, 2, NULL, 0);
+                                 rule2_uuid_str, and_conditions, 2, NULL,
+                                 RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -10056,7 +10102,8 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
     and_conditions[1].or_conditions[0].object_num = 1;
     and_conditions[1].or_conditions[0].object_uuids_str[0] = object2_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
+                                     rule1_uuid_str, and_conditions, 2, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -10164,7 +10211,8 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
     and_conditions[1].or_conditions[0].object_num = 1;
     and_conditions[1].or_conditions[0].object_uuids_str[0] = object2_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
+                                     rule1_uuid_str, and_conditions, 2, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -10191,7 +10239,8 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
     char rule2_uuid_str[UUID_STR_LEN] = {0};
     snprintf(rule2_uuid_str, UUID_STR_LEN, "00000000-0000-0000-0000-%012lld", rule2_id);
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                 rule2_uuid_str, and_conditions, 2, NULL, 0);
+                                 rule2_uuid_str, and_conditions, 2, NULL,
+                                 RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -10269,7 +10318,8 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
     and_conditions[1].or_conditions[0].object_num = 1;
     and_conditions[1].or_conditions[0].object_uuids_str[0] = object2_uuid_str;
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule1_uuid_str, and_conditions, 2, NULL, 0);
+                                     rule1_uuid_str, and_conditions, 2, NULL,
+                                     RULE_PRIORITY_DEFAULT, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
