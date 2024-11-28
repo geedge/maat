@@ -74,7 +74,7 @@ int rule_runtime_match(int table_id, struct rule_runtime *rule_rt, uuid_t *rule_
 int rule_runtime_need_compile(int table_id, struct rule_runtime *rule_rt, struct rule_compile_state *rule_compile_state);
 
 size_t rule_runtime_get_hit_paths(struct rule_runtime *rule_rt, int thread_id,
-									 struct rule_compile_state *rule_compile_state, 
+									 struct maat_state *state, 
                                   	 struct maat_hit_path *hit_path_array, 
                                      size_t array_size, size_t n_hit_path);
 
@@ -88,7 +88,7 @@ void rule_compile_state_free(struct rule_compile_state *rule_compile_state,
                         struct maat *maat_instance, int thread_id);
 
 int rule_compile_state_update(struct rule_compile_state *rule_compile_state, struct maat *maat_inst,
-                         const char *field_name, int custom_rule_tbl_id, int Nth_scan,
+                         const char *field_name, int Nth_scan,
                          struct maat_item *hit_items, size_t n_hit_item);
 
 void rule_compile_state_not_logic_update(struct maat *maat_inst, struct rule_compile_state *rule_compile_state, const char *field_name, int Nth_scan);

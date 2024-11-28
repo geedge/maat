@@ -1602,8 +1602,7 @@ static void maat_state_add_hit_object(struct maat_state *state, const char *fiel
     }
 
     rule_compile_state_update(state->rule_compile_state, maat_inst, field_name,
-                         state->rule_table_id, state->Nth_scan,
-                         hit_items, n_hit_item);
+                         state->Nth_scan, hit_items, n_hit_item);
 }
 
 int maat_scan_object(struct maat *maat_inst, const char *table_name, const char *field_name,
@@ -1848,7 +1847,6 @@ void maat_state_reset(struct maat_state *state)
         return;
     }
 
-    state->rule_table_id = 0;
     state->Nth_scan = 0;
 
     if (state->rule_compile_state != NULL) {
@@ -1885,8 +1883,8 @@ void maat_state_free(struct maat_state *state)
                               thread_id, sizeof(struct maat_state));
 }
 
-int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *path_array,
-                             size_t array_size)
+int maat_state_get_hit_paths(struct maat_state *state, const char *table_name, 
+                            struct maat_hit_path *path_array, size_t array_size)
 {
     if (NULL == state || NULL == path_array || 0 == array_size) {
         return -1;
@@ -1903,10 +1901,9 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
         return 0;
     }
 
-    int rule_table_id =
-        table_manager_get_default_rule_table_id(maat_inst->tbl_mgr);
-    if (state->rule_table_id > 0) {
-        rule_table_id = state->rule_table_id;
+    int rule_table_id = table_manager_get_table_id(maat_inst->tbl_mgr, table_name);
+    if (rule_table_id < 0) {
+        return -1;
     }
 
     void *rule_rt = table_manager_get_runtime(maat_inst->tbl_mgr,
@@ -1925,7 +1922,7 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
                                              path_array, array_size);
 
     return rule_runtime_get_hit_paths((struct rule_runtime *)rule_rt,
-                                         state->thread_id, state->rule_compile_state,
+                                         state->thread_id, state,
                                          path_array, array_size, hit_path_cnt);
 }
 

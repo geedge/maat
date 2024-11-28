@@ -303,8 +303,8 @@ void maat_state_reset(struct maat_state *state);
 
 void maat_state_free(struct maat_state *state);
 
-int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *path_array, 
-                             size_t array_size);
+int maat_state_get_hit_paths(struct maat_state *state, const char *table_name, 
+                            struct maat_hit_path *path_array, size_t array_size);
                              
 /**
  * @brief get the total number of scans after maat_state_new

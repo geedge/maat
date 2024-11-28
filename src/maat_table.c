@@ -50,7 +50,6 @@ struct table_manager {
     size_t n_accept_tag;
 
     enum expr_engine_type engine_type;
-    int default_rule_table_id;
     int object_group_table_id;
     struct maat_kv_store *tbl_name2id_map;
     struct maat_kv_store *conj_tbl_name2id_map;
@@ -697,18 +696,6 @@ static int register_tbl_name2id(struct maat_kv_store *tbl_name2id_map, cJSON *ro
     return 0;
 }
 
-int maat_default_rule_table_id(cJSON *json, struct log_handle *logger)
-{
-    cJSON *item = cJSON_GetObjectItem(json, "default_rule_table");
-    if (NULL == item || item->type != cJSON_Number) {
-        return -1;
-    }
-
-    item = cJSON_GetObjectItem(json, "table_id");
-    //item is cJSON_Number which has been checked in maat_table_new
-    return item->valueint;
-}
-
 struct table_manager *
 table_manager_create(const char *table_info_path, const char *accept_tags,
                      enum maat_expr_engine engine_type, struct maat_garbage_bin *garbage_bin,
@@ -777,7 +764,6 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
         return NULL;
     }
 
-    int default_rule_table_id = -1;
     int object_group_table_id = -1;
     struct maat_kv_store *reserved_word_map = maat_kv_store_new();
     register_reserved_word(reserved_word_map);
@@ -809,12 +795,6 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
                 }
             }
 
-            if (maat_tbl->table_type == TABLE_TYPE_RULE) {
-                if (default_rule_table_id < 0) {
-                    default_rule_table_id = maat_default_rule_table_id(json, logger);
-                } 
-            }
-
             if (maat_tbl->table_type == TABLE_TYPE_OBJECT_GROUP) { 
                 object_group_table_id = maat_tbl->table_id;
             }
@@ -828,10 +808,8 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
         }
     }
 
-    tbl_mgr->default_rule_table_id = default_rule_table_id;
     tbl_mgr->object_group_table_id = object_group_table_id;
 
-    log_info(logger, MODULE_TABLE, "default rule table id: %d", default_rule_table_id);
     log_info(logger, MODULE_TABLE, "object_group table id: %d", object_group_table_id);
 next:
     FREE(json_buff);
@@ -1038,15 +1016,6 @@ enum table_type table_manager_get_table_type(struct table_manager *tbl_mgr, int 
     }
 
     return tbl_mgr->tbl[table_id]->table_type;
-}
-
-int table_manager_get_default_rule_table_id(struct table_manager *tbl_mgr)
-{
-    if (NULL == tbl_mgr) {
-        return -1;
-    }
-
-    return tbl_mgr->default_rule_table_id;
 }
 
 int table_manager_get_object_group_table_id(struct table_manager *tbl_mgr)

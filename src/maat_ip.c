@@ -549,8 +549,7 @@ next:
     }
 
     return rule_compile_state_update(state->rule_compile_state, state->maat_inst, field_name,
-                                state->rule_table_id, state->Nth_scan,
-                                hit_maat_items, real_hit_item_cnt);
+                                state->Nth_scan, hit_maat_items, real_hit_item_cnt);
 }
 
 void ip_runtime_perf_stat(struct ip_runtime *ip_rt, struct timespec *start,

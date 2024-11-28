@@ -267,7 +267,7 @@ TEST_F(FlagScan, basic) {
     struct maat_hit_path hit_path[HIT_PATH_SIZE];
     int n_read = 0;
     memset(hit_path, 0, sizeof(hit_path));
-    n_read = maat_state_get_hit_paths(state, hit_path, HIT_PATH_SIZE);
+    n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, HIT_PATH_SIZE);
     EXPECT_NE(n_read, 0);
     maat_state_reset(state);
 
@@ -337,7 +337,7 @@ TEST_F(FlagScan, withExprRegion) {
     int n_read = 0;
 
     memset(hit_path, 0, sizeof(hit_path));
-    n_read = maat_state_get_hit_paths(state, hit_path, HIT_PATH_SIZE);
+    n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, HIT_PATH_SIZE);
     EXPECT_NE(n_read, 0);
 
     const char *expr_scan_data = "hello world";
@@ -407,7 +407,7 @@ TEST_F(FlagScan, hitMultiRule) {
     int n_read = 0;
 
     memset(hit_path, 0, sizeof(hit_path));
-    n_read = maat_state_get_hit_paths(state, hit_path, HIT_PATH_SIZE);
+    n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, HIT_PATH_SIZE);
     EXPECT_NE(n_read, 0);
 
     maat_state_free(state);
@@ -478,7 +478,7 @@ TEST_F(FlagScan, hitRepeatedRule) {
     int n_read = 0;
 
     memset(hit_path, 0, sizeof(hit_path));
-    n_read = maat_state_get_hit_paths(state, hit_path, HIT_PATH_SIZE);
+    n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, HIT_PATH_SIZE);
     EXPECT_NE(n_read, 0);
 
     maat_state_free(state);
@@ -840,7 +840,7 @@ TEST_P(StringScan, Expr8) {
     int n_read = 0;
 
     memset(hit_path, 0, sizeof(hit_path));
-    n_read = maat_state_get_hit_paths(state, hit_path, HIT_PATH_SIZE);
+    n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, HIT_PATH_SIZE);
     EXPECT_NE(n_read, 0);
 
     maat_state_free(state);
@@ -5250,7 +5250,7 @@ TEST_F(RuleTable, Conjunction1) {
     EXPECT_STREQ(uuid_str, "00000000-0000-0000-0000-000000000141");
 
     struct maat_hit_path hit_path[HIT_PATH_SIZE];
-    int n_read = maat_state_get_hit_paths(state, hit_path, HIT_PATH_SIZE);
+    int n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, HIT_PATH_SIZE);
     EXPECT_EQ(n_read, 2);
 
     maat_state_free(state);
@@ -5285,7 +5285,7 @@ TEST_F(RuleTable, Conjunction2) {
 
 
     struct maat_hit_path hit_path[HIT_PATH_SIZE];
-    int n_read = maat_state_get_hit_paths(state, hit_path, HIT_PATH_SIZE);
+    int n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, HIT_PATH_SIZE);
     EXPECT_EQ(n_read, 2);
 
     ret = maat_scan_string(maat_inst, table_name, field_name, scan_data, strlen(scan_data), state);
@@ -5298,7 +5298,7 @@ TEST_F(RuleTable, Conjunction2) {
     EXPECT_EQ(n_hit_result, 2);
 
     memset(hit_path, 0, sizeof(hit_path));
-    n_read = maat_state_get_hit_paths(state, hit_path, HIT_PATH_SIZE);
+    n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, HIT_PATH_SIZE);
     EXPECT_EQ(n_read, 4);
 
     maat_state_free(state);
@@ -5554,7 +5554,7 @@ TEST_F(Policy, EvaluationOrder) {
 
     struct maat_hit_path hit_path[128];
     memset(hit_path, 0, sizeof(hit_path));
-    size_t n_hit_path = maat_state_get_hit_paths(state, hit_path, 128);
+    size_t n_hit_path = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, 128);
     EXPECT_EQ(n_hit_path, 6);
 
     EXPECT_STREQ(hit_path[0].field_name, field_name);
@@ -5669,7 +5669,7 @@ TEST_F(Policy, NotConditionHitPath) {
 
     struct maat_hit_path hit_path[128];
     memset(hit_path, 0, sizeof(hit_path));
-    size_t n_hit_path = maat_state_get_hit_paths(state, hit_path, 128);
+    size_t n_hit_path = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, 128);
     EXPECT_EQ(n_hit_path, 4);
 
     EXPECT_EQ(hit_path[0].Nth_scan, 1);
@@ -8351,7 +8351,7 @@ TEST_F(MaatCmd, HitPathBasic) {
 
     struct maat_hit_path hit_path[128];
     memset(hit_path, 0, sizeof(hit_path));
-    int n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    int n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 2);
 
     int path_idx = 0;
@@ -8392,7 +8392,7 @@ TEST_F(MaatCmd, HitPathBasic) {
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 2);
 
-    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 4);
     
     path_idx = 0;
@@ -8462,7 +8462,7 @@ that the edges be all directed in the same direction.";
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 3);
 
-    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 5);
 
     path_idx++;
@@ -8492,7 +8492,7 @@ that the edges be all directed in the same direction.";
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 4);
  
-    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 6);
 
     path_idx++;
@@ -8519,7 +8519,7 @@ that the edges be all directed in the same direction.";
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 5);
 
-    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 7);
 
     path_idx++;
@@ -8731,7 +8731,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 
     struct maat_hit_path hit_path[128];
     memset(hit_path, 0, sizeof(hit_path));
-    int n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    int n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 1);
 
     int path_idx = 0;
@@ -8755,7 +8755,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     uuid_unparse(results[0], uuid_str);
     EXPECT_STREQ(uuid_str, rule1_uuid_str);
 
-    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 3);
     
     path_idx = 0;
@@ -8809,7 +8809,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     EXPECT_STREQ(uuid_str, rule2_uuid_str);
 
     memset(hit_path, 0, sizeof(hit_path));
-    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 5);
 
     path_idx = 0;
@@ -8890,7 +8890,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     EXPECT_STREQ(uuid_str, rule3_uuid_str);
 
     memset(hit_path, 0, sizeof(hit_path));
-    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 7);
 
     path_idx = 0;
@@ -9134,7 +9134,7 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
 
     struct maat_hit_path hit_path[128];
     memset(hit_path, 0, sizeof(hit_path));
-    int n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    int n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 2);
 
     int path_idx = 0;
@@ -9176,7 +9176,7 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 2);
 
-    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 4);
     
     path_idx = 0;
@@ -9247,7 +9247,7 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 3);
 
-    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 5);
 
     path_idx++;
@@ -9277,7 +9277,7 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 4);
  
-    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 6);
 
     path_idx++;
@@ -9305,7 +9305,7 @@ TEST_F(MaatCmd, HitPathHasNotObject) {
     scan_times = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_times, 5);
 
-    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 7);
 
     path_idx++;
@@ -9404,7 +9404,7 @@ TEST_F(MaatCmd, SameSuperObjectRefByMultiRule) {
     EXPECT_STREQ(uuid_str, rule2_uuid_str);
 
     memset(hit_path, 0, sizeof(hit_path));
-    int n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    int n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 3);
 
     int path_idx = 0;
@@ -9557,7 +9557,7 @@ TEST_F(MaatCmd, ObjectEdit) {
     struct maat_hit_path hit_path[128];
     memset(hit_path, 0, sizeof(hit_path));
 
-    int n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    int n_read = maat_state_get_hit_paths(state, default_rule_table_name, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 2);
     maat_state_reset(state);
 

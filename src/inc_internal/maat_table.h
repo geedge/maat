@@ -80,7 +80,6 @@ const char *table_manager_get_table_schema_tag(struct table_manager *tbl_mgr, in
 
 enum table_type table_manager_get_table_type(struct table_manager *tbl_mgr, int table_id);
 
-int table_manager_get_default_rule_table_id(struct table_manager *tbl_mgr);
 int table_manager_get_object_group_table_id(struct table_manager *tbl_mgr);
 
 enum maat_expr_engine table_manager_get_expr_engine(struct table_manager *tbl_mgr);
